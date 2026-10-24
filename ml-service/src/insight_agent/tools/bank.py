@@ -4,7 +4,14 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from insight_agent.schemas import BankFragment
-from insight_agent.tools.search import BM25
+from insight_agent.tools.search import BM25, tokenize
+
+# These words/year labels alone identify neither a bank topic nor a relevant statement.
+_GENERIC = set(tokenize("банк банки взгляд оценка аналитика анализ обзор отчет статистика данные риск риски рынок рынки прогноз уровень динамика фактор ситуация текущий год квартал месяц компания ООО ПАО АО РФ"))
+
+
+def _specific_terms(text: str) -> set[str]:
+    return {term for term in tokenize(text) if term not in _GENERIC and any(c.isalpha() for c in term)}
 
 
 class BankSearchArgs(BaseModel):
@@ -24,6 +31,7 @@ class BankIndex:
     def __init__(self, fragments: list[BankFragment]):
         self.fragments = fragments
         self._bm25 = BM25([f"{f.doc_title} {' '.join(f.topics)} {f.text}" for f in fragments])
+        self._terms = {f.fragment_id: _specific_terms(f"{f.doc_title} {' '.join(f.topics)} {f.text}") for f in fragments}
 
     @classmethod
     def from_jsonl(cls, path: Path) -> "BankIndex":
@@ -42,10 +50,13 @@ class BankIndex:
             and (as_of is None or f.doc_date <= as_of) for old in f.supersedes}
         ranked = sorted(zip(self.fragments, self._bm25.scores(args.query)), key=lambda x: (-x[1], x[0].fragment_id))
         out = []
+        query_terms = _specific_terms(args.query)
         for frag, score in ranked:
             if score <= 0 or score < args.min_score:
                 break
             if frag.review_status != "verified" or frag.doc_date is None or frag.fragment_id in superseded:
+                continue
+            if not query_terms.intersection(self._terms[frag.fragment_id]):
                 continue
             if lower and frag.doc_date < lower or upper and frag.doc_date > upper:
                 continue

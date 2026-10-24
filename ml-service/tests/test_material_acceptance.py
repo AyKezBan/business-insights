@@ -52,3 +52,17 @@ def test_pdf_to_insight_original_url_and_trace_hash(tmp_path,settings,request_):
     trace=load_trace(settings.trace_dir,body['run_id'])
     result=next(e for e in trace if e.type=='tool_call' and e.data.get('tool')=='search_bank_analytics')
     assert f.content_sha256 in json.dumps(result.model_dump(mode='json'))
+
+
+def test_bank_search_does_not_treat_generic_risk_or_year_as_topic_evidence():
+    from insight_agent.schemas import BankFragment
+    from insight_agent.tools.bank import BankIndex,BankSearchArgs
+    fragment=BankFragment(fragment_id='synthetic',doc_id='synthetic',doc_title='Макростатистика 2026',
+        doc_date=date(2026,9,7),page=1,review_status='verified',statement_type='bank_assessment',
+        text='Июльская статистика говорит о сохранении проинфляционных рисков в экономике.')
+    index=BankIndex([fragment])
+    for query in ['Риск влияния манипуляций на котировки акций Сбербанка и Совкомбанка',
+                  'Анализ контрагентов ООО КИНЕТИК КАПИТАЛ по сделкам в I квартале 2026 года',
+                  'Статистика нарушений закона в брокерском секторе']:
+        assert index.search(BankSearchArgs(query=query,min_score=0.1),as_of=date(2026,10,24))==[]
+    assert index.search(BankSearchArgs(query='Проинфляционные риски в экономике',min_score=0.1),as_of=date(2026,10,24))

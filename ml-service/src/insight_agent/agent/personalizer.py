@@ -17,14 +17,15 @@ MAX_SOURCE_CHARS = 2500
 
 
 def _sources_block(state: AgentState) -> str:
-    parts = []
+    parts = [data_block("source_conflicts", c.model_dump_json()) for c in state.source_conflicts()]
     texts, truncated = pack_sources(state.source_texts(), limit=12000)
     if truncated:
         state.limited_reasons.append("контекст персонализации сокращён; полный текст сохранён: " + ", ".join(truncated))
     for sid, text in texts.items():
         ref = state.sources()[sid]
+        quality = state.bank[sid].model_dump_json(include={"review_status", "statement_type", "target_period", "valid_until"}) if sid in state.bank else ""
         parts.append(
-            data_block(ref.kind.value, f"source_id: {sid}\nназвание: {ref.title}\nдата: {ref.date}\nстраница: {ref.page}\n{text}")
+            data_block(ref.kind.value, f"source_id: {sid}\nназвание: {ref.title}\nдата: {ref.date}\nстраница: {ref.page}\n{quality}\n{text}")
         )
     return "\n".join(parts)
 

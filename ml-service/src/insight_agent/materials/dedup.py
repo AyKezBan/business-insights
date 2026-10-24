@@ -65,6 +65,8 @@ def merge_news(existing: list[NewsEvent], versions: list[SourceVersion], incomin
             earlier = incoming_by_url[url]
             if (normalize_news_text(earlier.text), earlier.title, earlier.published_at) != (normalize_news_text(raw.text), raw.title, raw.published_at):
                 raise ValueError("Two unordered versions of the same URL in one batch")
+            if earlier.retrieved_at >= raw.retrieved_at:
+                continue
         incoming_by_url[url] = raw
     for url, raw in sorted(incoming_by_url.items()):
         text = normalize_news_text(raw.text)
@@ -72,8 +74,9 @@ def merge_news(existing: list[NewsEvent], versions: list[SourceVersion], incomin
         url_versions = [v for v in result if v.url == url]
         active = next((v for v in url_versions if v.active), None)
         if active and (text_hash, raw.title, raw.published_at) == (active.content_sha256, active.title, active.published_at):
+            active.retrieved_at = max(active.retrieved_at, raw.retrieved_at)
             continue
-        stale = active is not None and raw.retrieved_at < active.first_seen_at
+        stale = active is not None and raw.retrieved_at < active.retrieved_at
         if stale and any(v.content_sha256 == text_hash for v in url_versions):
             continue
         if active:
@@ -102,5 +105,4 @@ def link_source(events: list[NewsEvent], versions: list[SourceVersion], event_id
     moved = [version.model_copy(update={"event_id": event_id}) if version.url == selected.url
              else version.model_copy() for version in versions]
     return NewsImportResult(events=events_from_versions(moved, events), versions=moved)
-
 

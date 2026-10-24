@@ -89,3 +89,32 @@ def test_manual_link_preserves_both_primary_texts_and_marks_disagreement():
     assert len(joined.events[0].related_sources)==1
     assert joined.events[0].conflicts
     assert {v.text for v in joined.versions}=={'Rate 17%','Rate 18%'}
+
+
+def test_delayed_import_orders_versions_by_source_observation_not_import_time():
+    from insight_agent.materials.dedup import merge_news
+    url='https://www.cbr.ru/a'
+    first=merge_news([],[],[raw(url,'Rate 17%',T-timedelta(hours=9))],observed_at=T)
+    second=merge_news(first.events,first.versions,[raw(url,'Rate 18%',T-timedelta(hours=8))],observed_at=T+timedelta(hours=1))
+    assert second.events[0].text=='Rate 18%'
+    assert len(second.versions)==2 and sum(v.active for v in second.versions)==1
+
+
+def test_same_content_observations_choose_latest_timestamp_in_either_batch_order():
+    from insight_agent.materials.dedup import merge_news
+    url='https://www.cbr.ru/a'
+    first=merge_news([],[],[raw(url,'Rate 17%')],observed_at=T)
+    observations=[raw(url,'Rate 18%',T-timedelta(hours=1)),raw(url,'Rate 18%',T+timedelta(hours=1))]
+    forward=merge_news(first.events,first.versions,observations,observed_at=T+timedelta(hours=2))
+    backward=merge_news(first.events,first.versions,list(reversed(observations)),observed_at=T+timedelta(hours=2))
+    assert forward==backward
+    assert forward.events[0].text=='Rate 18%'
+
+
+def test_confirmed_current_text_prevents_older_different_observation_rollback():
+    from insight_agent.materials.dedup import merge_news
+    url='https://www.cbr.ru/a'
+    first=merge_news([],[],[raw(url,'Rate 17%',T-timedelta(hours=9))],observed_at=T)
+    confirmed=merge_news(first.events,first.versions,[raw(url,'Rate 17%',T+timedelta(hours=2))],observed_at=T+timedelta(hours=2))
+    late=merge_news(confirmed.events,confirmed.versions,[raw(url,'Rate 18%',T+timedelta(hours=1))],observed_at=T+timedelta(hours=3))
+    assert late.events[0].text=='Rate 17%'

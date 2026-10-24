@@ -149,3 +149,36 @@ def test_reported_statistic_is_not_bank_assessment(request_):
     state.bank['bank_demo_rate_p3'].statement_type='reported_fact'
     claim=Claim(text='The bank forecasts 18%.',kind='assessment',source_ids=['bank_demo_rate_p3'])
     assert any(i.code=='unverified_bank_assessment' for i in check_claims([claim],state,section='bank_view'))
+
+
+def test_resolved_conflicts_from_retrieved_news_survive_card_and_qa(make_agent,request_):
+    from insight_agent.materials.models import SourceVersion
+    from insight_agent.schemas import SourceConflict
+    from insight_agent.tools.news import NewsStore
+    from insight_agent.agent.qa import answer_question
+    at=datetime(2026,10,23,tzinfo=timezone.utc)
+    texts={'related_a':'Ставки по корпоративным кредитам: показатель 17%.',
+           'related_b':'Ставки по корпоративным кредитам: показатель 18%.'}
+    versions=[SourceVersion(source_id=sid,event_id='related_event',url='https://www.cbr.ru/'+sid,revision=1,
+        content_sha256=hashlib.sha256(text.encode()).hexdigest(),published_at=at,first_seen_at=at,
+        retrieved_at=at,text=text,title='Ставки по корпоративным кредитам') for sid,text in texts.items()]
+    refs=[SourceRef(source_id=v.source_id,kind='news',title=v.title,url=v.url,content_sha256=v.content_sha256) for v in versions]
+    found=NewsEvent(event_id='related_event',title='Ставки по корпоративным кредитам',text=texts['related_a'],
+        published_at=at,source=refs[0],related_sources=[refs[1]],
+        conflicts=[SourceConflict(reason='different_numbers',source_ids=list(texts))])
+    draft=draft_reply();draft['why_it_matters'].append({'text':'Показатель 17%.','kind':'fact','source_ids':['related_a']})
+    seen=[]
+    def capture(messages):
+        seen.append(messages[-1]['content']);return draft
+    client=script(draft=draft);client.script['personalize']=[capture]
+    agent=make_agent(client);agent.news=NewsStore([found],versions)
+    insight=agent.run(request_)
+    assert insight.status=='limited'
+    assert {'related_a','related_b'} <= {s.source_id for s in insight.sources}
+    assert any('расходятся' in m for m in insight.missing_data)
+    assert 'different_numbers' in seen[0] and 'related_b' in seen[0]
+    client.script['answer']=[{'answerable':True,'text':'17%.','claims':[
+        {'text':'Показатель 17%.','kind':'fact','source_ids':['related_a']}]}]
+    answer=answer_question(agent,insight.insight_id,'Ставки по корпоративным кредитам?')
+    assert {'related_a','related_b'} <= {s.source_id for s in answer.sources}
+    assert 'расходятся' in answer.text

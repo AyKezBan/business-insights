@@ -41,6 +41,9 @@ class AgentState:
     def signal_features(self) -> set[str]:
         return {s.feature for s in self.signals}
 
+    def source_conflicts(self):
+        return [c for event in [self.event, *self.news.values()] for c in event.conflicts if not c.resolved]
+
     def sources(self) -> dict[str, SourceRef]:
         catalog = {self.event.source.source_id: self.event.source}
         for ref in self.event.related_sources:

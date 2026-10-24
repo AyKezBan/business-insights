@@ -110,6 +110,8 @@ class InsightAgent:
         )
 
     def resolve_news(self, state: AgentState, event) -> None:
+        if any(not c.resolved for c in event.conflicts):
+            state.limited_reasons.append(f"источники события {event.event_id} расходятся; требуется проверка, победитель не выбран")
         for ref in [event.source] + event.related_sources:
             text = self.news.resolve_source_text(ref.source_id)
             if ref.source_id == event.source.source_id:
@@ -141,8 +143,6 @@ class InsightAgent:
         self.resolve_news(state, request.event)
         if request.event.published_at is None:
             state.limited_reasons.append("дата события неизвестна; окно аналитики рассчитано на текущую дату UTC")
-        if any(not c.resolved for c in request.event.conflicts):
-            state.limited_reasons.append("источники события расходятся; требуется проверка, победитель не выбран")
         tracer.emit(
             "plan",
             "start",
@@ -297,8 +297,7 @@ class InsightAgent:
         cited = dict.fromkeys(sid for c in all_claims for sid in c.source_ids if sid in catalog)
         cited.update(dict.fromkeys(sid for sc in draft.scenarios for sid in sc.source_ids if sid in catalog))
         e = state.event
-        if e.conflicts:
-            cited.update(dict.fromkeys(sid for c in e.conflicts for sid in c.source_ids if sid in catalog))
+        cited.update(dict.fromkeys(sid for c in state.source_conflicts() for sid in c.source_ids if sid in catalog))
         return Insight(
             insight_id=f"{state.request.profile.company_id}:{e.event_id}:{state.run_id[-8:]}",
             run_id=state.run_id,

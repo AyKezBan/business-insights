@@ -61,11 +61,15 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
     tracer.emit("check", "answer", {"status": status, "kept_claims": len(claims), "dropped": len(draft.claims) - len(claims),
                                    "issues": [e.model_dump() for e in issues]})
     cited = dict.fromkeys(s for c in claims for s in c.source_ids)
+    cited.update(dict.fromkeys(sid for conflict in state.source_conflicts() for sid in conflict.source_ids if sid in catalog))
+    text = "\n".join(c.text for c in claims) if status == "answered" else "В доступных материалах нет подтверждённого ответа на этот вопрос."
+    if state.source_conflicts():
+        text = "Источники расходятся; требуется проверка, победитель не выбран.\n" + text
     return Answer(
         insight_id=insight_id,
         run_id=tracer.run_id,
         status=status,
-        text="\n".join(c.text for c in claims) if status == "answered" else "В доступных материалах нет подтверждённого ответа на этот вопрос.",
+        text=text,
         claims=claims,
         sources=[catalog[s] for s in cited],
         missing_data=draft.missing_data + list(dict.fromkeys(state.limited_reasons)),
