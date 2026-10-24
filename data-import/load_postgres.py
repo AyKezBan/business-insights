@@ -1,13 +1,15 @@
-"""Atomic CSV import into the dedicated bi_data schema. DSN is read from environment."""
+"""Atomic CSV import into the dedicated business_insights schema. DSN is read from environment."""
 import argparse
 import os
 from pathlib import Path
 
-from data_core import COMPANY, COMPANY_COLUMNS, LINK, PAYMENT, VERSION, Dataset, read_csv
+from data_core import COMPANY_COLUMNS, Dataset
 
-SCHEMA = Path(__file__).parent / "sql" / "schema.sql"
+SQL_DIR = Path(__file__).parent / "sql"
+SCHEMA_FILES = tuple(SQL_DIR / name for name in ("01_schemas.sql", "02_tables.sql", "03_indexes.sql"))
+SCHEMA_VERSION = "0.2.0"
 TABLES = ["payment_snapshot", "person_company_link", "company_profile", "person_ref", "company_ref",
-          "raw_company", "raw_link", "raw_payment", "dataset_metadata"]
+          "dataset_metadata"]
 
 
 def import_dataset(data_dir, dsn, *, replace=False):
@@ -23,36 +25,32 @@ def import_dataset(data_dir, dsn, *, replace=False):
         with connection.cursor() as cursor:
             # Same transaction: serialize loaders; block service reads during replacement.
             cursor.execute("SELECT pg_advisory_xact_lock(684901236)")
-            cursor.execute(SCHEMA.read_text(encoding="utf-8"), prepare=False)
-            cursor.execute("SELECT schema_version, dataset_sha256 FROM bi_data.dataset_metadata WHERE singleton")
+            cursor.execute("\n".join(path.read_text(encoding="utf-8") for path in SCHEMA_FILES), prepare=False)
+            cursor.execute("SELECT schema_version, dataset_sha256 FROM business_insights.dataset_metadata WHERE singleton")
             current = cursor.fetchone()
             if current:
-                if current[0] != VERSION:
-                    raise ValueError("Incompatible bi_data schema version; a reviewed migration is required")
+                if current[0] != SCHEMA_VERSION:
+                    raise ValueError("Incompatible business_insights schema version; a reviewed migration is required")
                 if current[1] == dataset.dataset_id:
                     return {"status": "unchanged", "dataset_sha256": dataset.dataset_id}
                 if not replace:
-                    raise ValueError("Different dataset already loaded; use --replace-current to replace only bi_data")
+                    raise ValueError("Different dataset already loaded; use --replace-current to replace only business_insights")
             elif not replace:
                 # Protect partial/manual data without matching metadata.
                 for table in TABLES[:-1]:
-                    cursor.execute(sql.SQL("SELECT EXISTS (SELECT 1 FROM bi_data.{})").format(sql.Identifier(table)))
+                    cursor.execute(sql.SQL("SELECT EXISTS (SELECT 1 FROM business_insights.{})").format(sql.Identifier(table)))
                     if cursor.fetchone()[0]:
-                        raise ValueError("bi_data contains rows without metadata; use a clean DB or explicit --replace-current")
+                        raise ValueError("business_insights contains rows without metadata; use a clean DB or explicit --replace-current")
             if replace:
                 cursor.execute(sql.SQL("TRUNCATE {} ").format(sql.SQL(", ").join(
-                    sql.Identifier("bi_data", table) for table in TABLES)))
+                    sql.Identifier("business_insights", table) for table in TABLES)))
 
             def copy_records(table, columns, rows):
                 statement = sql.SQL("COPY {} ({}) FROM STDIN").format(
-                    sql.Identifier("bi_data", table), sql.SQL(",").join(map(sql.Identifier, columns)))
+                    sql.Identifier("business_insights", table), sql.SQL(",").join(map(sql.Identifier, columns)))
                 with cursor.copy(statement) as copy:
                     for row in rows:
                         copy.write_row(row)
-
-            for filename, table in [(COMPANY, "raw_company"), (LINK, "raw_link"), (PAYMENT, "raw_payment")]:
-                copy_records(table, ["source_row", "payload"],
-                             ((n, Jsonb(row)) for n, row in read_csv(data_dir, filename)))
 
             copy_records("company_ref", ["synthetic_u", "profile_status"], (
                 (uid, "ambiguous" if uid in dataset.ambiguous_ids else
@@ -68,13 +66,13 @@ def import_dataset(data_dir, dsn, *, replace=False):
             copy_records("payment_snapshot", payment_columns,
                          ([r[col] for col in payment_columns] for r in dataset.payment_rows()))
             dataset.verify_hashes()  # Fail/rollback if CSV changed while COPY was running.
-            cursor.execute("""INSERT INTO bi_data.dataset_metadata
+            cursor.execute("""INSERT INTO business_insights.dataset_metadata
                 (singleton, schema_version, dataset_sha256, source_manifest, payment_period_description)
                 VALUES (TRUE, %s, %s, %s, %s)""", (
-                    VERSION, dataset.dataset_id, Jsonb(dataset.report),
+                    SCHEMA_VERSION, dataset.dataset_id, Jsonb(dataset.report),
                     "С 1 января; год начала и дата окончания не установлены"))
             for table in TABLES:
-                cursor.execute(sql.SQL("ANALYZE {}").format(sql.Identifier("bi_data", table)))
+                cursor.execute(sql.SQL("ANALYZE {}").format(sql.Identifier("business_insights", table)))
     return {"status": "loaded", "dataset_sha256": dataset.dataset_id,
             "rows": {name: info["rows"] for name, info in dataset.files.items()}}
 
@@ -82,7 +80,7 @@ def import_dataset(data_dir, dsn, *, replace=False):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, required=True)
-    parser.add_argument("--replace-current", action="store_true", help="Replace current bi_data dataset atomically; no history")
+    parser.add_argument("--replace-current", action="store_true", help="Replace current business_insights dataset atomically; no history")
     args = parser.parse_args()
     dsn = os.environ.get("DATABASE_URL")
     if not dsn:
