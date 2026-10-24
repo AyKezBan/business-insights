@@ -29,3 +29,8 @@ dist/
 
 # MacOS
 .DS_Store
+
+# Prepared materials and private raw sources (mounted locally)
+/materials/
+/ml-service/materials/
+/ml-service/data/

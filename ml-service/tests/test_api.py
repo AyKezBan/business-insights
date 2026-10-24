@@ -28,7 +28,8 @@ def _client(make_agent):
 
 def test_health(make_agent):
     body = _client(make_agent).get("/health").json()
-    assert body == {"status": "ok", "bank_fragments": 2, "news": 1, "daily_tokens_used": 0}
+    assert {"status": "ok", "bank_fragments": 2, "news": 1, "daily_tokens_used": 0}.items() <= body.items()
+    assert body["corpus_revision"] is None
 
 
 def test_insight_question_and_trace_flow(make_agent):

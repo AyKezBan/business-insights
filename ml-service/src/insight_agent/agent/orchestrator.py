@@ -10,6 +10,7 @@ from insight_agent.agent.personalizer import personalize
 from insight_agent.agent.planner import make_plan, matched_channels
 from insight_agent.agent.state import AgentState
 from insight_agent.config import Settings
+from insight_agent.materials.models import CorpusSnapshot
 from insight_agent.llm import BudgetExceeded, ChatClient, DailyBudget, LLMError, RunBudget, StructuredLLM
 from insight_agent.schemas import (
     Claim,
@@ -51,11 +52,13 @@ class InsightAgent:
         bank: bank_tool.BankIndex,
         news: news_tool.NewsStore,
         daily: DailyBudget | None = None,
+        corpus_snapshot: CorpusSnapshot | None = None,
     ):
         self.client = client
         self.settings = settings
         self.bank = bank
         self.news = news
+        self.corpus_snapshot = corpus_snapshot
         self.daily = daily or DailyBudget(settings.llm_daily_token_budget)
         self.analysis_cache: dict[str, EventAnalysis] = {}
         self.records: dict[str, RunRecord] = {}
