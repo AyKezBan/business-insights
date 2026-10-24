@@ -1,4 +1,5 @@
 from datetime import date as Date, datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
 
@@ -56,7 +57,7 @@ class Products(BaseModel):
 class Counterparty(BaseModel):
     company_id: str
     direction: str
-    amount_rub: float | None = None
+    amount_rub: Decimal | None = None
     share_of_flow: float | None = None
     okved_code: str | None = None
     okved_name: str | None = None
@@ -70,8 +71,8 @@ class CompanyProfile(BaseModel):
     okved_code: str | None = None
     okved_name: str | None = None
     industry: str | None = None
-    revenue_rub: float | None = None
-    group_revenue_rub: float | None = None
+    revenue_rub: Decimal | None = None
+    group_revenue_rub: Decimal | None = None
     revenue_year: int | None = None
     revenue_status: Literal["known", "placeholder", "missing", "invalid"] | None = None
     revenue_scope: Literal["company", "group", "unknown"] | None = None

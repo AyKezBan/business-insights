@@ -25,3 +25,10 @@ def test_export_writes_every_contract(tmp_path):
 def test_request_schema_requires_profile_and_event():
     schema = InsightRequest.model_json_schema()
     assert set(schema["required"]) == {"profile", "event"}
+
+
+def test_contract_money_fields_accept_number_or_decimal_string():
+    props = InsightRequest.model_json_schema()["$defs"]["CompanyProfile"]["properties"]
+    for field in ("revenue_rub", "group_revenue_rub"):
+        kinds = {branch.get("type") for branch in props[field]["anyOf"]}
+        assert {"number", "string"} <= kinds

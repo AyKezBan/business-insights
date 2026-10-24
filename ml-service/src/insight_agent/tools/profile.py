@@ -1,3 +1,5 @@
+from decimal import ROUND_HALF_UP, Decimal
+
 from pydantic import BaseModel
 
 from insight_agent.schemas import CompanyProfile
@@ -38,8 +40,11 @@ OKVED_CHANNELS: list[tuple[range, list[str]]] = [
     (range(69, 83), ["labor_costs", "domestic_demand"]),
 ]
 
-LARGE_BUSINESS_RUB = 15_000_000_000
-REVENUE_PLACEHOLDER_RUB = 1000
+LARGE_BUSINESS_RUB = Decimal(15_000_000_000)
+REVENUE_PLACEHOLDER_RUB = Decimal(1000)
+BILLION = Decimal(10) ** 9
+MILLION = Decimal(10) ** 6
+TENTH = Decimal("0.1")
 
 
 class Signal(BaseModel):
@@ -62,16 +67,18 @@ def _okved_channels(code: str | None) -> list[str]:
     return []
 
 
-def _known_revenue(value: float | None) -> float | None:
-    return value if value is not None and value >= 0 and value != REVENUE_PLACEHOLDER_RUB else None
+def _known_revenue(value: Decimal | None) -> Decimal | None:
+    if value is None or value == REVENUE_PLACEHOLDER_RUB or value < 0:
+        return None
+    return value
 
 
-def _format_rub(value: float) -> str:
-    if value >= 1e9:
-        return f"{value / 1e9:.1f} млрд руб."
-    if value >= 1e6:
-        return f"{value / 1e6:.1f} млн руб."
-    return f"{value:,.0f} руб.".replace(",", " ")
+def _format_rub(value: Decimal) -> str:
+    for unit, suffix in ((BILLION, "млрд"), (MILLION, "млн")):
+        rounded = (value / unit).quantize(TENTH, ROUND_HALF_UP)
+        if rounded >= 1:
+            return f"{rounded} {suffix} руб."
+    return f"{value.quantize(Decimal(1), ROUND_HALF_UP):,} руб.".replace(",", " ")
 
 
 def derive_signals(p: CompanyProfile) -> list[Signal]:

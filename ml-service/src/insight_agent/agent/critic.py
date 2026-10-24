@@ -1,11 +1,11 @@
 """Deterministic evidence checks; semantic usefulness still needs expert evaluation."""
 import re
+from decimal import Decimal
 
 from insight_agent.agent.state import AgentState
 from insight_agent.schemas import CheckIssue, Claim, ClaimKind, EventAnalysis, NewsEvent, PersonalizationDraft, Scenario, SourceKind
 from insight_agent.tools.search import tokenize
 
-_NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 _QUANTITY = re.compile(r"(\d+(?:[.,]\d+)?)\s*(%|процент(?:а|ов)?|б\.?\s*п\.?|п\.?\s*п\.?|bps?)", re.I)
 NEEDS_SOURCE = {ClaimKind.fact, ClaimKind.assessment}
 NEEDS_BASIS = {ClaimKind.inference, ClaimKind.recommendation}
@@ -13,13 +13,31 @@ RETELL_OVERLAP = 0.6
 SECTIONS = ("why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view")
 
 
+_NUMBER = re.compile(
+    r"(?<!\d)(\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?!\d)|\d+)(?:[.,](\d+))?(?:[ \u00a0\u202f]*(трлн|млрд|млн|тыс)(?![а-яё]))?",
+    re.IGNORECASE,
+)
+_SCALE = {"тыс": Decimal(10) ** 3, "млн": Decimal(10) ** 6, "млрд": Decimal(10) ** 9, "трлн": Decimal(10) ** 12}
+
+
 def _norm(number: str) -> str:
     number = number.replace(",", ".")
     return number.rstrip("0").rstrip(".") if "." in number else number
 
 
+def _plain(value: Decimal) -> str:
+    return format(value.normalize(), "f")
+
+
 def _numbers(text: str) -> set[str]:
-    return {_norm(n) for n in _NUMBER.findall(text)}
+    """Числа из текста в каноничном виде; число с «млн/млрд» даёт и сокращённую, и полную запись."""
+    found: set[str] = set()
+    for whole, fraction, unit in _NUMBER.findall(text):
+        value = Decimal(re.sub(r"\D", "", whole) + (f".{fraction}" if fraction else ""))
+        found.add(_plain(value))
+        if unit:
+            found.add(_plain(value * _SCALE[unit.lower()]))
+    return found
 
 
 def _quantities(text: str) -> set[tuple[str, str]]:
