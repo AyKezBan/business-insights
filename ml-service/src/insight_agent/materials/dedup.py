@@ -105,4 +105,3 @@ def link_source(events: list[NewsEvent], versions: list[SourceVersion], event_id
     moved = [version.model_copy(update={"event_id": event_id}) if version.url == selected.url
              else version.model_copy() for version in versions]
     return NewsImportResult(events=events_from_versions(moved, events), versions=moved)
-
