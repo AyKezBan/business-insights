@@ -23,7 +23,7 @@ def build_agent(settings: Settings, client: ChatClient | None = None) -> Insight
         client,
         settings,
         BankIndex(fragments) if snapshot is not None else BankIndex.from_jsonl(settings.bank_fragments_path),
-        NewsStore(snapshot.news) if snapshot is not None else NewsStore.from_jsonl(settings.news_path),
+        NewsStore(snapshot.news, snapshot.source_versions) if snapshot is not None else NewsStore.from_jsonl(settings.news_path),
         corpus_snapshot=snapshot,
     )
 

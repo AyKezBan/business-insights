@@ -5,12 +5,14 @@ from datetime import UTC, datetime
 from pydantic import BaseModel
 
 from insight_agent.agent.analyst import analyze_event
-from insight_agent.agent.critic import check, has_errors
+from insight_agent.agent.critic import check, check_event_analysis, has_errors
+from insight_agent.agent.evidence import event_fingerprint, pack_sources
 from insight_agent.agent.personalizer import personalize
 from insight_agent.agent.planner import make_plan, matched_channels
 from insight_agent.agent.state import AgentState
 from insight_agent.config import Settings
 from insight_agent.materials.models import CorpusSnapshot
+from insight_agent.materials.artifacts import digest
 from insight_agent.materials.policy import bank_policy, restrict_bank_args
 from insight_agent.llm import BudgetExceeded, ChatClient, DailyBudget, LLMError, RunBudget, StructuredLLM
 from insight_agent.schemas import (
@@ -61,7 +63,7 @@ class InsightAgent:
         self.news = news
         self.corpus_snapshot = corpus_snapshot
         self.daily = daily or DailyBudget(settings.llm_daily_token_budget)
-        self.analysis_cache: dict[str, EventAnalysis] = {}
+        self.analysis_cache: dict[str, tuple[EventAnalysis, list[CheckIssue]]] = {}
         self.records: dict[str, RunRecord] = {}
 
     def new_run(self) -> tuple[Tracer, StructuredLLM]:
@@ -107,13 +109,25 @@ class InsightAgent:
             self.settings.agent_max_tool_calls,
         )
 
-    @staticmethod
-    def absorb(state: AgentState, result) -> None:
+    def resolve_news(self, state: AgentState, event) -> None:
+        for ref in [event.source] + event.related_sources:
+            text = self.news.resolve_source_text(ref.source_id)
+            if ref.source_id == event.source.source_id:
+                # The request may carry a newer version than this process's pinned corpus.
+                text = event.text
+            if text is None or (ref.content_sha256 and digest(text.encode()) != ref.content_sha256):
+                state.unresolved_sources.add(ref.source_id)
+                state.limited_reasons.append(f"нет подтверждённого текста версии источника: {ref.source_id}")
+            else:
+                state.resolved_news_texts[ref.source_id] = text
+
+    def absorb(self, state: AgentState, result) -> None:
         for item in result if isinstance(result, list) else []:
             if isinstance(item, bank_tool.ScoredFragment):
                 state.bank[item.fragment.fragment_id] = item.fragment
             elif isinstance(item, news_tool.NewsEvent) and item.event_id != state.event.event_id:
                 state.news[item.event_id] = item
+                self.resolve_news(state, item)
 
     def run(self, request: InsightRequest) -> Insight:
         tracer, llm = self.new_run()
@@ -124,6 +138,11 @@ class InsightAgent:
             signals=derive_signals(request.profile),
             missing_profile=missing_profile_data(request.profile),
         )
+        self.resolve_news(state, request.event)
+        if request.event.published_at is None:
+            state.limited_reasons.append("дата события неизвестна; окно аналитики рассчитано на текущую дату UTC")
+        if any(not c.resolved for c in request.event.conflicts):
+            state.limited_reasons.append("источники события расходятся; требуется проверка, победитель не выбран")
         tracer.emit(
             "plan",
             "start",
@@ -133,18 +152,33 @@ class InsightAgent:
                 "event_id": request.event.event_id,
                 "signals": [x.feature for x in state.signals],
                 "missing_profile": state.missing_profile,
+                "corpus_revision": self.corpus_snapshot.revision if self.corpus_snapshot else None,
+                "tool_versions": self.corpus_snapshot.tool_versions if self.corpus_snapshot else {},
+                "source_hashes": {sid: digest(text.encode()) for sid, text in state.source_texts().items()},
             },
         )
         tools = self.tools_for(state, tracer)
         issues: list[CheckIssue] = []
         iterations = 0
         try:
-            state.analysis = self.analysis_cache.get(request.event.event_id)
-            if state.analysis:
+            texts = state.source_texts()
+            _, truncated = pack_sources(texts)
+            if truncated:
+                state.limited_reasons.append("контекст разбора сокращён; полный текст сохранён в корпусе: " + ", ".join(truncated))
+            key = event_fingerprint(request.event, source_texts=texts)
+            cached = self.analysis_cache.get(key)
+            if cached:
+                state.analysis = cached[0].model_copy(deep=True)
+                state.evidence_issues = list(cached[1])
                 tracer.emit("plan", "analysis_cache_hit", {"event_id": request.event.event_id})
             else:
-                state.analysis = analyze_event(llm, s.llm_model_light, request.event)
-                self.analysis_cache[request.event.event_id] = state.analysis
+                state.analysis = analyze_event(llm, s.llm_model_light, request.event, source_texts=texts)
+                state.evidence_issues = check_event_analysis(request.event, state.analysis, texts)
+                bad = {int(m.group(2)) for issue in state.evidence_issues
+                       if issue.severity == "error" and (m := _LOCATION.match(issue.location or ""))}
+                state.analysis.facts = [c for i, c in enumerate(state.analysis.facts) if i not in bad]
+                state.analysis.summary = " ".join(c.text for c in state.analysis.facts) or request.event.title
+                self.analysis_cache[key] = (state.analysis.model_copy(deep=True), list(state.evidence_issues))
             tracer.emit(
                 "plan",
                 "event_analysis",
@@ -227,8 +261,10 @@ class InsightAgent:
                 bad.setdefault(m.group(1), set()).add(int(m.group(2)))
         removed = []
         for section, idx in bad.items():
+            if not hasattr(draft, section):
+                continue
             items = getattr(draft, section)
-            removed += [f"{section}: {items[i].text}" for i in sorted(idx) if i < len(items)]
+            removed += [f"{section}: {i}" for i in sorted(idx) if i < len(items)]
             setattr(draft, section, [c for i, c in enumerate(items) if i not in idx])
         for section in ("why_it_matters", "consequences", "actions", "bank_view"):
             if not getattr(draft, section):
@@ -249,6 +285,10 @@ class InsightAgent:
 
             status = InsightStatus.limited
             missing.append("аналитика Альфа-Банка по теме события")
+        issues = state.evidence_issues + issues
+        if has_errors(state.evidence_issues) or state.limited_reasons:
+            status = InsightStatus.limited
+        missing.extend(dict.fromkeys(state.limited_reasons))
 
         facts = state.analysis.facts if state.analysis else []
         all_claims = facts + draft.why_it_matters + draft.consequences + draft.risks + draft.opportunities
@@ -257,6 +297,8 @@ class InsightAgent:
         cited = dict.fromkeys(sid for c in all_claims for sid in c.source_ids if sid in catalog)
         cited.update(dict.fromkeys(sid for sc in draft.scenarios for sid in sc.source_ids if sid in catalog))
         e = state.event
+        if e.conflicts:
+            cited.update(dict.fromkeys(sid for c in e.conflicts for sid in c.source_ids if sid in catalog))
         return Insight(
             insight_id=f"{state.request.profile.company_id}:{e.event_id}:{state.run_id[-8:]}",
             run_id=state.run_id,
@@ -264,7 +306,7 @@ class InsightAgent:
             company_id=state.request.profile.company_id,
             role=state.request.role,
             status=status,
-            headline=draft.headline,
+            headline=e.title,
             what_happened=facts,
             why_it_matters=draft.why_it_matters,
             consequences=draft.consequences,
@@ -273,9 +315,9 @@ class InsightAgent:
             scenarios=draft.scenarios,
             actions=draft.actions,
             bank_view=draft.bank_view,
-            model_vs_bank=draft.model_vs_bank,
+            model_vs_bank=[],
             impact_level=draft.impact_level,
-            impact_rationale=draft.impact_rationale,
+            impact_rationale=" ".join(c.text for c in draft.why_it_matters),
             profile_features_used=sorted({f for c in all_claims for f in c.profile_features}),
             sources=[catalog[sid] for sid in cited],
             missing_data=missing,

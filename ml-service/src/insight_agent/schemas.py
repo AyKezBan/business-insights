@@ -134,6 +134,12 @@ class NewsEvent(BaseModel):
     topics: list[str] = Field(default_factory=list)
     conflicts: list[SourceConflict] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def external_source_kind(self):
+        if any(ref.kind != SourceKind.news for ref in [self.source] + self.related_sources):
+            raise ValueError("NewsEvent references must have kind=news; bank evidence is retrieved separately")
+        return self
+
 
 class BankFragment(BaseModel):
     fragment_id: str

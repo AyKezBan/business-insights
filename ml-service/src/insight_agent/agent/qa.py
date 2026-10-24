@@ -1,4 +1,6 @@
+from copy import deepcopy
 from pydantic import BaseModel, Field
+from insight_agent.agent.critic import check_claims
 
 from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.agent.personalizer import _sources_block
@@ -19,7 +21,7 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
     record = agent.records.get(insight_id)
     if record is None:
         return None
-    state, insight = record.state, record.insight
+    state, insight = deepcopy(record.state), record.insight
     tracer, llm = agent.new_run()
     tracer.emit("plan", "question", {"insight_id": insight_id, "parent_run_id": insight.run_id, "question": question})
     tools = agent.tools_for(state, tracer)
@@ -50,22 +52,21 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
                       text="Не удалось подготовить ответ, попробуйте позже.", missing_data=[str(exc)])
 
     catalog = state.sources()
-    features = state.signal_features
-    claims = [
-        c for c in draft.claims
-        if all(s in catalog for s in c.source_ids) and all(f in features for f in c.profile_features)
-        and (c.source_ids or c.profile_features or c.kind in (ClaimKind.hypothesis, ClaimKind.unavailable))
-    ]
+    issues = check_claims(draft.claims, state, section="claims")
+    bad = {i for i in range(len(draft.claims))
+           if any(e.severity == "error" and e.location == f"claims[{i}]" for e in issues)}
+    claims = [c for i, c in enumerate(draft.claims) if i not in bad]
     grounded = any(c.source_ids or c.profile_features for c in claims)
     status = "answered" if draft.answerable and grounded else "no_answer"
-    tracer.emit("check", "answer", {"status": status, "kept_claims": len(claims), "dropped": len(draft.claims) - len(claims)})
+    tracer.emit("check", "answer", {"status": status, "kept_claims": len(claims), "dropped": len(draft.claims) - len(claims),
+                                   "issues": [e.model_dump() for e in issues]})
     cited = dict.fromkeys(s for c in claims for s in c.source_ids)
     return Answer(
         insight_id=insight_id,
         run_id=tracer.run_id,
         status=status,
-        text=draft.text if status == "answered" else (draft.text or "В доступных материалах нет ответа на этот вопрос."),
+        text="\n".join(c.text for c in claims) if status == "answered" else "В доступных материалах нет подтверждённого ответа на этот вопрос.",
         claims=claims,
         sources=[catalog[s] for s in cited],
-        missing_data=draft.missing_data,
+        missing_data=draft.missing_data + list(dict.fromkeys(state.limited_reasons)),
     )
