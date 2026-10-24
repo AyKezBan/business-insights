@@ -6,7 +6,7 @@
 
 ## Загрузка
 
-Исходные CSV находятся в `data-import/source-data/`: `df_Uid_data_hack.csv`, `df_Fid_Uid_link_hack.csv` и `df_Uid_payment_hack.csv`. Загрузчик читает их без изменений; промежуточные CSV не создаются.
+Перед запуском разместите в `data-import/source-data/` три исходных файла: `df_Uid_data_hack.csv`, `df_Fid_Uid_link_hack.csv` и `df_Uid_payment_hack.csv`. CSV хранятся локально и исключены из Git через корневой `.gitignore`. Загрузчик читает их без изменений; промежуточные CSV не создаются.
 
 ```bash
 python -m venv data-import/.venv
