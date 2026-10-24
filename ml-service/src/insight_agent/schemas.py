@@ -32,6 +32,13 @@ class ClaimKind(StrEnum):
     unavailable = "unavailable"
 
 
+class Outcome(StrEnum):
+    full = "full"
+    limited = "limited"
+    refused = "refused"
+    none = "none"
+
+
 class Level(StrEnum):
     low = "low"
     medium = "medium"
@@ -166,6 +173,8 @@ class InsightRequest(BaseModel):
     profile: CompanyProfile
     role: UserRole = UserRole.ceo
     event: NewsEvent
+    request_id: str | None = Field(default=None, min_length=1, max_length=128)
+    parent_run_id: str | None = Field(default=None, min_length=1, max_length=128)
 
 
 class QuestionRequest(BaseModel):
@@ -173,6 +182,7 @@ class QuestionRequest(BaseModel):
 
 
 class Claim(BaseModel):
+    claim_id: str | None = None
     text: str
     kind: ClaimKind
     source_ids: list[str] = Field(default_factory=list)
@@ -243,7 +253,12 @@ class Insight(BaseModel):
     event_id: str
     company_id: str
     role: UserRole
+    version: int = 1
     status: InsightStatus
+    outcome: Outcome = Outcome.none
+    error_code: str | None = None
+    request_id: str | None = None
+    parent_run_id: str | None = None
     headline: str
     what_happened: list[Claim]
     why_it_matters: list[Claim]
@@ -268,6 +283,8 @@ class Insight(BaseModel):
 class Answer(BaseModel):
     insight_id: str
     run_id: str
+    company_id: str | None = None
+    event_id: str | None = None
     status: str
     text: str
     claims: list[Claim] = Field(default_factory=list)

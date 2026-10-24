@@ -32,8 +32,24 @@ class BudgetExceeded(RuntimeError):
     pass
 
 
+class DailyBudgetExceeded(BudgetExceeded):
+    pass
+
+
+class RunBudgetExceeded(BudgetExceeded):
+    pass
+
+
 class LLMError(RuntimeError):
     pass
+
+
+def error_code(exc: Exception) -> str:
+    if isinstance(exc, DailyBudgetExceeded):
+        return "budget_daily"
+    if isinstance(exc, RunBudgetExceeded):
+        return "budget_run"
+    return "llm_error"
 
 
 def _normalize(model: str) -> str:
@@ -103,7 +119,7 @@ class DailyBudget:
             if date.today() != self._day:
                 self._day, self._used = date.today(), 0
             if self._used + tokens > self.limit:
-                raise BudgetExceeded("Исчерпан дневной лимит токенов")
+                raise DailyBudgetExceeded("Исчерпан дневной лимит токенов")
 
     def add(self, tokens: int) -> None:
         with self._lock:
@@ -122,7 +138,7 @@ class RunBudget:
 
     def check(self, estimate: int) -> None:
         if self.used + estimate > self.limit:
-            raise BudgetExceeded("Исчерпан лимит токенов на один запуск агента")
+            raise RunBudgetExceeded("Исчерпан лимит токенов на один запуск агента")
         self.daily.reserve(estimate)
 
     def add(self, tokens: int) -> None:

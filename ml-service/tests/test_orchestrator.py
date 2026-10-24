@@ -1,6 +1,6 @@
 from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply
-from insight_agent.llm import LLMError
-from insight_agent.schemas import ClaimKind, InsightStatus, UserRole
+from insight_agent.llm import DailyBudget, LLMError
+from insight_agent.schemas import ClaimKind, InsightStatus, Outcome, UserRole
 from insight_agent.tools.bank import BankIndex
 from insight_agent.trace import load_trace
 
@@ -129,3 +129,65 @@ def test_budget_exhausted_returns_failed_insight(make_agent, request_):
     assert insight.status == InsightStatus.failed
     assert client.calls == []
     assert "лимит" in insight.missing_data[0]
+
+
+def _full_script(**draft):
+    return {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply(**draft)]}
+
+
+def test_full_insight_has_outcome_request_ids_and_unique_claim_ids(make_agent, request_):
+    agent = make_agent(ScriptedClient(_full_script()))
+    request = request_.model_copy(update={"request_id": "req-1", "parent_run_id": "run_prev"})
+    insight = agent.run(request)
+
+    assert (insight.status, insight.outcome, insight.error_code) == (InsightStatus.complete, Outcome.full, None)
+    assert (insight.request_id, insight.parent_run_id, insight.version) == ("req-1", "run_prev", 1)
+    sections = [insight.what_happened, insight.why_it_matters, insight.consequences, insight.risks,
+                insight.opportunities, insight.actions, insight.bank_view]
+    ids = [c.claim_id for section in sections for c in section]
+    assert all(i and i.startswith(f"{insight.insight_id}:c") for i in ids)
+    assert len(ids) == len(set(ids))
+    final = record_events(agent, insight)[-1]
+    assert (final.data["outcome"], final.data["error_code"]) == ("full", None)
+
+
+def test_missing_bank_material_is_limited_not_refused(make_agent, request_):
+    agent = make_agent(ScriptedClient(_full_script(with_bank=False)), bank=BankIndex([]))
+    insight = agent.run(request_)
+    assert (insight.status, insight.outcome) == (InsightStatus.limited, Outcome.limited)
+
+
+def test_nothing_grounded_left_is_a_refusal(make_agent, request_):
+    hollow = draft_reply()
+    hollow["why_it_matters"] = [{"text": "Ставка повышена до 21% годовых.", "kind": "fact", "source_ids": ["news_demo_rate"]}]
+    hollow["consequences"] = [
+        {"text": "Выдуманное последствие.", "kind": "inference", "source_ids": ["no_such_source"], "profile_features": ["products.loans"]}
+    ]
+    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [hollow], "revise": [hollow]}
+    insight = make_agent(ScriptedClient(script)).run(request_)
+
+    assert (insight.status, insight.outcome, insight.error_code) == (InsightStatus.limited, Outcome.refused, None)
+    assert all(c.kind == ClaimKind.unavailable for c in insight.why_it_matters + insight.consequences)
+
+
+def _failed_with(agent, request, code):
+    insight = agent.run(request)
+    assert (insight.status, insight.outcome, insight.error_code) == (InsightStatus.failed, Outcome.none, code)
+    final = record_events(agent, insight)[-1]
+    assert (final.data["outcome"], final.data["error_code"]) == ("none", code)
+
+
+def test_run_budget_failure_has_error_code(make_agent, request_):
+    agent = make_agent(ScriptedClient({"analyze_event": [analysis_reply()]}))
+    agent.settings.agent_max_tokens_per_run = 100
+    _failed_with(agent, request_, "budget_run")
+
+
+def test_daily_budget_failure_has_error_code(make_agent, request_):
+    agent = make_agent(ScriptedClient({"analyze_event": [analysis_reply()]}))
+    agent.daily = DailyBudget(10)
+    _failed_with(agent, request_, "budget_daily")
+
+
+def test_llm_failure_has_error_code(make_agent, request_):
+    _failed_with(make_agent(ScriptedClient({"analyze_event": [LLMError("503")]})), request_, "llm_error")

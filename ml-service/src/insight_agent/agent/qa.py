@@ -48,7 +48,8 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
         )
     except (BudgetExceeded, LLMError) as exc:
         tracer.emit("error", "answer", {"error": str(exc)})
-        return Answer(insight_id=insight_id, run_id=tracer.run_id, status="no_answer",
+        return Answer(insight_id=insight_id, run_id=tracer.run_id, company_id=insight.company_id, event_id=insight.event_id,
+                      status="no_answer",
                       text="Не удалось подготовить ответ, попробуйте позже.", missing_data=[str(exc)])
 
     catalog = state.sources()
@@ -68,6 +69,8 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
     return Answer(
         insight_id=insight_id,
         run_id=tracer.run_id,
+        company_id=insight.company_id,
+        event_id=insight.event_id,
         status=status,
         text=text,
         claims=claims,

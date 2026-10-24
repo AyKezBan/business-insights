@@ -14,7 +14,7 @@ from insight_agent.config import Settings
 from insight_agent.materials.models import CorpusSnapshot
 from insight_agent.materials.artifacts import digest
 from insight_agent.materials.policy import bank_policy, restrict_bank_args
-from insight_agent.llm import BudgetExceeded, ChatClient, DailyBudget, LLMError, RunBudget, StructuredLLM
+from insight_agent.llm import BudgetExceeded, ChatClient, DailyBudget, LLMError, RunBudget, StructuredLLM, error_code
 from insight_agent.schemas import (
     Claim,
     ClaimKind,
@@ -24,6 +24,7 @@ from insight_agent.schemas import (
     InsightRequest,
     InsightStatus,
     Level,
+    Outcome,
     PersonalizationDraft,
     SelfCheckReport,
 )
@@ -216,14 +217,15 @@ class InsightAgent:
         except (BudgetExceeded, LLMError) as exc:
             tracer.emit("error", "run", {"error": str(exc)})
             if state.draft is None:
-                return self._failed(state, tracer, llm, str(exc))
+                return self._failed(state, tracer, llm, str(exc), error_code(exc))
             issues = check(state, state.draft)
 
         insight = self._assemble(state, issues, iterations, llm)
         tracer.emit(
             "final",
             "insight",
-            {"insight_id": insight.insight_id, "status": insight.status.value, "sources": [x.source_id for x in insight.sources]},
+            {"insight_id": insight.insight_id, "status": insight.status.value, "outcome": insight.outcome.value,
+             "error_code": insight.error_code, "sources": [x.source_id for x in insight.sources]},
         )
         self.records[insight.insight_id] = RunRecord(state=state, insight=insight)
         return insight
@@ -276,6 +278,7 @@ class InsightAgent:
     def _assemble(self, state: AgentState, issues: list[CheckIssue], iterations: int, llm: StructuredLLM) -> Insight:
         draft = state.draft
         status = InsightStatus.complete
+        outcome = Outcome.full
         missing = list(dict.fromkeys(draft.missing_data + state.missing_profile))
         if has_errors(issues):
             removed = self._drop_invalid(draft, issues)
@@ -289,8 +292,11 @@ class InsightAgent:
         if has_errors(state.evidence_issues) or state.limited_reasons:
             status = InsightStatus.limited
         missing.extend(dict.fromkeys(state.limited_reasons))
+        if status == InsightStatus.limited:
+            grounded = any(c.kind != ClaimKind.unavailable for c in draft.why_it_matters + draft.consequences)
+            outcome = Outcome.limited if grounded else Outcome.refused
 
-        facts = state.analysis.facts if state.analysis else []
+        facts = [c.model_copy(deep=True) for c in (state.analysis.facts if state.analysis else [])]
         all_claims = facts + draft.why_it_matters + draft.consequences + draft.risks + draft.opportunities
         all_claims += draft.actions + draft.bank_view
         catalog = state.sources()
@@ -298,13 +304,19 @@ class InsightAgent:
         cited.update(dict.fromkeys(sid for sc in draft.scenarios for sid in sc.source_ids if sid in catalog))
         e = state.event
         cited.update(dict.fromkeys(sid for c in state.source_conflicts() for sid in c.source_ids if sid in catalog))
+        insight_id = f"{state.request.profile.company_id}:{e.event_id}:{state.run_id[-8:]}"
+        self._number_claims(insight_id, [facts, draft.why_it_matters, draft.consequences, draft.risks,
+                                         draft.opportunities, draft.actions, draft.bank_view])
         return Insight(
-            insight_id=f"{state.request.profile.company_id}:{e.event_id}:{state.run_id[-8:]}",
+            insight_id=insight_id,
             run_id=state.run_id,
             event_id=e.event_id,
             company_id=state.request.profile.company_id,
             role=state.request.role,
             status=status,
+            outcome=outcome,
+            request_id=state.request.request_id,
+            parent_run_id=state.request.parent_run_id,
             headline=e.title,
             what_happened=facts,
             why_it_matters=draft.why_it_matters,
@@ -327,7 +339,15 @@ class InsightAgent:
             generated_at=datetime.now(UTC),
         )
 
-    def _failed(self, state: AgentState, tracer: Tracer, llm: StructuredLLM, reason: str) -> Insight:
+    @staticmethod
+    def _number_claims(insight_id: str, sections: list[list[Claim]]) -> None:
+        n = 0
+        for section in sections:
+            for claim in section:
+                n += 1
+                claim.claim_id = f"{insight_id}:c{n}"
+
+    def _failed(self, state: AgentState, tracer: Tracer, llm: StructuredLLM, reason: str, code: str) -> Insight:
         e = state.event
         insight = Insight(
             insight_id=f"{state.request.profile.company_id}:{e.event_id}:{state.run_id[-8:]}",
@@ -336,6 +356,10 @@ class InsightAgent:
             company_id=state.request.profile.company_id,
             role=state.request.role,
             status=InsightStatus.failed,
+            outcome=Outcome.none,
+            error_code=code,
+            request_id=state.request.request_id,
+            parent_run_id=state.request.parent_run_id,
             headline=e.title,
             what_happened=state.analysis.facts if state.analysis else [],
             why_it_matters=[],
@@ -355,5 +379,5 @@ class InsightAgent:
             models=llm.models_used,
             generated_at=datetime.now(UTC),
         )
-        tracer.emit("final", "insight", {"insight_id": insight.insight_id, "status": "failed"})
+        tracer.emit("final", "insight", {"insight_id": insight.insight_id, "status": "failed", "outcome": "none", "error_code": code})
         return insight

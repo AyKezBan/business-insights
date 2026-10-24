@@ -48,6 +48,8 @@ def test_insight_question_and_trace_flow(make_agent):
     body = answer.json()
     assert body["status"] == "answered"
     assert [c["source_ids"] for c in body["claims"]] == [["bank_demo_rate_p3"]]
+    assert (body["company_id"], body["event_id"]) == (insight["company_id"], insight["event_id"])
+    assert insight["outcome"] == "full" and insight["error_code"] is None
 
     trace = http.get(f"/v1/runs/{insight['run_id']}/trace").json()
     assert trace[0]["step"] == "start" and trace[-1]["type"] == "final"
