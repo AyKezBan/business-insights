@@ -11,7 +11,24 @@ const PROFILE_KEY = 'd09-d10-profile-v1';
 const PREFERENCES_KEY = 'd09-d10-preferences-v1';
 function readStored(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } }
 function saveStored(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } }
+function normalizePreferences(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const validFeedback = new Set(['useful', 'not_useful']);
+  const validReasons = new Set(['company', 'basis', 'error', 'decision', 'other']);
+  return Object.fromEntries(Object.entries(value).flatMap(([key, record]) => {
+    if (!record || typeof record !== 'object' || Array.isArray(record)) return [];
+    const clean = {};
+    if (typeof record.hidden === 'boolean') clean.hidden = record.hidden;
+    if (validFeedback.has(record.feedback)) {
+      clean.feedback = record.feedback;
+      if (record.reason === null || validReasons.has(record.reason)) clean.reason = record.reason;
+      if (record.previousNegativeReason === null || validReasons.has(record.previousNegativeReason)) clean.previousNegativeReason = record.previousNegativeReason;
+    }
+    return Object.keys(clean).length ? [[key, clean]] : [];
+  }));
+}
 function preferenceKey(eventId) { return state.profile.company_id + ':' + state.profile.role + ':' + eventId; }
+function feedbackKey(card) { return preferenceKey(card.context.event_id) + ':' + card.insight_id; }
 function setPreference(eventId, value) {
   const key = preferenceKey(eventId);
   const updated = {...state.preferences, [key]: {...state.preferences[key], ...value}};
@@ -83,7 +100,7 @@ function renderHome() {
   hero.append(node('p', 'Аналитика для вашей компании', 'eyebrow'), node('h2', 'Что меняется вокруг вашего бизнеса?'),
     node('p', 'Узнайте, какие события требуют внимания, на чём основаны выводы и что стоит проверить.'), link('Открыть бизнес-события →', 'feed', {}, 'primary-link'));
   const grid = node('div', '', 'grid');
-  for (const [title, body] of [['От факта к действию', 'Сравните аналитику по открытым источникам, материалы банка и вывод для компании. Посмотрите последствия, риски и рекомендации.']]) {
+  for (const [title, body] of [['От факта к действию', 'Посмотрите, что произошло, как событие может повлиять на компанию, какие есть риски и что проверить дальше. Основания и источники доступны в каждом разделе.']]) {
     const p = node('section', '', 'panel'); p.append(node('h2', title), node('p', body, 'muted')); grid.append(p);
   }
   $('page').append(hero, grid); status('Главная страница');
@@ -130,21 +147,34 @@ function renderProfile() {
 function feedbackPanel(card) {
   const panel = node('section', '', 'panel feedback-panel'); panel.append(node('h2', 'Была ли аналитика полезна?'));
   const actions = node('div', '', 'question-actions'); const message = node('p', '', 'muted'); message.setAttribute('role', 'status');
-  const eventId = card.context.event_id; const current = state.preferences[preferenceKey(eventId)]?.feedback;
+  const key = feedbackKey(card); const current = state.preferences[key]?.feedback;
   for (const [value, text] of [['useful', 'Полезно'], ['not_useful', 'Не полезно']]) {
     const button = node('button', text); button.setAttribute('aria-pressed', String(value === current));
     button.onclick = () => {
-      if (!setPreference(eventId, {feedback: value})) return;
-      for (const item of actions.children) item.setAttribute('aria-pressed', String(item === button));
-      message.textContent = 'Спасибо! Оценка сохранена в этом браузере.';
+      if (!state.card || feedbackKey(state.card) !== key) return;
+      if (value === 'not_useful') { reason.hidden = false; saveReason.hidden = false; message.textContent = 'Если хотите, укажите причину и сохраните оценку.'; return; }
+      const updated = {...state.preferences, [key]: {feedback: value, reason: null, ...(state.preferences[key]?.reason || state.preferences[key]?.previousNegativeReason ? {previousNegativeReason: state.preferences[key].reason || state.preferences[key].previousNegativeReason} : {})}};
+      if (!saveStored(PREFERENCES_KEY, updated)) { message.textContent = 'Не удалось сохранить оценку в этом браузере.'; return; }
+      state.preferences = updated; for (const item of actions.children) item.setAttribute('aria-pressed', String(item === button));
+      reason.hidden = true; saveReason.hidden = true; message.textContent = 'Спасибо! Оценка сохранена в этом браузере.';
     }; actions.append(button);
   }
-  message.textContent = current ? 'Ваша оценка сохранена в этом браузере.' : 'Оценка сохраняется локально для текущей компании и должности.';
-  panel.append(actions, message); return panel;
+  const reason = node('select'); reason.setAttribute('aria-label', 'Причина оценки'); reason.hidden = true;
+  for (const [value, text] of [['', 'Можно выбрать причину'], ['company', 'Не относится к компании'], ['basis', 'Неясно основание'], ['error', 'Есть ошибка'], ['decision', 'Не помогает принять решение'], ['other', 'Другое']]) { const option = node('option', text); option.value = value; reason.append(option); }
+  reason.value = state.preferences[key]?.feedback === 'not_useful' ? (state.preferences[key]?.reason || '') : (state.preferences[key]?.previousNegativeReason || '');
+  const saveReason = node('button', 'Сохранить оценку'); saveReason.hidden = true; saveReason.onclick = () => {
+    if (!state.card || feedbackKey(state.card) !== key) return;
+    const updated = {...state.preferences, [key]: {feedback: 'not_useful', reason: reason.value || state.preferences[key]?.reason || state.preferences[key]?.previousNegativeReason || null, ...(reason.value || state.preferences[key]?.reason || state.preferences[key]?.previousNegativeReason ? {previousNegativeReason: reason.value || state.preferences[key].reason || state.preferences[key].previousNegativeReason} : {})}};
+    if (!saveStored(PREFERENCES_KEY, updated)) { message.textContent = 'Не удалось сохранить оценку в этом браузере.'; return; }
+    state.preferences = updated; for (const item of actions.children) item.setAttribute('aria-pressed', String(item.textContent === 'Не полезно'));
+    saveReason.hidden = true; reason.hidden = true; message.textContent = 'Спасибо! Оценка сохранена в этом браузере.';
+  };
+  message.textContent = current ? 'Ваша оценка этой версии сохранена в этом браузере.' : 'Оценка сохраняется локально для текущей компании, должности и версии анализа.';
+  panel.append(actions, reason, saveReason, message); return panel;
 }
 
 function renderFeed(result) {
-  heading('Бизнес-события', 'Подготовленная аналитика с учётом компании и должности из вашего профиля.');
+  heading('Бизнес-события', 'События и разборы для компании из профиля. Изменить компанию или должность можно в разделе «Профиль».');
   if (!result.items.length) {
     const box = node('section', '', 'empty'); box.append(node('h2', 'Пока нет подготовленных событий'), node('p', 'Проверьте данные компании в профиле. Отсутствие событий не означает отсутствие рисков.'), link('Вернуться на главную', 'home'));
     $('page').append(box); status('Событий пока нет'); return;
@@ -169,7 +199,8 @@ function renderFeed(result) {
     meta.append(node('span', event.category), node('span', event.date));
     const actions = node('div', '', 'event-actions');
     const hide = node('button', 'Скрыть'); hide.setAttribute('aria-label', 'Скрыть событие «' + event.title + '»');
-    hide.onclick = () => { if (setPreference(event.id, {hidden: true})) renderRoute(); };
+    const hideKey = preferenceKey(event.id), hideContext = `${state.profile.company_id}:${state.profile.role}`;
+    hide.onclick = () => { if (`${state.profile.company_id}:${state.profile.role}` !== hideContext) return; const updated = {...state.preferences, [hideKey]: {...state.preferences[hideKey], hidden: true}}; if (!saveStored(PREFERENCES_KEY, updated)) { showError('Не удалось сохранить скрытие в этом браузере.'); return; } state.preferences = updated; renderRoute(); };
     actions.append(link('Разобраться в событии →', 'insight/' + event.id), hide);
     card.append(meta, node('h2', event.title), node('span', 'Требует проверки данных', 'badge'), node('p', event.why), actions); grid.append(card);
   }
@@ -180,29 +211,46 @@ function renderFeed(result) {
 function renderCard(card) {
   state.card = card;
   $('page').append(link('← Все бизнес-события', 'feed', {}, 'breadcrumb'));
-  heading(card.title, 'Что произошло, как это может повлиять на компанию и какие данные ещё нужны.');
+  const company = state.data.companies.find(c => c.id === state.ctx.company_id);
+  heading(card.title, `Разбор для ${company?.name || 'компании'} · ${state.data.roles[state.ctx.role]}. Изменить контекст можно в Профиле.`);
   const toolbar = node('div', '', 'toolbar'); toolbar.setAttribute('role', 'group'); toolbar.setAttribute('aria-label', 'Разрез анализа');
   for (const [key, name] of Object.entries(state.data.views)) {
     const b = node('button', name); b.setAttribute('aria-pressed', String(key === state.ctx.view));
     b.onclick = () => { location.hash = routeURL('insight/' + state.ctx.event_id, {view: key}); }; toolbar.append(b);
   }
   $('page').append(toolbar);
-  const layout = node('div', '', 'card-layout'); const content = node('div'); const blocks = node('article', '', 'panel');
-  for (const block of card.blocks) {
-    const section = node('section', '', 'block ' + block.kind);
-    section.append(node('h2', labels[block.kind] || 'Аналитика', 'block-heading'));
-    if (block.kind === 'fact') {
-      section.append(node('span', 'Факт из источника', 'tag'), node('p', block.text), sourceLinks(card.sources.filter(s => block.source_ids.includes(s.id))));
-    } else {
-      const origin = block.kind === 'open' ? 'Вывод модели по открытым источникам' : block.kind === 'bank' ? 'Основание — материалы банка; в демо использованы синтетические примеры' : 'Вывод модели для компании · не официальная позиция банка';
-      section.append(node('p', origin, 'origin-note'));
-      for (const part of block.sections) {
-        const subsection = node('section', '', 'analysis-part');
-        subsection.append(node('h3', state.data.views[part.kind]), node('span', certaintyLabels[part.certainty] || 'Требует проверки', 'tag'), node('p', part.text), sourceLinks(card.sources.filter(s => part.source_ids.includes(s.id))));
-        section.append(subsection);
+  const layout = node('div', '', 'card-layout'); const content = node('div'); const blocks = node('article', '', 'panel thematic-analysis');
+  const fact = card.blocks.find(b => b.kind === 'fact');
+  const factSection = node('section', '', 'block fact'); factSection.append(node('h2', 'Что произошло', 'block-heading'));
+  if (fact) factSection.append(node('span', 'Факт события', 'tag'), node('p', fact.text), sourceLinks(card.sources.filter(s => fact.source_ids.includes(s.id))));
+  else factSection.append(node('p', 'Факт события не предоставлен.', 'muted'));
+  blocks.append(factSection);
+  const themeMap = {consequences: 'Влияние на компанию', risks: 'Риски и неопределённость', recommendations: 'Что проверить дальше'};
+  const origins = {open: 'Вывод AI по внешним источникам', bank: 'Оценка банка · в этой демонстрации учебная', ai: 'Вывод AI для компании · не официальная позиция банка'};
+  const bankBlock = card.blocks.find(b => b.kind === 'bank');
+  const bankUnavailable = !bankBlock || !bankBlock.sections?.some(part => part.certainty !== 'unavailable');
+  if (bankUnavailable) blocks.append(node('p', 'Для этого события оценка банка недоступна: в демонстрационном наборе нет релевантного материала.', 'bank-unavailable'));
+  for (const kind of ['consequences', 'risks', 'recommendations']) {
+    if (state.ctx.view !== 'overview' && state.ctx.view !== kind) continue;
+    const theme = node('section', '', 'theme-section'); theme.append(node('h2', themeMap[kind], 'block-heading'));
+    const aiPart = card.blocks.find(b => b.kind === 'ai')?.sections?.find(section => section.kind === kind);
+    if (aiPart) theme.append(node('p', origins.ai, 'origin-note ai-origin'), node('p', aiPart.text, 'analysis-copy'), node('span', certaintyLabels[aiPart.certainty] || 'Тип утверждения не указан', 'tag'), sourceLinks(card.sources.filter(s => aiPart.source_ids.includes(s.id))));
+    else theme.append(node('p', origins.ai, 'origin-note ai-origin'), node('p', 'Вывод для компании по этой теме недоступен: раздел не предоставлен.', 'muted'), node('span', certaintyLabels.unavailable, 'tag'));
+    const basis = node('details', '', 'basis-details'); basis.append(node('summary', 'На чём основан вывод'));
+    for (const kindOrigin of ['open', 'bank']) {
+      const block = card.blocks.find(b => b.kind === kindOrigin); const part = block?.sections?.find(section => section.kind === kind);
+      const sourceOrigin = node('section', '', 'source-origin ' + kindOrigin);
+      sourceOrigin.append(node('p', origins[kindOrigin], 'origin-note'));
+      if (part) {
+        sourceOrigin.append(node('p', part.text, 'origin-copy'));
+        sourceOrigin.append(node('span', certaintyLabels[part.certainty] || 'Тип утверждения не указан', 'tag'), sourceLinks(card.sources.filter(s => part.source_ids.includes(s.id))));
+      } else {
+        sourceOrigin.append(node('p', 'Раздел по этой теме не предоставлен.', 'muted'), node('span', certaintyLabels.unavailable, 'tag'));
       }
+      basis.append(sourceOrigin);
     }
-    blocks.append(section);
+    theme.append(basis);
+    blocks.append(theme);
   }
   if (card.missing_data.length) {
     const warning = node('div', '', 'limitations'); warning.append(node('strong', 'Границы вывода'));
@@ -255,7 +303,7 @@ async function renderRoute() {
     const route = readRoute(); state.ctx = route.ctx;
     // Company and role come from the profile; old URL overrides are intentionally ignored.
     history.replaceState(null, '', routeURL(route.page === 'insight' ? 'insight/' + route.ctx.event_id : route.page));
-    $('profile-link').textContent = state.profile.name + ' · ' + state.data.companies.find(x => x.id === state.profile.company_id).name;
+    $('profile-link').textContent = state.profile.name + ' · ' + state.data.companies.find(x => x.id === state.profile.company_id).name + ' · ' + state.data.roles[state.profile.role];
     $('profile-link').href = routeURL('profile');
     document.querySelectorAll('[data-nav]').forEach(a => {
       a.href = routeURL(a.dataset.nav);
@@ -268,7 +316,7 @@ async function renderRoute() {
     $('page').setAttribute('aria-busy', 'true'); status('Загружаем аналитику…');
     $('page').append(node('div', 'Загружаем данные выбранной компании…', 'skeleton'));
     const controller = new AbortController(); state.pageController = controller;
-    const ctx = route.page === 'feed' ? {company_id: state.ctx.company_id, role: state.ctx.role} : {...state.ctx};
+    const ctx = route.page === 'feed' ? {company_id: state.ctx.company_id, role: state.ctx.role} : {...state.ctx, view: 'overview'};
     const result = await request(route.page === 'feed' ? '/api/feed' : '/api/insight', ctx, controller);
     if (epoch !== state.epoch) return;
     $('page').replaceChildren(); if (route.page === 'feed') renderFeed(result); else renderCard(result);
@@ -288,7 +336,7 @@ async function init() {
     const stored = readStored(PROFILE_KEY, result.profile);
     const valid = stored && typeof stored.name === 'string' && stored.name.trim().length > 0 && stored.name.length <= 100 && result.companies.some(c => c.id === stored.company_id) && Object.hasOwn(result.roles, stored.role);
     state.profile = valid ? {name: stored.name, company_id: stored.company_id, role: stored.role} : {...result.profile};
-    const preferences = readStored(PREFERENCES_KEY, {}); state.preferences = preferences && typeof preferences === 'object' && !Array.isArray(preferences) ? preferences : {};
+    state.preferences = normalizePreferences(readStored(PREFERENCES_KEY, {}));
     $('notice').textContent = result.notice;
     await renderRoute();
   } catch (e) { showError('Не удалось подключить сервис. ' + e.message, init); status('Ошибка подключения'); $('page').setAttribute('aria-busy', 'false'); }
