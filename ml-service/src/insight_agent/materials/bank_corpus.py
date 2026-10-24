@@ -37,7 +37,10 @@ def chunk_page(page: PageText, metadata: DocumentMetadata, max_chars: int = 2000
         while start < len(text) and text[start].isspace():
             start += 1
         end = min(start + max_chars, len(text))
-        if end < len(text):
+        paragraph = re.search(r"\n\s*\n|(?<=[.!?])\s+(?=[А-ЯЁA-Z])", text[start:end])
+        if paragraph:
+            end = start + paragraph.start()
+        elif end < len(text):
             boundaries = list(re.finditer(r"(?<=[.!?])\s+|\n\s*\n", text[start:end]))
             if boundaries:
                 end = start + boundaries[-1].start()
@@ -50,7 +53,7 @@ def chunk_page(page: PageText, metadata: DocumentMetadata, max_chars: int = 2000
             break
         body = text[start:end]
         text_hash = digest(body.encode())
-        out.append(BankFragment(fragment_id=f"{metadata.doc_id}:p{page.page}:{text_hash[:16]}",
+        out.append(BankFragment(fragment_id=f"{metadata.doc_id}:p{page.page}:s{start}:{text_hash[:16]}",
             doc_id=metadata.doc_id, doc_title=metadata.title, doc_date=metadata.doc_date,
             page=page.page, text=body, topics=metadata.topics, content_sha256=text_hash,
             char_start=start, char_end=end, extraction_method=page.method))
@@ -63,6 +66,7 @@ def prepare_bank(pdf_root: Path, manifest_path: Path, store_root: Path, ocr: OCR
     documents = load_document_manifest(manifest_path, pdf_root)
     snapshot = CorpusSnapshot(tool_versions={"pypdf": version("pypdf"), "ocr": getattr(ocr, "version", type(ocr).__name__),
                                             "render": "pdftoppm:300dpi:max3000px"})
+    snapshot.tool_versions.update(getattr(ocr, "tool_versions", {}))
     for metadata in documents:
         source = safe_path(pdf_root, metadata.relative_path)
         raw_path = f"raw/{metadata.doc_id}/source.pdf"

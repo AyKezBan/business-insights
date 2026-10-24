@@ -80,3 +80,19 @@ def test_prepare_bank_retains_raw_and_auditable_page_index(tmp_path):
     assert (root/result.documents[0].relative_path).read_bytes()==pdf.read_bytes()
     assert (root/result.pages[0].relative_text_path).read_text()=='The rate remains 14 percent.'
     assert result.bank_fragments[0].review_status=='pending'
+
+
+def test_review_units_preserve_paragraphs_and_distinguish_repeated_spans():
+    from insight_agent.materials.bank_corpus import chunk_page
+    meta=DocumentMetadata(doc_id='d',title='Report',sha256='a'*64,page_count=1,relative_path='x.pdf')
+    page=PageText(doc_id='d',page=1,text='Reported statistic.\n\nBank assessment.\n\nReported statistic.',method='tesseract',status='ready')
+    chunks=chunk_page(page,meta)
+    assert [c.text for c in chunks]==['Reported statistic.','Bank assessment.','Reported statistic.']
+    assert len({c.fragment_id for c in chunks})==3
+
+
+def test_forecasts_with_different_horizons_are_independent_review_units():
+    from insight_agent.materials.bank_corpus import chunk_page
+    meta=DocumentMetadata(doc_id='d',title='Report',sha256='a'*64,page_count=1,relative_path='x.pdf')
+    page=PageText(doc_id='d',page=1,text='Пауза ожидается 23 октября. Ставка 14,0% до конца 2026 года.',method='tesseract',status='ready')
+    assert [f.text for f in chunk_page(page,meta)]==['Пауза ожидается 23 октября.','Ставка 14,0% до конца 2026 года.']
