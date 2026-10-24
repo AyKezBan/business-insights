@@ -29,3 +29,6 @@ dist/
 
 # MacOS
 .DS_Store
+
+# Исходные CSV импорта (хранятся локально)
+/data-import/source-data/*.csv
