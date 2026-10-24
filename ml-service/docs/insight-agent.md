@@ -139,12 +139,27 @@
 
 ## Тесты
 
-`tests/test_orchestrator.py` проверяет сценарии:
-- данных хватает -> `complete`
-- нет аналитики банка -> поиск расширяется, `bank_view = unavailable`, `limited`
-- модель выдумала число -> исправление по замечаниям -> `complete`; ошибка повторилась -> утверждение убрано, `limited`
-- планировщик упал -> план по правилам
-- разбор события один на разные роли
-- бюджет исчерпан -> LLM не вызывается, `failed`
+Все тесты идут на фейковом клиенте LLM (`tests/fakes.py`): ключ и рубли не нужны. Запуск: `.venv/bin/pytest`.
 
-Всего 43 теста, LLM в них заменена фейковым клиентом.
+Соответствие сценариям проверки из спецификации D05:
+
+| Сценарий | Где проверяется |
+|---|---|
+| T01 новое событие | `test_scenarios::test_t01_*` |
+| T02 разные компании | `test_scenarios::test_t02_*`, `test_orchestrator::test_event_analysis_is_shared_between_roles` |
+| T03 смена флага продукта | `test_scenarios::test_t03_*` |
+| T04 критичное событие в ленте | не ML: отбор и ранжирование на стороне Backend |
+| T05 дубли и шум | `test_news_dedup.py` (уровень хранилища новостей) |
+| T06 противоречие источников | `test_evidence_integration::test_conflicting_sources_*` |
+| T07 аналитика банка: подходящая, устаревшая, нет | `test_orchestrator`, `test_scenarios::test_t07_*`, `test_bank_policy.py` |
+| T08 расхождение AI и банка | частично: `assessment` и `inference` разделены, в `bank_view` другое нельзя (`bank_view_kind`); структурное поле `model_vs_bank` намеренно пустое, пока нет проверяемой привязки к источникам |
+| T09, T10, T19 интерфейс | не ML (Frontend); на стороне ML повтор запроса: `test_idempotency.py` |
+| T11 пропуски и выручка 1000 | `test_scenarios::test_t11_*`, `test_profile_rules.py`, `test_tools.py` |
+| T12 дубль UID | не ML: очистка данных при импорте (Backend) |
+| T13, T14, T15 переводы себе, ФТС, группа | `test_profile_rules.py` |
+| T16 состояния результата | `test_orchestrator`: `full`, `limited`, `refused`, `failed` с кодами ошибок |
+| T17 таймаут и лимит | `test_budget.py`, `test_orchestrator` (`budget_run`, `budget_daily`, `timeout`) |
+| T18 недоверенный текст | `test_time_slice_and_injection::test_poisoned_news_*` |
+| T20 источники и дисклеймер | `test_scenarios::test_t20_*` |
+
+Отдельно: `test_budget.py` (рубли на `Decimal`, пороги, суточный сброс), `test_time_slice_and_injection.py` (`as_of`, экранирование блоков данных), `test_idempotency.py` (`request_id`, перезапуск), `test_critic.py` и `test_profile_rules.py` (проверки ответа и признаков).
