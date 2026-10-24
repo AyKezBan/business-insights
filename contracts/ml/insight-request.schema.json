@@ -78,6 +78,84 @@
           "default": null,
           "title": "Group Revenue Rub"
         },
+        "revenue_year": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revenue Year"
+        },
+        "revenue_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "known",
+                "placeholder",
+                "missing",
+                "invalid"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revenue Status"
+        },
+        "revenue_scope": {
+          "anyOf": [
+            {
+              "enum": [
+                "company",
+                "group",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revenue Scope"
+        },
+        "foreign_trade_data_available": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Foreign Trade Data Available"
+        },
+        "payment_period": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Payment Period"
+        },
+        "profile_quality_notes": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Profile Quality Notes",
+          "type": "array"
+        },
         "employees": {
           "anyOf": [
             {
@@ -364,6 +442,13 @@
           },
           "title": "Topics",
           "type": "array"
+        },
+        "conflicts": {
+          "items": {
+            "$ref": "#/$defs/SourceConflict"
+          },
+          "title": "Conflicts",
+          "type": "array"
         }
       },
       "required": [
@@ -465,6 +550,32 @@
       "title": "Products",
       "type": "object"
     },
+    "SourceConflict": {
+      "properties": {
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "resolved": {
+          "default": false,
+          "title": "Resolved",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "reason",
+        "source_ids"
+      ],
+      "title": "SourceConflict",
+      "type": "object"
+    },
     "SourceKind": {
       "enum": [
         "news",
@@ -503,6 +614,7 @@
         "page": {
           "anyOf": [
             {
+              "minimum": 1,
               "type": "integer"
             },
             {
@@ -523,6 +635,43 @@
           ],
           "default": null,
           "title": "Url"
+        },
+        "doc_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doc Id"
+        },
+        "content_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Sha256"
+        },
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Excerpt"
         }
       },
       "required": [

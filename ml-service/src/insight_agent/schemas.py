@@ -1,7 +1,10 @@
 from datetime import date as Date, datetime
 from enum import StrEnum
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+Sha256 = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
 DISCLAIMER = (
     "Аналитика носит информационный характер и не является инвестиционной рекомендацией. "
@@ -69,6 +72,12 @@ class CompanyProfile(BaseModel):
     industry: str | None = None
     revenue_rub: float | None = None
     group_revenue_rub: float | None = None
+    revenue_year: int | None = None
+    revenue_status: Literal["known", "placeholder", "missing", "invalid"] | None = None
+    revenue_scope: Literal["company", "group", "unknown"] | None = None
+    foreign_trade_data_available: bool | None = None
+    payment_period: str | None = None
+    profile_quality_notes: list[str] = Field(default_factory=list)
     employees: str | None = None
     company_age: str | None = None
     business_stage: str | None = None
@@ -85,14 +94,34 @@ class CompanyProfile(BaseModel):
     user_provided: dict[str, str] = Field(default_factory=dict)
     missing_fields: list[str] = Field(default_factory=list)
 
+    @model_validator(mode="after")
+    def preserve_unknowns(self):
+        if self.revenue_rub == 1000:
+            self.revenue_rub = None
+            self.revenue_status = "placeholder"
+        if self.revenue_status in ("placeholder", "missing", "invalid"):
+            self.revenue_rub = None
+        if self.foreign_trade_data_available is False:
+            self.foreign_trade = None
+        return self
+
 
 class SourceRef(BaseModel):
     source_id: str
     kind: SourceKind
     title: str
     date: Date | None = None
-    page: int | None = None
+    page: int | None = Field(default=None, ge=1)
     url: str | None = None
+    doc_id: str | None = None
+    content_sha256: Sha256 | None = None
+    excerpt: str | None = None
+
+
+class SourceConflict(BaseModel):
+    reason: str
+    source_ids: list[str]
+    resolved: bool = False
 
 
 class NewsEvent(BaseModel):
@@ -103,6 +132,7 @@ class NewsEvent(BaseModel):
     source: SourceRef
     related_sources: list[SourceRef] = Field(default_factory=list)
     topics: list[str] = Field(default_factory=list)
+    conflicts: list[SourceConflict] = Field(default_factory=list)
 
 
 class BankFragment(BaseModel):
@@ -110,9 +140,19 @@ class BankFragment(BaseModel):
     doc_id: str
     doc_title: str
     doc_date: Date | None = None
-    page: int | None = None
+    page: int | None = Field(default=None, ge=1)
     text: str
     topics: list[str] = Field(default_factory=list)
+    source_url: str | None = None
+    content_sha256: Sha256 | None = None
+    char_start: int | None = Field(default=None, ge=0)
+    char_end: int | None = Field(default=None, ge=0)
+    extraction_method: str | None = None
+    review_status: Literal["pending", "verified", "rejected"] = "pending"
+    statement_type: Literal["reported_fact", "bank_assessment", "forecast", "mixed"] = "mixed"
+    target_period: str | None = None
+    valid_until: Date | None = None
+    supersedes: list[str] = Field(default_factory=list)
 
 
 class InsightRequest(BaseModel):

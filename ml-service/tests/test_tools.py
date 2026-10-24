@@ -52,7 +52,7 @@ def test_signals_link_products_to_channels(request_):
     assert "cost_of_debt" in signals["products.loans"].channels
     assert "products.deposits" not in signals
     assert signals["revenue_rub"].value == "2.4 млрд руб."
-    assert "поставщик" in signals["counterparties[0]"].value
+    assert "исходящий платёжный контрагент" in signals["counterparties[0]"].value
 
 
 def test_revenue_placeholder_is_treated_as_missing():
