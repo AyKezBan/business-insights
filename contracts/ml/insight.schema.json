@@ -431,6 +431,11 @@
       "default": null,
       "title": "Parent Run Id"
     },
+    "cache_hit": {
+      "default": false,
+      "title": "Cache Hit",
+      "type": "boolean"
+    },
     "headline": {
       "title": "Headline",
       "type": "string"

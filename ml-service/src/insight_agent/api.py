@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 
 from insight_agent import __version__
-from insight_agent.agent.orchestrator import InsightAgent
+from insight_agent.agent.orchestrator import InsightAgent, RequestIdConflict
 from insight_agent.agent.qa import answer_question
 from insight_agent.config import Settings, get_settings
 from insight_agent.llm import ChatClient, OpenAICompatibleClient
@@ -50,7 +50,10 @@ def create_app(agent: InsightAgent | None = None) -> FastAPI:
 
     @app.post("/v1/insights", response_model=Insight)
     def create_insight(request: InsightRequest) -> Insight:
-        return agent.run(request)
+        try:
+            return agent.run(request)
+        except RequestIdConflict:
+            raise HTTPException(409, "request_id уже использован с другим содержимым запроса")
 
     @app.post("/v1/insights/{insight_id}/questions", response_model=Answer)
     def ask(insight_id: str, body: QuestionRequest) -> Answer:

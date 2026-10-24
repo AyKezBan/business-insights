@@ -259,6 +259,7 @@ class Insight(BaseModel):
     error_code: str | None = None
     request_id: str | None = None
     parent_run_id: str | None = None
+    cache_hit: bool = False
     headline: str
     what_happened: list[Claim]
     why_it_matters: list[Claim]

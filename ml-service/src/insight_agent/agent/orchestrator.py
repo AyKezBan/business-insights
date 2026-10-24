@@ -1,5 +1,8 @@
+import hashlib
 import re
+import threading
 import time
+from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -11,6 +14,8 @@ from insight_agent.agent.evidence import event_fingerprint, pack_sources
 from insight_agent.agent.personalizer import personalize
 from insight_agent.agent.planner import make_plan, matched_channels
 from insight_agent.agent.state import AgentState
+from insight_agent.agent.store import InsightStore
+from insight_agent.agent.versions import PROMPT_VERSION, git_sha
 from insight_agent.budget import Price, PriceTable, RubleLedger
 from insight_agent.config import Settings
 from insight_agent.materials.models import CorpusSnapshot
@@ -40,6 +45,13 @@ _LOCATION = re.compile(r"^(\w+)\[(\d+)\]$")
 BROAD_MIN_SCORE = 0.3
 
 
+MAX_REMEMBERED = 500
+
+
+class RequestIdConflict(ValueError):
+    pass
+
+
 class NoArgs(BaseModel):
     pass
 
@@ -67,7 +79,11 @@ class InsightAgent:
         self.corpus_snapshot = corpus_snapshot
         self.daily = daily or self._build_daily_budget(settings)
         self.analysis_cache: dict[str, tuple[EventAnalysis, list[CheckIssue]]] = {}
-        self.records: dict[str, RunRecord] = {}
+        self.records: OrderedDict[str, RunRecord] = OrderedDict()
+        self.requests: OrderedDict[str, tuple[str, Insight]] = OrderedDict()
+        self.store = InsightStore(settings.trace_dir / "insights")
+        self._request_locks: dict[str, threading.Lock] = {}
+        self._locks_guard = threading.Lock()
 
     @staticmethod
     def _build_daily_budget(settings: Settings) -> DailyBudget:
@@ -150,7 +166,47 @@ class InsightAgent:
                 state.news[item.event_id] = item
                 self.resolve_news(state, item)
 
+    def get_record(self, insight_id: str) -> RunRecord | None:
+        record = self.records.get(insight_id)
+        if record is None and (loaded := self.store.load(insight_id)):
+            record = RunRecord(state=loaded[0], insight=loaded[1])
+            self._remember(self.records, insight_id, record)
+        return record
+
+    @staticmethod
+    def _remember(cache: OrderedDict, key: str, value) -> None:
+        cache[key] = value
+        cache.move_to_end(key)
+        while len(cache) > MAX_REMEMBERED:
+            cache.popitem(last=False)
+
     def run(self, request: InsightRequest) -> Insight:
+        """Повтор запроса с тем же request_id и тем же содержимым отдаёт готовый инсайт без новых вызовов LLM.
+
+        Неудачный запуск (failed) не запоминается: повтор после сбоя считается новым запуском.
+        """
+        rid = request.request_id
+        if not rid:
+            return self._run(request)
+        fingerprint = hashlib.sha256(
+            request.model_dump_json(exclude={"request_id", "parent_run_id"}).encode()
+        ).hexdigest()
+        with self._locks_guard:
+            if len(self._request_locks) > 5 * MAX_REMEMBERED:
+                self._request_locks = {k: v for k, v in self._request_locks.items() if v.locked()}
+            lock = self._request_locks.setdefault(rid, threading.Lock())
+        with lock:
+            known = self.requests.get(rid)
+            if known:
+                if known[0] != fingerprint:
+                    raise RequestIdConflict(rid)
+                return known[1].model_copy(update={"cache_hit": True})
+            insight = self._run(request)
+            if insight.status != InsightStatus.failed:
+                self._remember(self.requests, rid, (fingerprint, insight))
+            return insight
+
+    def _run(self, request: InsightRequest) -> Insight:
         tracer, llm = self.new_run()
         s = self.settings
         state = AgentState(
@@ -175,6 +231,11 @@ class InsightAgent:
                 "tool_versions": self.corpus_snapshot.tool_versions if self.corpus_snapshot else {},
                 "source_hashes": {sid: digest(text.encode()) for sid, text in state.source_texts().items()},
                 "budget": self._budget_snapshot(),
+                "request_id": request.request_id,
+                "parent_run_id": request.parent_run_id,
+                "prompt_version": PROMPT_VERSION,
+                "git_sha": git_sha(),
+                "models": {"light": s.llm_model_light, "reasoning": s.llm_model_reasoning, "fallback": s.llm_model_fallback},
             },
         )
         tools = self.tools_for(state, tracer)
@@ -185,7 +246,7 @@ class InsightAgent:
             _, truncated = pack_sources(texts)
             if truncated:
                 state.limited_reasons.append("контекст разбора сокращён; полный текст сохранён в корпусе: " + ", ".join(truncated))
-            key = event_fingerprint(request.event, source_texts=texts)
+            key = f"{event_fingerprint(request.event, source_texts=texts)}|{PROMPT_VERSION}|{s.llm_model_light}"
             cached = self.analysis_cache.get(key)
             if cached:
                 state.analysis = cached[0].model_copy(deep=True)
@@ -251,7 +312,8 @@ class InsightAgent:
              "error_code": insight.error_code, "sources": [x.source_id for x in insight.sources],
              "usage": llm.usage()},
         )
-        self.records[insight.insight_id] = RunRecord(state=state, insight=insight)
+        self._remember(self.records, insight.insight_id, RunRecord(state=state, insight=insight))
+        self.store.save(state, insight)
         return insight
 
     def broaden_bank_search(self, state: AgentState, tools: ToolRegistry, tracer: Tracer) -> None:

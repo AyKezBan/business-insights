@@ -18,7 +18,7 @@ class AnswerDraft(BaseModel):
 
 
 def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answer | None:
-    record = agent.records.get(insight_id)
+    record = agent.get_record(insight_id)
     if record is None:
         return None
     state, insight = deepcopy(record.state), record.insight
