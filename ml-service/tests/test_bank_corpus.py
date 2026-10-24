@@ -96,3 +96,26 @@ def test_forecasts_with_different_horizons_are_independent_review_units():
     meta=DocumentMetadata(doc_id='d',title='Report',sha256='a'*64,page_count=1,relative_path='x.pdf')
     page=PageText(doc_id='d',page=1,text='Пауза ожидается 23 октября. Ставка 14,0% до конца 2026 года.',method='tesseract',status='ready')
     assert [f.text for f in chunk_page(page,meta)]==['Пауза ожидается 23 октября.','Ставка 14,0% до конца 2026 года.']
+
+
+def test_manual_correction_creates_new_page_version_and_invalidates_review(tmp_path):
+    from insight_agent.materials.bank_corpus import prepare_bank
+    from test_pdf_extraction import FakeOCR
+    inputs=tmp_path/'input';inputs.mkdir()
+    meta=make_pdf(inputs/'x.pdf','A wrong OCR number 256.')
+    manifest=tmp_path/'manifest.json'
+    manifest.write_text(json.dumps({'documents':[meta.model_dump(mode='json')]}))
+    root=tmp_path/'store'
+    old=prepare_bank(inputs,manifest,root,FakeOCR())
+    f=old.bank_fragments[0]
+    reviews=tmp_path/'reviews.json'
+    reviews.write_text(json.dumps({f.fragment_id:{'content_sha256':f.content_sha256,'review_status':'verified'}}))
+    overrides=tmp_path/'corrections';(overrides/meta.doc_id).mkdir(parents=True)
+    (overrides/meta.doc_id/'0001.txt').write_text('A corrected OCR number 25.')
+    new=prepare_bank(inputs,manifest,root,FakeOCR(),reviews,text_overrides=overrides)
+    assert new.pages[0].relative_text_path!=old.pages[0].relative_text_path
+    assert (root/old.pages[0].relative_text_path).read_text()=='A wrong OCR number 256.'
+    assert new.bank_fragments[0].text=='A corrected OCR number 25.'
+    assert new.bank_fragments[0].review_status=='pending'
+    assert new.bank_fragments[0].extraction_method=='text+manual'
+    assert any(k.startswith('override:') for k in new.tool_versions)

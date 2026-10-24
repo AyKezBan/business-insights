@@ -62,17 +62,18 @@ def chunk_page(page: PageText, metadata: DocumentMetadata, max_chars: int = 2000
 
 
 def prepare_bank(pdf_root: Path, manifest_path: Path, store_root: Path, ocr: OCRBackend,
-                 reviews: Path | None = None) -> CorpusSnapshot:
+                 reviews: Path | None = None, *, text_overrides: Path | None = None) -> CorpusSnapshot:
     documents = load_document_manifest(manifest_path, pdf_root)
     snapshot = CorpusSnapshot(tool_versions={"pypdf": version("pypdf"), "ocr": getattr(ocr, "version", type(ocr).__name__),
                                             "render": "pdftoppm:300dpi:max3000px"})
     snapshot.tool_versions.update(getattr(ocr, "tool_versions", {}))
+    extraction_tools = dict(snapshot.tool_versions)
     for metadata in documents:
         source = safe_path(pdf_root, metadata.relative_path)
         raw_path = f"raw/{metadata.doc_id}/source.pdf"
         write_immutable(store_root, raw_path, source.read_bytes())
         snapshot.documents.append(metadata.model_copy(update={"relative_path": raw_path}))
-        cache_id = digest(json.dumps({"doc": metadata.sha256, "tools": snapshot.tool_versions,
+        cache_id = digest(json.dumps({"doc": metadata.sha256, "tools": extraction_tools,
                                      "pipeline": snapshot.pipeline_version}, sort_keys=True).encode())
         cache_path = safe_path(store_root, f"staging/{cache_id}.json")
         pages = []
@@ -82,6 +83,17 @@ def prepare_bank(pdf_root: Path, manifest_path: Path, store_root: Path, ocr: OCR
             pages = extract_pdf(source, metadata, ocr)
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             cache_path.write_text(json.dumps([p.model_dump(mode="json") for p in pages], ensure_ascii=False), "utf-8")
+        corrected = set()
+        if text_overrides is not None:
+            for i, page in enumerate(pages):
+                override = safe_path(text_overrides, f"{metadata.doc_id}/{page.page:04}.txt")
+                if override.exists():
+                    text = override.read_text("utf-8")
+                    if not text.strip():
+                        raise ValueError("Manual page correction cannot be empty")
+                    pages[i] = page.model_copy(update={"text": text, "status": "needs_review", "errors": []})
+                    corrected.add(page.page)
+                    snapshot.tool_versions[f"override:{metadata.doc_id}:p{page.page}"] = digest(text.encode())
         extraction_revision = digest(json.dumps([p.model_dump(mode="json") for p in pages],
                                                 sort_keys=True, ensure_ascii=False).encode())
         for page in pages:
@@ -93,7 +105,11 @@ def prepare_bank(pdf_root: Path, manifest_path: Path, store_root: Path, ocr: OCR
             snapshot.pages.append(PageArtifact(doc_id=metadata.doc_id, page=page.page,
                 extraction_revision=extraction_revision, relative_text_path=relative,
                 text_sha256=text_hash, method=page.method, status=page.status, errors=page.errors))
-            snapshot.bank_fragments.extend(chunk_page(page, metadata))
+            fragments = chunk_page(page, metadata)
+            if page.page in corrected:
+                for fragment in fragments:
+                    fragment.extraction_method = page.method + "+manual"
+            snapshot.bank_fragments.extend(fragments)
     snapshot.bank_fragments = apply_reviews(snapshot.bank_fragments, reviews)
     snapshot.report = ImportReport(documents=len(snapshot.documents), pages=len(snapshot.pages),
         fragments=len(snapshot.bank_fragments), errors=[f"{p.doc_id} page {p.page}: {e}" for p in snapshot.pages for e in p.errors])
