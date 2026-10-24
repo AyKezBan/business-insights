@@ -578,6 +578,11 @@
           "title": "Revision",
           "type": "integer"
         },
+        "active": {
+          "default": true,
+          "title": "Active",
+          "type": "boolean"
+        },
         "content_sha256": {
           "pattern": "^[a-f0-9]{64}$",
           "title": "Content Sha256",

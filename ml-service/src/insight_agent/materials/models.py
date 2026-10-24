@@ -2,7 +2,7 @@
 from datetime import date, datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
 from insight_agent.schemas import BankFragment, NewsEvent, Sha256
 
@@ -52,8 +52,8 @@ class RawNews(BaseModel):
     url: str
     title: str = Field(min_length=1)
     text: str = Field(min_length=1)
-    published_at: datetime | None = None
-    retrieved_at: datetime
+    published_at: AwareDatetime | None = None
+    retrieved_at: AwareDatetime
 
 
 class SourceVersion(BaseModel):
@@ -61,10 +61,11 @@ class SourceVersion(BaseModel):
     event_id: str
     url: str
     revision: int = Field(ge=1)
+    active: bool = True
     content_sha256: Sha256
-    published_at: datetime | None = None
-    first_seen_at: datetime
-    retrieved_at: datetime
+    published_at: AwareDatetime | None = None
+    first_seen_at: AwareDatetime
+    retrieved_at: AwareDatetime
     text: str
     title: str = ""  # preserve each publisher's title when sources are grouped
 
