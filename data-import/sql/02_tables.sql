@@ -66,3 +66,16 @@ CREATE TABLE IF NOT EXISTS business_insights.payment_snapshot (
     CHECK (NOT ml_eligible OR (payer IS NOT NULL AND beneficiary IS NOT NULL
                               AND pay_amt IS NOT NULL AND pay_cnt IS NOT NULL))
 );
+
+COMMENT ON COLUMN business_insights.company_profile.fts_flag IS
+    'Presence of FTS information; FALSE does not prove absence of foreign trade.';
+COMMENT ON COLUMN business_insights.company_profile.revenue_company IS
+    'Company revenue, RUB, reporting year in dataset_metadata. Source value 1000 is a placeholder stored as NULL.';
+COMMENT ON COLUMN business_insights.company_profile.negativemark IS
+    'Bank has reliable information about a key owner; not a negative risk flag or ownership form.';
+COMMENT ON COLUMN business_insights.person_company_link.city_name IS
+    'Company servicing city (webinar Q18); not registration city or person residence.';
+COMMENT ON COLUMN business_insights.person_company_link.rc_name IS
+    'Company servicing region (webinar Q18); not registration region or person residence.';
+COMMENT ON COLUMN business_insights.payment_snapshot.ml_eligible IS
+    'Eligible for observed-flow calculations only; not evidence of commercial relationship or complete coverage.';

@@ -3,11 +3,11 @@ import argparse
 import os
 from pathlib import Path
 
-from data_core import COMPANY_COLUMNS, Dataset
+from data_core import COMPANY_COLUMNS, PERIOD_DESCRIPTION, VERSION, Dataset
 
 SQL_DIR = Path(__file__).parent / "sql"
 SCHEMA_FILES = tuple(SQL_DIR / name for name in ("01_schemas.sql", "02_tables.sql", "03_indexes.sql"))
-SCHEMA_VERSION = "0.2.0"
+SCHEMA_VERSION = VERSION
 TABLES = ["payment_snapshot", "person_company_link", "company_profile", "person_ref", "company_ref",
           "dataset_metadata"]
 
@@ -29,9 +29,12 @@ def import_dataset(data_dir, dsn, *, replace=False):
             cursor.execute("SELECT schema_version, dataset_sha256 FROM business_insights.dataset_metadata WHERE singleton")
             current = cursor.fetchone()
             if current:
-                if current[0] != SCHEMA_VERSION:
+                # 0.2 -> 0.3 keeps all six tables; reload refreshes quality/provenance.
+                if current[0] not in {"0.2.0", SCHEMA_VERSION}:
                     raise ValueError("Incompatible business_insights schema version; a reviewed migration is required")
-                if current[1] == dataset.dataset_id:
+                if current[0] != SCHEMA_VERSION and not replace:
+                    raise ValueError("Use --replace-current to upgrade 0.2.0 and rebuild quality metadata")
+                if current[0] == SCHEMA_VERSION and current[1] == dataset.dataset_id:
                     return {"status": "unchanged", "dataset_sha256": dataset.dataset_id}
                 if not replace:
                     raise ValueError("Different dataset already loaded; use --replace-current to replace only business_insights")
@@ -70,7 +73,7 @@ def import_dataset(data_dir, dsn, *, replace=False):
                 (singleton, schema_version, dataset_sha256, source_manifest, payment_period_description)
                 VALUES (TRUE, %s, %s, %s, %s)""", (
                     SCHEMA_VERSION, dataset.dataset_id, Jsonb(dataset.report),
-                    "С 1 января; год начала и дата окончания не установлены"))
+                    PERIOD_DESCRIPTION))
             for table in TABLES:
                 cursor.execute(sql.SQL("ANALYZE {}").format(sql.Identifier("business_insights", table)))
     return {"status": "loaded", "dataset_sha256": dataset.dataset_id,

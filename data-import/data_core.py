@@ -8,7 +8,8 @@ from collections import Counter
 from decimal import Decimal, InvalidOperation, localcontext
 from pathlib import Path
 
-VERSION = "0.1.0"
+VERSION = "0.3.0"
+PERIOD_DESCRIPTION = "С 1 января; год начала и дата окончания не установлены"
 COMPANY = "df_Uid_data_hack.csv"
 LINK = "df_Fid_Uid_link_hack.csv"
 PAYMENT = "df_Uid_payment_hack.csv"
@@ -103,6 +104,9 @@ def normalize_company(row_number, raw):
     result.update(source_row=row_number, revenue_status=status, fts_countries=countries(raw["FTS_COUNTRY_NAME"]))
     if result["fts_countries"] and result["fts_flag"] is False:
         issues.append("countries_present_without_fts_flag")
+    fns, spark = result["amount_workers_fns_gradation"], result["amount_workers_spark_gradation"]
+    if fns and spark and fns != spark:
+        issues.append("conflicting_employee_gradations")
     result["quality_issues"] = sorted(issues)
     return result
 
@@ -117,6 +121,12 @@ class Dataset:
         self.files[COMPANY]["rows"] = len(company_rows)
         self.company_counts = Counter(identifier(r["SYNTHETIC_U"], "U") for _, r in company_rows)
         self.ambiguous_ids = {uid for uid, n in self.company_counts.items() if uid and n > 1}
+        self.quarantined_company_rows = [
+            {"source_row": n, "company_id": identifier(r["SYNTHETIC_U"], "U")}
+            for n, r in company_rows
+            if identifier(r["SYNTHETIC_U"], "U") is None
+            or identifier(r["SYNTHETIC_U"], "U") in self.ambiguous_ids
+        ]
         self.companies = {}
         for row_number, raw in company_rows:
             company = normalize_company(row_number, raw)
@@ -125,17 +135,23 @@ class Dataset:
                 self.companies[uid] = company
         self.registry = {uid for uid in self.company_counts if uid}
         self.links = list(self.link_rows())
-        self.files[LINK]["rows"] = sum(1 for _ in read_csv(self.data_dir, LINK))
+        link_rows = list(read_csv(self.data_dir, LINK))
+        self.files[LINK]["rows"] = len(link_rows)
+        self.invalid_link_rows = [n for n, r in link_rows
+                                  if not identifier(r["SYNTHETIC_U"], "U")
+                                  or not identifier(r["SYNTHETIC_F"], "F")]
         for link in self.links:
             self.registry.add(link["synthetic_u"])
         self.pair_counts = Counter()
+        payment_row_count = 0
         for _, row in read_csv(self.data_dir, PAYMENT):
+            payment_row_count += 1
             payer, beneficiary = identifier(row["PAYER"], "U"), identifier(row["BENEFICIARY"], "U")
             for uid in {payer, beneficiary} - {None}:
                 self.registry.add(uid)
             if payer and beneficiary:
                 self.pair_counts[(payer, beneficiary)] += 1
-        self.files[PAYMENT]["rows"] = sum(self.pair_counts.values())
+        self.files[PAYMENT]["rows"] = payment_row_count
         self.report = {}
 
     def verify_hashes(self):
@@ -196,11 +212,14 @@ class Dataset:
         self.files[PAYMENT]["rows"] = row_count
         self.report = {
             "dataset_sha256": self.dataset_id, "files": self.files,
+            "normalization_version": VERSION,
             "company_profiles": len(self.companies), "company_registry": len(self.registry),
             "company_invalid_id_rows": self.company_counts.get(None, 0),
             "ambiguous_company_ids": sorted(self.ambiguous_ids),
             "ambiguous_company_rows": sum(self.company_counts[uid] for uid in self.ambiguous_ids),
+            "quarantined_company_rows": self.quarantined_company_rows,
             "links_typed": len(self.links), "links_invalid": self.files[LINK]["rows"] - len(self.links),
+            "invalid_link_source_rows": self.invalid_link_rows,
             "payment_rows": row_count, "payment_rows_ml_eligible": eligible_count,
             "payment_rows_excluded": row_count - eligible_count, "payment_issue_counts": dict(issues),
             "payment_exact_numeric_duplicates_in_repeated_pairs": exact_duplicates,
@@ -209,6 +228,8 @@ class Dataset:
             "fts_distinct_nonempty_strings": len({c["fts_country_name"] for c in self.companies.values() if c["fts_country_name"]}),
             "fts_distinct_tokens": len({v for c in self.companies.values() for v in c["fts_countries"] or []}),
             "revenue_status_counts": dict(Counter(c["revenue_status"] for c in self.companies.values())),
+            "company_issue_counts": dict(Counter(issue for c in self.companies.values()
+                                                 for issue in c["quality_issues"])),
             "verification": {"full_csv_processing": True, "postgresql_execution": False},
         }
         return self.report

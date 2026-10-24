@@ -1,42 +1,41 @@
 # Data Import
 
-Чтение сырых CSV, нормализация и проверка данных, загрузка подготовленных записей в PostgreSQL. Исходные CSV остаются в файлах и не дублируются в БД. Требуются Python 3.11+, PostgreSQL 17+ и заранее созданная база.
+Нормализация трёх CSV и атомарная загрузка в PostgreSQL. Сборка ML-профиля относится к Java-бэкенду.
 
-Пути и команды указаны от корня репозитория `business-insights`. Команды приведены для Bash.
+## Запуск
 
-## Загрузка
+Нужны Python 3.11+, PostgreSQL 17+, созданная база и права на схему `business_insights`. Поместите в `data-import/source-data/` файлы UTF-8 с разделителем `;`:
 
-Перед запуском разместите в `data-import/source-data/` три исходных файла: `df_Uid_data_hack.csv`, `df_Fid_Uid_link_hack.csv` и `df_Uid_payment_hack.csv`. CSV хранятся локально и исключены из Git через корневой `.gitignore`. Загрузчик читает их без изменений; промежуточные CSV не создаются.
+- `df_Uid_data_hack.csv` — компании;
+- `df_Fid_Uid_link_hack.csv` — связи физлиц и компаний;
+- `df_Uid_payment_hack.csv` — платежи.
 
-```bash
+PowerShell, из корня репозитория:
+
+```powershell
 python -m venv data-import/.venv
-. data-import/.venv/bin/activate
-python -m pip install -r data-import/requirements.txt
-export DATABASE_URL='postgresql://user:password@localhost:5432/business_insights'
-python data-import/load_postgres.py --data-dir data-import/source-data
+data-import/.venv/Scripts/python.exe -m pip install -r data-import/requirements.txt
+$env:DATABASE_URL = 'postgresql://user:password@localhost:5432/business_insights'
+data-import/.venv/Scripts/python.exe data-import/load_postgres.py --data-dir data-import/source-data
 ```
 
-В DSN укажите свои параметры подключения. Пользователю нужны права на схему `business_insights`; базу и пользователя загрузчик не создаёт.
+Повтор того же набора возвращает `unchanged`. Для замены набора или перехода с версии `0.2.0` на `0.3.0` добавьте `--replace-current`: все данные схемы заменяются в одной транзакции. Другие версии отвергаются. Ошибка откатывает изменения; история наборов не хранится.
 
-Повтор тех же файлов возвращает `unchanged`. Для нового набора нужен `--replace-current`: он заменяет содержимое `business_insights` в одной транзакции. При ошибке изменения откатываются. Замену набора выполняйте вне активной работы с БД: она блокирует затронутые таблицы.
+## Данные в БД
 
-Загрузчик автоматически выполняет SQL-файлы из `data-import/sql/` по порядку: `01_schemas.sql`, `02_tables.sql`, `03_indexes.sql`.
+Загрузчик выполняет [создание схемы](sql/01_schemas.sql), [таблиц](sql/02_tables.sql) и [индексов](sql/03_indexes.sql).
 
-`data-import/data_core.py` читает и проверяет CSV, нормализует записи и формирует отчёт качества. `data-import/load_postgres.py` загружает их через COPY. Хеши файлов и отчёт сохраняются в `business_insights.dataset_metadata`.
+[Все поля и Mermaid-диаграмма БД](docs/SCHEMA.md).
 
-## Тесты
+| Таблица | Содержимое |
+| --- | --- |
+| `dataset_metadata` | Хеши файлов, отчёт качества, версия и период данных |
+| `company_ref` | ID компаний и доступность записи: available / ambiguous / external |
+| `company_profile` | Нормализованные атрибуты компании и признаки качества |
+| `person_ref` | ID физических лиц |
+| `person_company_link` | Связи ФЛ–ЮЛ и география обслуживания |
+| `payment_snapshot` | Все платежи, пригодность для расчётов и причины исключения |
 
-```bash
-python -m unittest discover -s data-import -t data-import -v
-```
+Исходные CSV не меняются и не копируются в БД. Сохраняйте их: SHA-256 и номера записей позволяют восстановить происхождение данных. Правила нормализации — в [DATA_RULES.md](docs/DATA_RULES.md).
 
-Шесть unit-тестов работают без PostgreSQL. Для интеграционного теста создайте отдельную одноразовую БД: тест заменяет её данные в `business_insights`.
-
-```bash
-export BI_TEST_DATABASE_URL='postgresql://user:password@localhost:5432/bi_data_test'
-python -m unittest discover -s data-import -t data-import -p test_postgres.py -v
-```
-
-Без `BI_TEST_DATABASE_URL` интеграционный тест пропускается; `DATABASE_URL` для тестов не используется.
-
-Подробности: [правила данных](/data-import/docs/DATA_RULES.md), [схема БД](/data-import/docs/SCHEMA.md), [результаты проверки](/data-import/docs/VALIDATION.md).
+Тесты находятся в `tests/`. Интеграционный тест заменяет данные схемы и требует отдельную одноразовую БД через `BI_TEST_DATABASE_URL`.
