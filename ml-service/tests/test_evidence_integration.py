@@ -120,3 +120,32 @@ def test_percentage_cannot_borrow_number_from_quarter_label(request_):
     state.bank['bank_demo_rate_p3'].text='Q2 2027 forecast: the rate remains 18%.'
     claim=Claim(text='The bank forecasts 2%.',kind='assessment',source_ids=['bank_demo_rate_p3'])
     assert any(i.code=='unsupported_quantity' for i in check_claims([claim],state,section='bank_view'))
+
+
+def test_conflicting_sources_remain_visible_and_limit_insight(make_agent,request_):
+    from insight_agent.schemas import SourceConflict
+    event=request_.event.model_copy(update={
+        'related_sources':[SourceRef(source_id='other',kind='news',title='Conflicting publisher',url='https://example.org/other')],
+        'conflicts':[SourceConflict(reason='different_versions',source_ids=[request_.event.source.source_id,'other'])]})
+    result=make_agent(script()).run(request_.model_copy(update={'event':event}))
+    assert result.status=='limited'
+    assert {'other',request_.event.source.source_id} <= {s.source_id for s in result.sources}
+    assert any('расходятся' in s for s in result.missing_data)
+
+
+def test_wrong_hash_of_primary_version_is_not_usable_evidence(make_agent,request_):
+    ref=request_.event.source.model_copy(update={'content_sha256':'0'*64})
+    event=request_.event.model_copy(update={'source':ref})
+    result=make_agent(script()).run(request_.model_copy(update={'event':event}))
+    assert result.what_happened==[] and result.status=='limited'
+    assert any(i.code=='unresolved_source' for i in result.self_check.issues)
+
+
+def test_reported_statistic_is_not_bank_assessment(request_):
+    from insight_agent.agent.critic import check_claims
+    from insight_agent.schemas import Claim
+    from test_critic import _state
+    state=_state(request_)
+    state.bank['bank_demo_rate_p3'].statement_type='reported_fact'
+    claim=Claim(text='The bank forecasts 18%.',kind='assessment',source_ids=['bank_demo_rate_p3'])
+    assert any(i.code=='unverified_bank_assessment' for i in check_claims([claim],state,section='bank_view'))

@@ -60,4 +60,7 @@ class BankIndex:
 
 
 def summarize(result: list[ScoredFragment]) -> dict:
-    return {"fragments": [{"id": r.fragment.fragment_id, "score": r.score} for r in result]}
+    return {"fragments": [{"id": r.fragment.fragment_id, "score": r.score,
+        "content_sha256": r.fragment.content_sha256, "doc_id": r.fragment.doc_id,
+        "page": r.fragment.page, "doc_date": str(r.fragment.doc_date),
+        "review_status": r.fragment.review_status, "statement_type": r.fragment.statement_type} for r in result]}
