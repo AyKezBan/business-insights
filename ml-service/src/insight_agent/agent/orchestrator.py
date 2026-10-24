@@ -1,4 +1,5 @@
 import re
+import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
@@ -10,6 +11,7 @@ from insight_agent.agent.evidence import event_fingerprint, pack_sources
 from insight_agent.agent.personalizer import personalize
 from insight_agent.agent.planner import make_plan, matched_channels
 from insight_agent.agent.state import AgentState
+from insight_agent.budget import Price, PriceTable, RubleLedger
 from insight_agent.config import Settings
 from insight_agent.materials.models import CorpusSnapshot
 from insight_agent.materials.artifacts import digest
@@ -63,13 +65,29 @@ class InsightAgent:
         self.bank = bank
         self.news = news
         self.corpus_snapshot = corpus_snapshot
-        self.daily = daily or DailyBudget(settings.llm_daily_token_budget)
+        self.daily = daily or self._build_daily_budget(settings)
         self.analysis_cache: dict[str, tuple[EventAnalysis, list[CheckIssue]]] = {}
         self.records: dict[str, RunRecord] = {}
 
+    @staticmethod
+    def _build_daily_budget(settings: Settings) -> DailyBudget:
+        prices = PriceTable.from_json(
+            settings.llm_prices_json,
+            Price(settings.llm_price_default_in_rub_per_1k, settings.llm_price_default_out_rub_per_1k),
+        )
+        ledger = RubleLedger(
+            limit=settings.llm_daily_budget_rub,
+            warn=settings.llm_budget_warn_rub,
+            stop_optional=settings.llm_budget_stop_optional_rub,
+            state_path=settings.budget_state_path or settings.trace_dir / "budget_state.json",
+            timezone=settings.budget_timezone,
+        )
+        return DailyBudget(settings.llm_daily_token_budget, ledger, prices)
+
     def new_run(self) -> tuple[Tracer, StructuredLLM]:
         tracer = Tracer(new_run_id(), self.settings.trace_dir)
-        budget = RunBudget(self.settings.agent_max_tokens_per_run, self.daily)
+        deadline = time.monotonic() + self.settings.agent_max_seconds
+        budget = RunBudget(self.settings.agent_max_tokens_per_run, self.daily, deadline)
         llm = StructuredLLM(self.client, budget, tracer, fallback_model=self.settings.llm_model_fallback)
         return tracer, llm
 
@@ -156,6 +174,7 @@ class InsightAgent:
                 "corpus_revision": self.corpus_snapshot.revision if self.corpus_snapshot else None,
                 "tool_versions": self.corpus_snapshot.tool_versions if self.corpus_snapshot else {},
                 "source_hashes": {sid: digest(text.encode()) for sid, text in state.source_texts().items()},
+                "budget": self._budget_snapshot(),
             },
         )
         tools = self.tools_for(state, tracer)
@@ -203,6 +222,10 @@ class InsightAgent:
                 self.broaden_bank_search(state, tools, tracer)
 
             for iterations in range(1, s.agent_max_iterations + 1):
+                if iterations > 1 and not self.daily.optional_allowed():
+                    self._skip_optional(state, tracer, "revise")
+                    iterations -= 1
+                    break
                 state.draft = personalize(llm, s.llm_model_reasoning, state, feedback=issues if iterations > 1 else None)
                 issues = check(state, state.draft)
                 tracer.emit(
@@ -225,13 +248,17 @@ class InsightAgent:
             "final",
             "insight",
             {"insight_id": insight.insight_id, "status": insight.status.value, "outcome": insight.outcome.value,
-             "error_code": insight.error_code, "sources": [x.source_id for x in insight.sources]},
+             "error_code": insight.error_code, "sources": [x.source_id for x in insight.sources],
+             "usage": llm.usage()},
         )
         self.records[insight.insight_id] = RunRecord(state=state, insight=insight)
         return insight
 
     def broaden_bank_search(self, state: AgentState, tools: ToolRegistry, tracer: Tracer) -> None:
         if state.bank_search_broadened:
+            return
+        if not self.daily.optional_allowed():
+            self._skip_optional(state, tracer, "broaden_bank_search")
             return
         state.bank_search_broadened = True
         channels = matched_channels(state) or (state.analysis.impact_channels if state.analysis else [])
@@ -246,6 +273,19 @@ class InsightAgent:
         found = len(state.bank) - found_before
         state.adaptations.append(f"broadened_bank_search:+{found}")
         tracer.emit("adapt", "broadened_bank_search", {"queries": queries, "new_fragments": found})
+
+    def _budget_snapshot(self) -> dict | None:
+        ledger = self.daily.ledger
+        if ledger is None:
+            return None
+        return {"spent_rub": str(ledger.spent), "limit_rub": str(ledger.limit), "level": ledger.level()}
+
+    @staticmethod
+    def _skip_optional(state: AgentState, tracer: Tracer, step: str) -> None:
+        reason = "дневной бюджет близок к лимиту: повторные шаги пропущены"
+        if reason not in state.limited_reasons:
+            state.limited_reasons.append(reason)
+        tracer.emit("adapt", "budget_soft_stop", {"skipped": step})
 
     def adapt(self, state: AgentState, issues: list[CheckIssue], tools: ToolRegistry, tracer: Tracer) -> None:
         codes = {i.code for i in issues if i.severity == "error"}
@@ -379,5 +419,6 @@ class InsightAgent:
             models=llm.models_used,
             generated_at=datetime.now(UTC),
         )
-        tracer.emit("final", "insight", {"insight_id": insight.insight_id, "status": "failed", "outcome": "none", "error_code": code})
+        tracer.emit("final", "insight", {"insight_id": insight.insight_id, "status": "failed", "outcome": "none", "error_code": code,
+                                                  "usage": llm.usage()})
         return insight

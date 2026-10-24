@@ -42,6 +42,8 @@ def create_app(agent: InsightAgent | None = None) -> FastAPI:
             "bank_fragments": len(agent.bank.fragments),
             "news": len(agent.news.events),
             "daily_tokens_used": agent.daily.used,
+            "daily_spent_rub": str(agent.daily.ledger.spent) if agent.daily.ledger else None,
+            "daily_limit_rub": str(agent.daily.ledger.limit) if agent.daily.ledger else None,
             "corpus_revision": agent.corpus_snapshot.revision if agent.corpus_snapshot else None,
             "verified_bank_fragments": sum(f.review_status == "verified" for f in agent.bank.fragments),
         }
