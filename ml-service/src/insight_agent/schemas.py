@@ -1,4 +1,4 @@
-from datetime import date as Date, datetime
+from datetime import UTC, date as Date, datetime
 from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
@@ -175,6 +175,19 @@ class InsightRequest(BaseModel):
     event: NewsEvent
     request_id: str | None = Field(default=None, min_length=1, max_length=128)
     parent_run_id: str | None = Field(default=None, min_length=1, max_length=128)
+    as_of: datetime | None = None
+
+    @model_validator(mode="after")
+    def fixed_time_slice(self):
+        if self.as_of is not None:
+            if self.as_of.tzinfo is None:
+                self.as_of = self.as_of.replace(tzinfo=UTC)
+            published = self.event.published_at
+            if published is not None:
+                published = published if published.tzinfo else published.replace(tzinfo=UTC)
+                if published > self.as_of:
+                    raise ValueError("event.published_at is later than as_of")
+        return self
 
 
 class QuestionRequest(BaseModel):

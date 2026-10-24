@@ -13,6 +13,7 @@ from insight_agent.agent.critic import check, check_event_analysis, has_errors
 from insight_agent.agent.evidence import event_fingerprint, pack_sources
 from insight_agent.agent.personalizer import personalize
 from insight_agent.agent.planner import make_plan, matched_channels
+from insight_agent.agent.prompts import injection_markers
 from insight_agent.agent.state import AgentState
 from insight_agent.agent.store import InsightStore
 from insight_agent.agent.versions import PROMPT_VERSION, git_sha
@@ -108,13 +109,21 @@ class InsightAgent:
         return tracer, llm
 
     def tools_for(self, state: AgentState, tracer: Tracer) -> ToolRegistry:
-        bounds = bank_policy(state.event, today=datetime.now(UTC).date(), max_age_days=self.settings.bank_max_age_days)
+        as_of = state.request.as_of
+        bounds = bank_policy(state.event, today=(as_of or datetime.now(UTC)).date(), max_age_days=self.settings.bank_max_age_days)
         tracer.emit("plan", "bank_policy", {"not_before": str(bounds[0]), "as_of": str(bounds[1]),
-            "event_date_unknown": state.event.published_at is None})
+            "event_date_unknown": state.event.published_at is None,
+            "request_as_of": as_of.isoformat() if as_of else None})
 
         def search_bank(args):
             restricted = restrict_bank_args(args, bounds)
             return [] if restricted is None else self.bank.search(restricted, as_of=bounds[1])
+
+        def search_news(args):
+            if as_of is not None:
+                limit = as_of if args.not_after is None else min(as_of, args.not_after)
+                args = args.model_copy(update={"not_after": limit})
+            return self.news.search(args)
 
         return ToolRegistry(
             [
@@ -129,7 +138,7 @@ class InsightAgent:
                     "search_news",
                     "поиск связанных новостей для недостающего контекста.",
                     news_tool.NewsSearchArgs,
-                    self.news.search,
+                    search_news,
                     news_tool.summarize,
                 ),
                 Tool(
@@ -232,12 +241,15 @@ class InsightAgent:
                 "source_hashes": {sid: digest(text.encode()) for sid, text in state.source_texts().items()},
                 "budget": self._budget_snapshot(),
                 "request_id": request.request_id,
+                "as_of": request.as_of.isoformat() if request.as_of else None,
                 "parent_run_id": request.parent_run_id,
                 "prompt_version": PROMPT_VERSION,
                 "git_sha": git_sha(),
                 "models": {"light": s.llm_model_light, "reasoning": s.llm_model_reasoning, "fallback": s.llm_model_fallback},
             },
         )
+        scanned: set[str] = set()
+        self._scan_injection(state, tracer, scanned)
         tools = self.tools_for(state, tracer)
         issues: list[CheckIssue] = []
         iterations = 0
@@ -281,6 +293,7 @@ class InsightAgent:
 
             if not state.bank:
                 self.broaden_bank_search(state, tools, tracer)
+            self._scan_injection(state, tracer, scanned)
 
             for iterations in range(1, s.agent_max_iterations + 1):
                 if iterations > 1 and not self.daily.optional_allowed():
@@ -335,6 +348,15 @@ class InsightAgent:
         found = len(state.bank) - found_before
         state.adaptations.append(f"broadened_bank_search:+{found}")
         tracer.emit("adapt", "broadened_bank_search", {"queries": queries, "new_fragments": found})
+
+    @staticmethod
+    def _scan_injection(state: AgentState, tracer: Tracer, scanned: set[str]) -> None:
+        for source_id, text in state.source_texts().items():
+            if source_id in scanned:
+                continue
+            scanned.add(source_id)
+            if markers := injection_markers(text):
+                tracer.emit("plan", "injection_suspected", {"source_id": source_id, "markers": markers})
 
     def _budget_snapshot(self) -> dict | None:
         ledger = self.daily.ledger

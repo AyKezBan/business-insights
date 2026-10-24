@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -8,10 +9,15 @@ from insight_agent.materials.artifacts import digest
 from insight_agent.tools.search import BM25
 
 
+def _aware(value: datetime) -> datetime:
+    return value if value.tzinfo else value.replace(tzinfo=UTC)
+
+
 class NewsSearchArgs(BaseModel):
     query: str = Field(min_length=2, max_length=300)
     top_k: int = Field(default=3, ge=1, le=6)
     exclude_event_id: str | None = None
+    not_after: datetime | None = None
     min_score: float = Field(default=1.0, ge=0)
 
 
@@ -41,8 +47,11 @@ class NewsStore:
         if not self.events:
             return []
         ranked = sorted(zip(self.events, self._bm25.scores(args.query)), key=lambda x: x[1], reverse=True)
+        limit = _aware(args.not_after) if args.not_after else None
         return [
-            e for e, s in ranked if s >= args.min_score and e.event_id != args.exclude_event_id
+            e for e, s in ranked
+            if s >= args.min_score and e.event_id != args.exclude_event_id
+            and (limit is None or (e.published_at is not None and _aware(e.published_at) <= limit))
         ][: args.top_k]
 
 

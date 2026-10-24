@@ -1,4 +1,5 @@
 import json
+import re
 
 from insight_agent.schemas import UserRole
 
@@ -35,8 +36,29 @@ KIND_RULES = """Типы утверждений (поле kind):
 source_ids - только из списка источников. profile_features - только из списка признаков компании."""
 
 
+_DATA_TAG = re.compile(r"<(\s*/?\s*data)", re.IGNORECASE)
+
+_INJECTION_MARKERS = [
+    (re.compile(r"игнорир\w*\s+(все|всё|предыдущ|прежн|вышеуказ)", re.I), "ignore_instructions_ru"),
+    (re.compile(r"забуд\w*\s+(все|всё|предыдущ|инструкц)", re.I), "forget_instructions_ru"),
+    (re.compile(r"ignore\s+(all|any|the|previous|prior|above)\b[\w\s]{0,30}(instruction|prompt|rule)s?", re.I), "ignore_instructions_en"),
+    (re.compile(r"disregard\s+(all|any|the|previous|prior|above)", re.I), "disregard_en"),
+    (re.compile(r"(system|developer)\s*(prompt|message)|системн\w+\s+(промпт|инструкц|сообщени)", re.I), "system_prompt"),
+    (re.compile(r"you\s+are\s+now\b|теперь\s+ты\b", re.I), "role_override"),
+    (re.compile(r"<\s*/?\s*data\b", re.I), "data_tag"),
+    (re.compile(r'"tool"\s*:\s*"', re.I), "tool_call_json"),
+]
+
+
+def injection_markers(text: str) -> list[str]:
+    """Признаки попытки управлять моделью из текста источника. Только для журнала: текст не меняется."""
+    return [label for pattern, label in _INJECTION_MARKERS if pattern.search(text)]
+
+
 def data_block(tag: str, text: str) -> str:
-    return f'<data kind="{tag}">\n{text}\n</data>'
+    # Текст источника не должен уметь закрыть или открыть блок данных.
+    safe = _DATA_TAG.sub(r"&lt;\1", text)
+    return f'<data kind="{tag}">\n{safe}\n</data>'
 
 
 def schema_hint(model) -> str:

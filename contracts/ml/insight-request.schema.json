@@ -743,6 +743,19 @@
       ],
       "default": null,
       "title": "Parent Run Id"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "As Of"
     }
   },
   "required": [

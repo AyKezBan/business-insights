@@ -4,7 +4,7 @@ from insight_agent.agent.critic import check_claims
 
 from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.agent.personalizer import _sources_block
-from insight_agent.agent.prompts import KIND_RULES, ROLE_FOCUS, UNTRUSTED, schema_hint
+from insight_agent.agent.prompts import KIND_RULES, ROLE_FOCUS, UNTRUSTED, data_block, schema_hint
 from insight_agent.llm import BudgetExceeded, LLMError
 from insight_agent.schemas import Answer, Claim, ClaimKind
 from insight_agent.tools.base import ToolError
@@ -39,7 +39,7 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
     )
     user = (
         f"Вопрос: {question}\n\nИнсайт:\n{insight.model_dump_json(include={'headline', 'why_it_matters', 'consequences', 'risks', 'actions', 'bank_view'})}\n\n"
-        f"Признаки компании:\n{state.profile_text()}\n\nИсточники:\n{_sources_block(state)}"
+        f"Признаки компании:\n{data_block('profile', state.profile_text())}\n\nИсточники:\n{_sources_block(state)}"
     )
     try:
         draft = llm.generate(
