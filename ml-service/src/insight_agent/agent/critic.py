@@ -64,6 +64,31 @@ def _references(ids, catalog, texts, location, *, required=False):
     return issues
 
 
+_MODEL_KINDS = (ClaimKind.inference, ClaimKind.recommendation)
+_INVESTMENT_ADVICE = re.compile(r"\b(купите|покупайте|продайте|продавайте|инвестируйте|вложите(?:сь)?)\b", re.IGNORECASE)
+_CONTRACT_EFFECT = re.compile(
+    r"(платеж\w*|выплат\w*|процентн\w+\s+(?:расход|нагрузк)\w*|переплат\w*)[^.;]{0,40}"
+    r"\b(вырастет|вырастут|увеличится|увеличатся|возрастет|возрастут|снизится|снизятся|сократится|составит|составят)\b",
+    re.IGNORECASE,
+)
+_CATEGORICAL = re.compile(r"\b(обязательно|гарантированно|неизбежно|без сомнени\w+|стопроцентно)\b", re.IGNORECASE)
+
+
+def _language_issues(claim: Claim, location: str) -> list[CheckIssue]:
+    """Условия договоров компании неизвестны, личных инвестиционных советов сервис не даёт."""
+    issues = []
+    text = claim.text.replace("ё", "е").replace("Ё", "Е")
+    if claim.kind in (*_MODEL_KINDS, ClaimKind.hypothesis) and _INVESTMENT_ADVICE.search(text):
+        issues.append(_issue("investment_advice", "Персональные инвестиционные рекомендации недопустимы", location))
+    if claim.kind in _MODEL_KINDS and _CONTRACT_EFFECT.search(text):
+        issues.append(_issue("unknown_terms_as_fact",
+                             "Ставка, срок и график платежей по договорам неизвестны: изменение платежа можно подать только как гипотезу",
+                             location))
+    if claim.kind in _MODEL_KINDS and _CATEGORICAL.search(text):
+        issues.append(_issue("categorical_language", "Категоричная формулировка без оснований", location, "warning"))
+    return issues
+
+
 def _numeric_issues(text, cited, location, *, strict, profile=""):
     foreign = sorted(_numbers(text) - (_numbers(cited) | _numbers(profile)))
     if foreign:
@@ -95,6 +120,7 @@ def check_claims(claims: list[Claim], state: AgentState, *, section: str) -> lis
         cited = " ".join(texts.get(sid, "") for sid in claim.source_ids)
         issues += _numeric_issues(claim.text, cited, loc, strict=claim.kind in NEEDS_SOURCE,
                                  profile="" if claim.kind in NEEDS_SOURCE else state.profile_text())
+        issues += _language_issues(claim, loc)
     return issues
 
 
