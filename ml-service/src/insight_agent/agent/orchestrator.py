@@ -11,6 +11,7 @@ from insight_agent.agent.planner import make_plan, matched_channels
 from insight_agent.agent.state import AgentState
 from insight_agent.config import Settings
 from insight_agent.materials.models import CorpusSnapshot
+from insight_agent.materials.policy import bank_policy, restrict_bank_args
 from insight_agent.llm import BudgetExceeded, ChatClient, DailyBudget, LLMError, RunBudget, StructuredLLM
 from insight_agent.schemas import (
     Claim,
@@ -70,13 +71,21 @@ class InsightAgent:
         return tracer, llm
 
     def tools_for(self, state: AgentState, tracer: Tracer) -> ToolRegistry:
+        bounds = bank_policy(state.event, today=datetime.now(UTC).date(), max_age_days=self.settings.bank_max_age_days)
+        tracer.emit("plan", "bank_policy", {"not_before": str(bounds[0]), "as_of": str(bounds[1]),
+            "event_date_unknown": state.event.published_at is None})
+
+        def search_bank(args):
+            restricted = restrict_bank_args(args, bounds)
+            return [] if restricted is None else self.bank.search(restricted, as_of=bounds[1])
+
         return ToolRegistry(
             [
                 Tool(
                     "search_bank_analytics",
                     "поиск фрагментов аналитики Альфа-Банка по теме.",
                     bank_tool.BankSearchArgs,
-                    self.bank.search,
+                    search_bank,
                     bank_tool.summarize,
                 ),
                 Tool(

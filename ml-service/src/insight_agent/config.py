@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     news_path: Path = Path("data/news.jsonl")
     materials_dir: Path | None = None
     materials_public_base_url: str = ""
+    bank_max_age_days: int = 180
     trace_dir: Path = Path("traces")
 
 
