@@ -31,6 +31,7 @@ class Tracer:
         self.run_id = run_id
         self.events: list[TraceEvent] = []
         self._path = trace_dir / f"{run_id}.jsonl" if trace_dir else None
+        self.agent: str | None = None  # какой агент сейчас работает; попадает в каждое событие
         if self._path:
             self._path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -41,7 +42,7 @@ class Tracer:
             ts=datetime.now(UTC),
             type=type_,
             step=step,
-            data=_redact(data or {}),
+            data={"agent": self.agent, **_redact(data or {})} if self.agent else _redact(data or {}),
         )
         self.events.append(event)
         if self._path:

@@ -1,8 +1,9 @@
-from datetime import date as Date, datetime
+from datetime import UTC, date as Date, datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 Sha256 = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
@@ -31,6 +32,13 @@ class ClaimKind(StrEnum):
     unavailable = "unavailable"
 
 
+class Outcome(StrEnum):
+    full = "full"
+    limited = "limited"
+    refused = "refused"
+    none = "none"
+
+
 class Level(StrEnum):
     low = "low"
     medium = "medium"
@@ -56,7 +64,7 @@ class Products(BaseModel):
 class Counterparty(BaseModel):
     company_id: str
     direction: str
-    amount_rub: float | None = None
+    amount_rub: Decimal | None = None
     share_of_flow: float | None = None
     okved_code: str | None = None
     okved_name: str | None = None
@@ -70,8 +78,8 @@ class CompanyProfile(BaseModel):
     okved_code: str | None = None
     okved_name: str | None = None
     industry: str | None = None
-    revenue_rub: float | None = None
-    group_revenue_rub: float | None = None
+    revenue_rub: Decimal | None = None
+    group_revenue_rub: Decimal | None = None
     revenue_year: int | None = None
     revenue_status: Literal["known", "placeholder", "missing", "invalid"] | None = None
     revenue_scope: Literal["company", "group", "unknown"] | None = None
@@ -93,6 +101,12 @@ class CompanyProfile(BaseModel):
     self_transfer_share: float | None = None
     user_provided: dict[str, str] = Field(default_factory=dict)
     missing_fields: list[str] = Field(default_factory=list)
+
+    @field_validator("revenue_status", mode="before")
+    @classmethod
+    def accept_import_vocabulary(cls, value):
+        # data-import (Backend) называет известную выручку observed, в ML контракте это known.
+        return "known" if isinstance(value, str) and value.strip().lower() == "observed" else value
 
     @model_validator(mode="after")
     def preserve_unknowns(self):
@@ -165,6 +179,21 @@ class InsightRequest(BaseModel):
     profile: CompanyProfile
     role: UserRole = UserRole.ceo
     event: NewsEvent
+    request_id: str | None = Field(default=None, min_length=1, max_length=128)
+    parent_run_id: str | None = Field(default=None, min_length=1, max_length=128)
+    as_of: datetime | None = None
+
+    @model_validator(mode="after")
+    def fixed_time_slice(self):
+        if self.as_of is not None:
+            if self.as_of.tzinfo is None:
+                self.as_of = self.as_of.replace(tzinfo=UTC)
+            published = self.event.published_at
+            if published is not None:
+                published = published if published.tzinfo else published.replace(tzinfo=UTC)
+                if published > self.as_of:
+                    raise ValueError("event.published_at is later than as_of")
+        return self
 
 
 class QuestionRequest(BaseModel):
@@ -172,6 +201,7 @@ class QuestionRequest(BaseModel):
 
 
 class Claim(BaseModel):
+    claim_id: str | None = None
     text: str
     kind: ClaimKind
     source_ids: list[str] = Field(default_factory=list)
@@ -242,7 +272,13 @@ class Insight(BaseModel):
     event_id: str
     company_id: str
     role: UserRole
+    version: int = 1
     status: InsightStatus
+    outcome: Outcome = Outcome.none
+    error_code: str | None = None
+    request_id: str | None = None
+    parent_run_id: str | None = None
+    cache_hit: bool = False
     headline: str
     what_happened: list[Claim]
     why_it_matters: list[Claim]
@@ -267,6 +303,8 @@ class Insight(BaseModel):
 class Answer(BaseModel):
     insight_id: str
     run_id: str
+    company_id: str | None = None
+    event_id: str | None = None
     status: str
     text: str
     claims: list[Claim] = Field(default_factory=list)

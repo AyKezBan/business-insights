@@ -39,6 +39,16 @@ def fallback_plan(state: AgentState) -> Plan:
     return Plan(steps=steps)
 
 
+OPEN_TOOL = "search_open_sources"
+
+
+def _with_open_research(plan: Plan, tools: ToolRegistry) -> Plan:
+    """Официальные данные по профилю клиента нужны всегда; что именно искать, решает код (research/plan.py)."""
+    if OPEN_TOOL in tools.names and not any(s.tool == OPEN_TOOL for s in plan.steps):
+        plan.steps.append(PlanStep(tool=OPEN_TOOL, args={}, purpose="официальные показатели и публикации по профилю клиента"))
+    return plan
+
+
 def make_plan(llm: StructuredLLM, model: str, state: AgentState, tools: ToolRegistry) -> tuple[Plan, bool]:
     a = state.analysis
     system = (
@@ -61,8 +71,8 @@ def make_plan(llm: StructuredLLM, model: str, state: AgentState, tools: ToolRegi
             "plan", model, [{"role": "system", "content": system}, {"role": "user", "content": user}], Plan
         )
     except LLMError:
-        return fallback_plan(state), False
+        return _with_open_research(fallback_plan(state), tools), False
     plan.steps = [s for s in plan.steps if s.tool in tools.names]
     if not any(s.tool == "search_bank_analytics" for s in plan.steps):
         plan.steps = fallback_plan(state).steps[:1] + plan.steps
-    return plan, True
+    return _with_open_research(plan, tools), True

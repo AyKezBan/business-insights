@@ -37,6 +37,18 @@
     },
     "Claim": {
       "properties": {
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
         "text": {
           "title": "Text",
           "type": "string"
@@ -80,6 +92,18 @@
     },
     "Impact": {
       "properties": {
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
         "text": {
           "title": "Text",
           "type": "string"
@@ -141,6 +165,16 @@
         "high"
       ],
       "title": "Level",
+      "type": "string"
+    },
+    "Outcome": {
+      "enum": [
+        "full",
+        "limited",
+        "refused",
+        "none"
+      ],
+      "title": "Outcome",
       "type": "string"
     },
     "Scenario": {
@@ -349,8 +383,58 @@
     "role": {
       "$ref": "#/$defs/UserRole"
     },
+    "version": {
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
     "status": {
       "$ref": "#/$defs/InsightStatus"
+    },
+    "outcome": {
+      "$ref": "#/$defs/Outcome",
+      "default": "none"
+    },
+    "error_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error Code"
+    },
+    "request_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request Id"
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Run Id"
+    },
+    "cache_hit": {
+      "default": false,
+      "title": "Cache Hit",
+      "type": "boolean"
     },
     "headline": {
       "title": "Headline",

@@ -1,3 +1,5 @@
+from decimal import ROUND_HALF_UP, Decimal
+
 from pydantic import BaseModel
 
 from insight_agent.schemas import CompanyProfile
@@ -38,8 +40,11 @@ OKVED_CHANNELS: list[tuple[range, list[str]]] = [
     (range(69, 83), ["labor_costs", "domestic_demand"]),
 ]
 
-LARGE_BUSINESS_RUB = 15_000_000_000
-REVENUE_PLACEHOLDER_RUB = 1000
+LARGE_BUSINESS_RUB = Decimal(15_000_000_000)
+REVENUE_PLACEHOLDER_RUB = Decimal(1000)
+BILLION = Decimal(10) ** 9
+MILLION = Decimal(10) ** 6
+TENTH = Decimal("0.1")
 
 
 class Signal(BaseModel):
@@ -62,16 +67,18 @@ def _okved_channels(code: str | None) -> list[str]:
     return []
 
 
-def _known_revenue(value: float | None) -> float | None:
-    return value if value is not None and value >= 0 and value != REVENUE_PLACEHOLDER_RUB else None
+def _known_revenue(value: Decimal | None) -> Decimal | None:
+    if value is None or value == REVENUE_PLACEHOLDER_RUB or value < 0:
+        return None
+    return value
 
 
-def _format_rub(value: float) -> str:
-    if value >= 1e9:
-        return f"{value / 1e9:.1f} млрд руб."
-    if value >= 1e6:
-        return f"{value / 1e6:.1f} млн руб."
-    return f"{value:,.0f} руб.".replace(",", " ")
+def _format_rub(value: Decimal) -> str:
+    for unit, suffix in ((BILLION, "млрд"), (MILLION, "млн")):
+        rounded = (value / unit).quantize(TENTH, ROUND_HALF_UP)
+        if rounded >= 1:
+            return f"{rounded} {suffix} руб."
+    return f"{value.quantize(Decimal(1), ROUND_HALF_UP):,} руб.".replace(",", " ")
 
 
 def derive_signals(p: CompanyProfile) -> list[Signal]:
@@ -111,11 +118,15 @@ def derive_signals(p: CompanyProfile) -> list[Signal]:
             Signal(
                 feature="foreign_trade",
                 value=countries,
-                channels=["fx", "import_costs", "export_demand", "sanctions"],
-                note="внешнеторговая деятельность по данным ФТС",
+                # В данных ФТС нет направления сделок: импорт или экспорт из них не следует.
+                channels=["fx", "sanctions"],
+                note="компания есть в данных ФТС; страны не означают импорт или экспорт, направление и объём не установлены",
             )
         )
-    for i, cp in enumerate(sorted(p.counterparties, key=lambda c: c.share_of_flow or 0, reverse=True)[:5]):
+    # переводы себе - не контрагент; индекс в признаке остаётся исходным (Backend сверяет counterparties[i] с отправленным снимком)
+    external = [(i, cp) for i, cp in enumerate(p.counterparties) if cp.company_id != p.company_id]
+    self_note = f"; доля переводов между своими счетами {p.self_transfer_share:.0%}, зависимостью не считается" if p.self_transfer_share is not None else ""
+    for i, cp in sorted(external, key=lambda item: item[1].share_of_flow or 0, reverse=True)[:5]:
         share = cp.share_of_flow
         channels = ["counterparty_risk"] + (_okved_channels(cp.okved_code)[:2] if cp.direction == "outgoing" else [])
         role = "входящий платёжный контрагент" if cp.direction == "incoming" else "исходящий платёжный контрагент"
@@ -126,7 +137,7 @@ def derive_signals(p: CompanyProfile) -> list[Signal]:
                 + (f", {share:.0%} потока" if share is not None else "")
                 + ")",
                 channels=channels,
-                note="крупный контрагент по платежам; характер отношений не подтверждён",
+                note="крупный контрагент по платежам; характер отношений не подтверждён" + self_note,
             )
         )
     if p.group_member_okveds:
@@ -136,7 +147,7 @@ def derive_signals(p: CompanyProfile) -> list[Signal]:
                 feature="group_member_okveds",
                 value=", ".join(p.group_member_okveds),
                 channels=channels,
-                note="виды деятельности других компаний группы",
+                note="виды деятельности других компаний группы; роль каждой компании и связь с этой не установлены, вывод по группе не переносится на компанию без проверки",
             )
         )
     if p.region:

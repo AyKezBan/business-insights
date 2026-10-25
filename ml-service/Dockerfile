@@ -15,7 +15,12 @@ COPY pyproject.toml .
 COPY src ./src
 RUN pip install --no-cache-dir --no-deps .
 
-# Фрагменты аналитики и новости монтируются томом в /app/data, трассы пишутся в /app/traces.
+# SHA сборки попадает в трассу каждого запуска: docker build --build-arg GIT_SHA=$(git rev-parse HEAD) ...
+ARG GIT_SHA=unknown
+ENV GIT_SHA=$GIT_SHA
+
+# Фрагменты аналитики и новости монтируются томом в /app/data. В /app/traces пишутся трассы, готовые инсайты
+# и суточный счётчик рублей (budget_state.json): том стоит сохранять между перезапусками.
 RUN useradd --create-home agent && mkdir -p data traces && chown agent data traces
 USER agent
 

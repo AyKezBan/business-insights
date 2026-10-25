@@ -63,7 +63,7 @@ def personalize(
         f"Разбор события: {a.summary if a else state.event.title}\nФакты:\n{facts}\n"
         f"Каналы влияния события: {', '.join(CHANNELS[c] for c in a.impact_channels) if a else ''}\n"
         f"Совпавшие каналы компании: {matched_channels(state)}\n\n"
-        f"Признаки компании (profile_features):\n{signals}\n"
+        f"Признаки компании (profile_features):\n{data_block('profile', signals)}\n"
         f"Нет данных о компании: {state.missing_profile or 'нет пропусков'}\n\n"
         f"Источники (source_ids):\n{_sources_block(state)}"
     )

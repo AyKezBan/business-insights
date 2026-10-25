@@ -4,7 +4,7 @@ from insight_agent.agent.critic import check_claims
 
 from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.agent.personalizer import _sources_block
-from insight_agent.agent.prompts import KIND_RULES, ROLE_FOCUS, UNTRUSTED, schema_hint
+from insight_agent.agent.prompts import KIND_RULES, ROLE_FOCUS, UNTRUSTED, data_block, schema_hint
 from insight_agent.llm import BudgetExceeded, LLMError
 from insight_agent.schemas import Answer, Claim, ClaimKind
 from insight_agent.tools.base import ToolError
@@ -18,11 +18,12 @@ class AnswerDraft(BaseModel):
 
 
 def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answer | None:
-    record = agent.records.get(insight_id)
+    record = agent.get_record(insight_id)
     if record is None:
         return None
     state, insight = deepcopy(record.state), record.insight
     tracer, llm = agent.new_run()
+    tracer.agent = "qa"
     tracer.emit("plan", "question", {"insight_id": insight_id, "parent_run_id": insight.run_id, "question": question})
     tools = agent.tools_for(state, tracer)
     for name in ("search_bank_analytics", "search_news"):
@@ -39,7 +40,7 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
     )
     user = (
         f"Вопрос: {question}\n\nИнсайт:\n{insight.model_dump_json(include={'headline', 'why_it_matters', 'consequences', 'risks', 'actions', 'bank_view'})}\n\n"
-        f"Признаки компании:\n{state.profile_text()}\n\nИсточники:\n{_sources_block(state)}"
+        f"Признаки компании:\n{data_block('profile', state.profile_text())}\n\nИсточники:\n{_sources_block(state)}"
     )
     try:
         draft = llm.generate(
@@ -48,7 +49,8 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
         )
     except (BudgetExceeded, LLMError) as exc:
         tracer.emit("error", "answer", {"error": str(exc)})
-        return Answer(insight_id=insight_id, run_id=tracer.run_id, status="no_answer",
+        return Answer(insight_id=insight_id, run_id=tracer.run_id, company_id=insight.company_id, event_id=insight.event_id,
+                      status="no_answer",
                       text="Не удалось подготовить ответ, попробуйте позже.", missing_data=[str(exc)])
 
     catalog = state.sources()
@@ -68,6 +70,8 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
     return Answer(
         insight_id=insight_id,
         run_id=tracer.run_id,
+        company_id=insight.company_id,
+        event_id=insight.event_id,
         status=status,
         text=text,
         claims=claims,
