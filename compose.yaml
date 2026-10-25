@@ -1,0 +1,107 @@
+name: business-insights
+
+services:
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: business_insights
+      POSTGRES_USER: business_insights
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run ./stack init or set POSTGRES_PASSWORD}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -h 127.0.0.1 -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 3s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+
+  import-data:
+    build: ./data-import
+    environment:
+      PGHOST: postgres
+      PGPORT: '5432'
+      PGDATABASE: business_insights
+      PGUSER: business_insights
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Run ./stack init}
+      DATABASE_URL: 'dbname=business_insights'
+    volumes:
+      - type: bind
+        source: ${DATA_DIR:-./data-import/source-data}
+        target: /inputs
+        read_only: true
+        bind:
+          create_host_path: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: 'no'
+
+  ml:
+    build: ./ml-service
+    environment:
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://changellenge.up.railway.app/v1}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      LLM_MODEL_LIGHT: ${LLM_MODEL_LIGHT:-google/gemma-4-26b-a4b-it}
+      LLM_MODEL_REASONING: ${LLM_MODEL_REASONING:-google/gemma-4-26b-a4b-it}
+      LLM_MODEL_FALLBACK: ${LLM_MODEL_FALLBACK:-google/gemma-4-26b-a4b-it}
+      LLM_TIMEOUT_SECONDS: ${LLM_TIMEOUT_SECONDS:-60}
+      LLM_DAILY_TOKEN_BUDGET: ${LLM_DAILY_TOKEN_BUDGET:-2000000}
+      AGENT_MAX_TOKENS_PER_RUN: ${AGENT_MAX_TOKENS_PER_RUN:-40000}
+      TRACE_DIR: /app/traces
+    volumes:
+      - ml-traces:/app/traces
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+      start_period: 20s
+    restart: unless-stopped
+
+  backend:
+    build: ./backend-api
+    environment:
+      DB_JDBC_URL: jdbc:postgresql://postgres:5432/business_insights
+      DB_USER: business_insights
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?Run ./stack init}
+      ML_BASE_URL: http://ml:8000
+      ML_REQUEST_TIMEOUT: ${ML_REQUEST_TIMEOUT:-180s}
+      BACKEND_DEMO_TOKEN: ${BACKEND_DEMO_TOKEN:?Run ./stack init or set BACKEND_DEMO_TOKEN}
+      BACKEND_DEMO_PERSON_ID: ${BACKEND_DEMO_PERSON_ID:-F_1}
+    depends_on:
+      import-data:
+        condition: service_completed_successfully
+      ml:
+        condition: service_healthy
+    healthcheck:
+      # Authenticated DB query is stronger than process-only /health.
+      test: [CMD-SHELL, 'curl -fsS -H "Authorization: Bearer $$BACKEND_DEMO_TOKEN" "http://127.0.0.1:8080/api/v1/companies?limit=1" >/dev/null']
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: .
+      dockerfile: infra/frontend.Dockerfile
+    environment:
+      BACKEND_DEMO_TOKEN: ${BACKEND_DEMO_TOKEN:?Run ./stack init}
+      NGINX_ENVSUBST_FILTER: ^BACKEND_DEMO_TOKEN$
+    ports:
+      - '127.0.0.1:${WEB_PORT:-8088}:80'
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, 'wget -q -O /dev/null http://127.0.0.1/api/v1/companies?limit=1']
+      interval: 5s
+      timeout: 5s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  ml-traces:
