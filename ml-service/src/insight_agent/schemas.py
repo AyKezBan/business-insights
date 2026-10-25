@@ -3,9 +3,13 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 Sha256 = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+
+PublicationPrecision = Literal["timestamp", "date", "unknown"]
+MaterialType = Literal["news_article", "public_analysis", "publisher_annotation", "indicator"]
+Completeness = Literal["full", "partial"]
 
 DISCLAIMER = (
     "Аналитика носит информационный характер и не является инвестиционной рекомендацией. "
@@ -130,6 +134,20 @@ class SourceRef(BaseModel):
     doc_id: str | None = None
     content_sha256: Sha256 | None = None
     excerpt: str | None = None
+    publisher_id: str | None = None
+    adapter_id: str | None = None
+    material_type: MaterialType | None = None
+    completeness: Completeness | None = None
+    language: str | None = None
+    published_date: Date | None = None
+    published_precision: PublicationPrecision | None = None
+    first_seen_at: AwareDatetime | None = None
+    retrieved_at: AwareDatetime | None = None
+    statement_type: str | None = None
+    target_period: str | None = None
+    valid_until: Date | None = None
+    rights_url: str | None = None
+    translation_attribution: str | None = None
 
 
 class SourceConflict(BaseModel):
@@ -142,7 +160,9 @@ class NewsEvent(BaseModel):
     event_id: str
     title: str
     text: str
-    published_at: datetime | None = None
+    published_at: AwareDatetime | None = None
+    published_date: Date | None = None
+    published_precision: PublicationPrecision | None = None
     source: SourceRef
     related_sources: list[SourceRef] = Field(default_factory=list)
     topics: list[str] = Field(default_factory=list)
@@ -150,6 +170,12 @@ class NewsEvent(BaseModel):
 
     @model_validator(mode="after")
     def external_source_kind(self):
+        if self.published_precision is not None:
+            expected = "timestamp" if self.published_at else "date" if self.published_date else "unknown"
+            if self.published_precision != expected:
+                raise ValueError("Publication precision does not match event date/time")
+        if self.published_at and self.published_date and self.published_date != self.published_at.date():
+            raise ValueError("Publication day does not match event timestamp")
         if any(ref.kind != SourceKind.news for ref in [self.source] + self.related_sources):
             raise ValueError("NewsEvent references must have kind=news; bank evidence is retrieved separately")
         return self

@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from insight_agent.schemas import BankFragment, NewsEvent, Sha256
+from insight_agent.schemas import BankFragment, Completeness, MaterialType, NewsEvent, PublicationPrecision, Sha256
 
 PageStatus = Literal["ready", "empty", "needs_review", "failed"]
 ExtractionMethod = Literal["text", "tesseract"]
@@ -48,7 +48,50 @@ class PageArtifact(BaseModel):
         return self
 
 
-class RawNews(BaseModel):
+class SourceMetadata(BaseModel):
+    """Known source publication, with no synthetic midnight or observation fallback."""
+    published_at: AwareDatetime | None = None
+    published_date: date | None = None
+    published_precision: PublicationPrecision = "unknown"
+    raw_publication: str | None = None
+    source_timezone: str | None = None
+    timezone_provenance: Literal["explicit_offset", "source_policy", "unknown"] = "unknown"
+    publisher_id: str | None = None
+    adapter_id: str | None = None
+    discovered_url: str | None = None
+    language: str | None = None
+    material_type: MaterialType = "news_article"
+    completeness: Completeness = "full"
+    parser_version: str | None = None
+    rights_url: str | None = None
+    translation_attribution: str | None = None
+    topics: list[str] = Field(default_factory=list)
+    original_text: str | None = None
+    raw_body: str | None = None
+
+    @model_validator(mode="after")
+    def publication_consistency(self):
+        if self.timezone_provenance == "source_policy" and not self.source_timezone:
+            raise ValueError("Source policy requires an explicit source timezone")
+        expected = "timestamp" if self.published_at else "date" if self.published_date else "unknown"
+        if "published_precision" in self.model_fields_set and self.published_precision != expected:
+            raise ValueError("Publication precision does not match source date/time")
+        if self.published_at:
+            if self.published_date and self.published_date != self.published_at.date():
+                raise ValueError("Publication day does not match source timestamp")
+            self.published_date = self.published_at.date()
+        self.published_precision = expected
+        return self
+
+
+class CatalogToken(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    store_id: str = Field(min_length=1)
+    generation: int = Field(ge=0)
+    revision: Sha256
+
+
+class RawNews(SourceMetadata):
     url: str
     title: str = Field(min_length=1)
     text: str = Field(min_length=1)
@@ -56,7 +99,7 @@ class RawNews(BaseModel):
     retrieved_at: AwareDatetime
 
 
-class SourceVersion(BaseModel):
+class SourceVersion(SourceMetadata):
     source_id: str
     event_id: str
     url: str
@@ -81,8 +124,8 @@ class ImportReport(BaseModel):
 
 class CorpusSnapshot(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    schema_version: Literal[1] = 1
-    pipeline_version: str = "materials-v1"
+    schema_version: Literal[1, 2] = 2
+    pipeline_version: str = "materials-v2"
     tool_versions: dict[str, str] = Field(default_factory=dict)
     revision: str = ""
     documents: list[DocumentMetadata] = Field(default_factory=list)
