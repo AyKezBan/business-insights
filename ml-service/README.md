@@ -52,6 +52,7 @@ curl localhost:8000/health
 - `BANK_FRAGMENTS_PATH` (по умолчанию `data/bank_fragments.jsonl`) - фрагменты аналитики банка
 - `NEWS_PATH` (`data/news.jsonl`) - новости
 - `TRACE_DIR` (`traces`) - трассы (один файл на запуск), `insights/` с готовыми карточками, `budget_state.json` с суточным счётчиком рублей
+- поиск по открытым официальным источникам (`OPEN_RESEARCH_ENABLED`, по умолчанию включён): ключевая ставка, курсы валют и пресс-релизы Банка России выбираются по профилю клиента, кеш в `TRACE_DIR/open_cache`; для работы нужен выход в интернет к `cbr.ru`, `/health` показывает `open_research`
 - бюджет LLM в рублях (`LLM_DAILY_BUDGET_RUB`, пороги, цены моделей `LLM_PRICES_JSON`) и предел времени запуска `AGENT_MAX_SECONDS`: см. `.env.example` и [docs/insight-agent.md](docs/insight-agent.md). **Тарифы провайдера не подтверждены**, цены по умолчанию завышены
 
 `data/` и `traces/` в гит не коммитим. В `tests/fixtures` только выдуманные данные.
