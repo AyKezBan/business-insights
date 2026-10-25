@@ -18,11 +18,20 @@
   function checkContext(dto, ctx, id) {
     if (!dto || dto.companyId !== ctx.company_id || dto.role !== ctx.role || (id && dto.insightId !== id)) throw new Error('Ответ API содержит другой контекст компании или карточки.');
   }
+  function savedFeedback(value) {
+    if (!value || !['USEFUL','IRRELEVANT','UNSUPPORTED','OTHER'].includes(value.rating)) return null;
+    if (value.rating === 'USEFUL') return {feedback:'useful',reason:null};
+    const reason = value.rating === 'IRRELEVANT' ? 'company'
+      : value.rating === 'UNSUPPORTED' ? (value.comment === 'Есть ошибка' ? 'error' : 'basis')
+      : value.comment === 'Не помогает принять решение' ? 'decision' : value.comment === 'Другое' ? 'other' : null;
+    return {feedback:'not_useful',reason};
+  }
   function source(dto) {
     return {id:dto.sourceId, title:dto.title, url:dto.url, date:dto.date, page:dto.page, kind:dto.kind,
       doc_id:dto.docId, content_sha256:dto.contentSha256, excerpt:dto.excerpt, publisher_id:dto.publisherId,
       adapter_id:dto.adapterId, material_type:dto.materialType, completeness:dto.completeness, language:dto.language,
-      published_date:dto.publishedDate, published_precision:dto.publishedPrecision, first_seen_at:dto.firstSeenAt,
+      published_date:dto.publishedDate, published_precision:dto.publishedPrecision, raw_publication:dto.rawPublication,
+      source_timezone:dto.sourceTimezone, source_utc_offset_seconds:dto.sourceUtcOffsetSeconds, timezone_provenance:dto.timezoneProvenance, first_seen_at:dto.firstSeenAt,
       retrieved_at:dto.retrievedAt, statement_type:dto.statementType, target_period:dto.targetPeriod,
       valid_until:dto.validUntil, rights_url:dto.rightsUrl, translation_attribution:dto.translationAttribution};
   }
@@ -47,9 +56,9 @@
     for (const scenario of list(dto.scenarios)) blocks.find(b=>b.kind==='ai').sections.push({kind:'consequences', label:'Сценарий: '+scenario.name,
       text:[scenario.trigger,scenario.implication,scenario.plausibility].filter(Boolean).join(' · '),certainty:'hypothesis',source_ids:list(scenario.sourceIds)});
     for (const text of list(dto.modelVsBank)) blocks.find(b=>b.kind==='ai').sections.push({kind:'consequences',label:'Сопоставление модели и банка',text,certainty:'inference',source_ids:[]});
-    return {context:{...ctx},insight_id:dto.insightId,event_id:dto.eventId,title:dto.headline,status:dto.mlStatus,
+    return {...(Object.hasOwn(dto,'feedback') ? {feedback:savedFeedback(dto.feedback)} : {}),context:{...ctx},insight_id:dto.insightId,event_id:dto.eventId,title:dto.headline,status:dto.mlStatus,
       outcome:outcome(dto.status,dto.outcome),ml_outcome:dto.outcome,operation_status:dto.status,error_code:dto.errorCode,
-      ml_insight_id:dto.mlInsightId,run_id:dto.runId,version:dto.version,request_id:dto.requestId,parent_run_id:dto.parentRunId,
+      ml_insight_id:dto.mlInsightId,run_id:dto.runId,version:dto.version,opened_at:dto.openedAt,request_id:dto.requestId,parent_run_id:dto.parentRunId,
       cache_hit:dto.cacheHit,as_of:dto.asOf,corpus_revision:dto.corpusRevision,event_content_sha256:dto.eventContentSha256,
       conflicts:list(dto.conflicts).map(c=>({reason:c.reason,source_ids:list(c.sourceIds),resolved:c.resolved})),
       outcome_message:list(dto.warnings).join(' '),blocks,sources:dto.sources.map(source),
@@ -57,13 +66,20 @@
   }
   function createBindings() {
     const cards = new Map(), feedback = new Map();
+    function remember(dto,ctx) {
+      cards.set(dto.insightId,dto);
+      if (Object.hasOwn(dto,'feedback')) {
+        const key=preferenceKey(ctx,dto.insightId)+':'+dto.insightId, saved=savedFeedback(dto.feedback);
+        if (saved) feedback.set(key,saved); else feedback.delete(key);
+      }
+    }
     async function loadFeed(ctx, options) {
       const items=[];
       for (let offset=0;;offset+=100) {
         const query = new URLSearchParams({role:ctx.role,includeHidden:'true',limit:'100',offset:String(offset)});
         const result=await options.transport(`/api/v1/companies/${pathId(ctx.company_id)}/insights?${query}`,options);
         if (!Array.isArray(result?.items)) throw new Error('Сервис вернул некорректную ленту.');
-        for (const dto of result.items) { checkContext(dto,ctx); cards.set(dto.insightId,dto); items.push(dto); }
+        for (const dto of result.items) { checkContext(dto,ctx); remember(dto,ctx); items.push(dto); }
         if (result.items.length<100) return items;
       }
     }
@@ -90,13 +106,13 @@
       },
       async insight(ctx, options) {
         const dto=await options.transport(`/api/v1/insights/${pathId(ctx.event_id)}`,options);
-        const result=cardView(dto,ctx); cards.set(dto.insightId,dto); return result;
+        const result=cardView(dto,ctx); remember(dto,ctx); return result;
       },
       async preferences(ctx, options) {
         const items=await loadFeed(ctx,options), result={};
         for(const dto of items) { const key=preferenceKey(ctx,dto.insightId); result[key]={hidden:dto.hidden===true};
           if(feedback.has(key+':'+dto.insightId)) result[key+':'+dto.insightId]=feedback.get(key+':'+dto.insightId); }
-        // Java currently has no feedback read endpoint: remembered ratings last for this session only.
+        // Each returned feedback field refreshes the cache, including explicit nulls; older DTOs may omit it.
         return result;
       },
       async savePreference(input, options) {
@@ -113,7 +129,8 @@
         const rating=value.feedback==='useful' ? 'USEFUL' : {company:'IRRELEVANT',basis:'UNSUPPORTED',error:'UNSUPPORTED'}[value.reason] || 'OTHER';
         const comment={company:'Не относится к компании',basis:'Неясно основание',error:'Есть ошибка',decision:'Не помогает принять решение',other:'Другое'}[value.reason] || null;
         await options.transport(`/api/v1/insights/${pathId(id)}/feedback`,{...options,method:'PUT',body:{rating,comment}});
-        feedback.set(preferenceKey(input.context,id)+':'+id,{feedback:value.feedback,reason:value.reason || null});
+        feedback.set(preferenceKey(input.context,id)+':'+id,savedFeedback({rating,comment}));
+        if (dto) dto.feedback={rating,comment};
       },
       async opened(input, options) {
         return options.transport(`/api/v1/insights/${pathId(input.insight_id)}/opened`,{...options,method:'POST'});

@@ -16,8 +16,8 @@ const card = {insightId:id, companyId:'U_1', role:'cfo', eventId:'news:event:1',
   whatHappened:[claim('Факт один','fact','FACT'),claim('Факт два','fact','FACT')],
   whyItMatters:[claim('Значимость')], consequences:[claim('Последствие один'),claim('Последствие два')], risks:[claim('Риск','hypothesis','HYPOTHESIS')], opportunities:[], scenarios:[],
   actions:[claim('Проверить договор','recommendation','MODEL_RECOMMENDATION')], bankView:[claim('Оценка банка','assessment','BANK_ANALYSIS',['bank:2'])], modelVsBank:[],
-  sources:[{sourceId:'news:1',kind:'news',title:'Новость',url:'https://example.org/news',docId:'article-1',contentSha256:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',excerpt:'В исходном материале сохранено условие.',publisherId:'eia',adapterId:'eia_v1',materialType:'publisher_annotation',completeness:'partial',language:'en',publishedDate:'2026-10-20',publishedPrecision:'date',firstSeenAt:'2026-10-21T10:00:00Z',retrievedAt:'2026-10-22T11:00:00Z',rightsUrl:'https://example.org/rights',translationAttribution:'Перевод с английского; источник EIA'}, {sourceId:'bank:2',kind:'bank',title:'Отчёт',page:3,url:'https://example.org/report.pdf?revision=1111111111111111111111111111111111111111111111111111111111111111',docId:'bank-doc-1',contentSha256:'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',excerpt:'При сохранении условий банк ожидает замедления спроса.',statementType:'forecast',targetPeriod:'до конца 2026 года',validUntil:'2026-12-31'}, {sourceId:'news:conflict',kind:'news',title:'Другой источник',url:'https://example.org/conflicting',excerpt:'Второй источник приводит другую оценку.'}],
-  missingData:['Нет срока договора'], warnings:['Данные ограничены'], generatedAt:'2026-10-25T12:00:00Z', disclaimer:'Не является рекомендацией', hidden:true};
+  sources:[{sourceId:'news:1',kind:'news',title:'Новость',url:'https://example.org/news',docId:'article-1',contentSha256:'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',excerpt:'В исходном материале сохранено условие.',publisherId:'eia',adapterId:'eia_v1',materialType:'publisher_annotation',completeness:'partial',language:'en',publishedDate:'2026-10-20',publishedPrecision:'date',rawPublication:'2026-10-20',sourceTimezone:'UTC',sourceUtcOffsetSeconds:0,timezoneProvenance:'explicit_offset',firstSeenAt:'2026-10-21T10:00:00Z',retrievedAt:'2026-10-22T11:00:00Z',rightsUrl:'https://example.org/rights',translationAttribution:'Перевод с английского; источник EIA'}, {sourceId:'bank:2',kind:'bank',title:'Отчёт',page:3,url:'https://example.org/report.pdf?revision=1111111111111111111111111111111111111111111111111111111111111111',docId:'bank-doc-1',contentSha256:'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',excerpt:'При сохранении условий банк ожидает замедления спроса.',statementType:'forecast',targetPeriod:'до конца 2026 года',validUntil:'2026-12-31'}, {sourceId:'news:conflict',kind:'news',title:'Другой источник',url:'https://example.org/conflicting',excerpt:'Второй источник приводит другую оценку.'}],
+  missingData:['Нет срока договора'], warnings:['Данные ограничены'], generatedAt:'2026-10-25T12:00:00Z', disclaimer:'Не является рекомендацией', hidden:true, feedback:{rating:'UNSUPPORTED',comment:'Есть ошибка'}, openedAt:'2026-10-25T12:30:00Z'};
 const ctx = {company_id:'U_1', role:'cfo', event_id:id, view:'overview'};
 async function main() {
   assert.equal(typeof sandbox.InsightsBackend?.createBindings, 'function', 'Concrete Java bindings factory must be exported');
@@ -38,6 +38,30 @@ async function main() {
   const bootstrap=await bindings.bootstrap({},opts);
   assert.equal(bootstrap.profile.company_id,'U_1'); assert.equal(bootstrap.profile.name,'F_1'); assert.equal(bootstrap.companies[0].sector,'Торговля');
   const preferences=await bindings.preferences(ctx,opts); assert.equal(preferences[`U_1:cfo:${id}`].hidden,true);
+  const feedbackKey=`U_1:cfo:${id}:${id}`;
+  assert.equal(preferences[feedbackKey]?.feedback,'not_useful','Persisted feedback must be restored without a local write');
+  assert.equal(preferences[feedbackKey]?.reason,'error','The fixed comment distinguishes an error from an unclear basis');
+  for(const [rating,comment,expected,reason] of [['USEFUL',null,'useful',null],['IRRELEVANT','Не относится к компании','not_useful','company'],['UNSUPPORTED','Неясно основание','not_useful','basis'],['UNSUPPORTED','Есть ошибка','not_useful','error'],['OTHER','Не помогает принять решение','not_useful','decision'],['OTHER','Другое','not_useful','other'],['OTHER',null,'not_useful',null],['OTHER','constructor','not_useful',null]]) {
+    const restarted=sandbox.InsightsBackend.createBindings();
+    const restored=await restarted.preferences(ctx,{transport:async()=>({items:[{...card,feedback:{rating,comment}}]})});
+    assert.equal(restored[feedbackKey]?.feedback,expected); assert.equal(restored[feedbackKey]?.reason,reason);
+  }
+  const refreshing=sandbox.InsightsBackend.createBindings();
+  let persisted={rating:'UNSUPPORTED',comment:'Есть ошибка'}, failWrite=false;
+  const persistenceTransport=async(url,options={})=>{
+    if(url.includes('/insights?')) return {items:[JSON.parse(JSON.stringify({...card,feedback:persisted}))]};
+    if(url===`/api/v1/insights/${id}/feedback` && options.method==='PUT') {if(failWrite) throw new Error('write failed');return null;}
+    throw new Error('Unexpected feedback endpoint '+url);
+  };
+  await refreshing.preferences(ctx,{transport:persistenceTransport});
+  await refreshing.savePreference({context:ctx,insight_id:id,value:{feedback:'useful'}},{transport:persistenceTransport});
+  assert.equal((await refreshing.preferences(ctx,{transport:persistenceTransport}))[feedbackKey]?.reason,'error','Fresh server data must replace a previously successful local value');
+  persisted=null;
+  assert.equal((await refreshing.preferences(ctx,{transport:persistenceTransport}))[feedbackKey],undefined,'An explicit null clears stale local feedback');
+  persisted={rating:'USEFUL',comment:null}; failWrite=true;
+  await assert.rejects(refreshing.savePreference({context:ctx,insight_id:id,value:{feedback:'not_useful',reason:'basis'}},{transport:persistenceTransport}),/write failed/);
+  assert.equal((await refreshing.preferences(ctx,{transport:persistenceTransport}))[feedbackKey]?.feedback,'useful','Failed write cannot replace the persisted rating');
+
   const feed=await bindings.feed(ctx,opts); assert.equal(feed.items[0].id,id); assert.equal(feed.items[0].insight_id,id);
   assert(calls.some(c=>c.url.includes('includeHidden=true')));
   const mapped=await bindings.insight(ctx,opts);
@@ -50,10 +74,13 @@ async function main() {
   assert.equal(evidence.publisher_id,'eia'); assert.equal(evidence.adapter_id,'eia_v1');
   assert.equal(evidence.material_type,'publisher_annotation'); assert.equal(evidence.completeness,'partial'); assert.equal(evidence.language,'en');
   assert.equal(evidence.published_date,'2026-10-20'); assert.equal(evidence.published_precision,'date');
+  assert.equal(evidence.raw_publication,'2026-10-20'); assert.equal(evidence.source_timezone,'UTC');
+  assert.equal(evidence.source_utc_offset_seconds,0); assert.equal(evidence.timezone_provenance,'explicit_offset');
   assert.equal(evidence.first_seen_at,'2026-10-21T10:00:00Z'); assert.equal(evidence.retrieved_at,'2026-10-22T11:00:00Z');
   assert.equal(evidence.rights_url,'https://example.org/rights'); assert.equal(evidence.translation_attribution,'Перевод с английского; источник EIA');
   assert.equal(mapped.sources[1].statement_type,'forecast'); assert.equal(mapped.sources[1].target_period,'до конца 2026 года'); assert.equal(mapped.sources[1].valid_until,'2026-12-31');
   assert.equal(mapped.ml_insight_id,'ml:U_1:news:event:1:run-1'); assert.equal(mapped.insight_id,id); assert.equal(mapped.event_id,'news:event:1');
+  assert.equal(mapped.opened_at,'2026-10-25T12:30:00Z');
   assert.equal(mapped.run_id,'run-1'); assert.equal(mapped.version,2); assert.equal(mapped.request_id,'backend-request-1');
   assert.equal(mapped.parent_run_id,'run-0'); assert.equal(mapped.cache_hit,false); assert.equal(mapped.as_of,'2026-10-25T09:00:00Z');
   assert.equal(mapped.corpus_revision,'1111111111111111111111111111111111111111111111111111111111111111'); assert.equal(mapped.event_content_sha256,'eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee'); assert.equal(mapped.ml_outcome,'limited');
@@ -122,10 +149,23 @@ async function main() {
   const source=fs.readFileSync(path.join(web,'integration.js'),'utf8')+'\n'+fs.readFileSync(path.join(web,'app.js'),'utf8');
   const ui=setup(source,'',new Map(),`#/insight/${id}`);
   ui.run('location.origin="https://example.org"');
-  const uiBindings={...bindings,bootstrap:async()=>bootstrap,preferences:async input=>bindings.preferences(input,opts),feed:async input=>bindings.feed(input,opts),
-    insight:async()=>mapped,opened:async()=>{},savePreference:async input=>bindings.savePreference(input,opts),clarify:async input=>bindings.clarify(input,opts)};
+  const reloadedBindings=sandbox.InsightsBackend.createBindings();
+  const uiBindings={...reloadedBindings,bootstrap:async()=>bootstrap,preferences:async input=>reloadedBindings.preferences(input,opts),feed:async input=>reloadedBindings.feed(input,opts),
+    insight:async input=>reloadedBindings.insight(input,opts),opened:async()=>{},savePreference:async input=>reloadedBindings.savePreference(input,opts),clarify:async input=>reloadedBindings.clarify(input,opts)};
   ui.run('window.INSIGHTS_CONFIG={mode:"server",bindings:{}}');ui.run('window.INSIGHTS_CONFIG').bindings=uiBindings;
   await ui.run('init()');
+  assert.equal(walk(ui.root).find(e=>e.tagName==='button' && e.textContent==='Не полезно').getAttribute('aria-pressed'),'true','Saved rating must be selected after a new bindings/UI session');
+  assert.equal(walk(ui.root).find(e=>e.tagName==='select' && e.getAttribute('aria-label')==='Причина отрицательной оценки (необязательно)').value,'basis');
+  const normalInsight=uiBindings.insight;
+  for(const [detailFeedback,useful] of [[null,false],[{rating:'USEFUL',comment:null},true]]) {
+    uiBindings.insight=async input=>reloadedBindings.insight(input,{transport:async()=>({...card,feedback:detailFeedback})});
+    await ui.run('renderRoute()');
+    assert.equal(walk(ui.root).find(e=>e.tagName==='button' && e.textContent==='Не полезно').getAttribute('aria-pressed'),'false','Later detail response, including null, overrides the earlier feed feedback');
+    assert.equal(walk(ui.root).find(e=>e.tagName==='button' && e.textContent==='Полезно').getAttribute('aria-pressed'),String(useful));
+  }
+  uiBindings.insight=normalInsight; await ui.run('renderRoute()');
+
+
   for(const text of ['Факт один','Факт два','Последствие один','Последствие два','Оценка банка']) assert(ui.text().includes(text),text+' must stay visible');
   for(const text of ['В исходном материале сохранено условие.','Перевод с английского; источник EIA','2026-10-20','до конца 2026 года','2026-12-31']) assert(ui.text().includes(text),text+' provenance must stay visible');
   assert(ui.text().includes('аннотация'),'Partial source coverage must be visible');
@@ -145,7 +185,7 @@ async function main() {
   assert(ui.text().includes('Недостаточно проверенных оснований'));
   ui.doc.getElementById('page').replaceChildren(); ui.run('renderCard')(mapped);
   const normalClarify=uiBindings.clarify;
-  uiBindings.clarify=async input=>bindings.clarify(input,{...opts,transport:async(url,o)=>{
+  uiBindings.clarify=async input=>reloadedBindings.clarify(input,{...opts,transport:async(url,o)=>{
     const data=await transport(url,o);
     return url.endsWith('/questions') ? {...data,status:'LIMITED',outcome:'refused'} : {...data,status:'LIMITED',text:'Непроверенный ответ',claims:[claim('Непроверенное утверждение QA')],missingData:['Нет проверенного ответа']};
   }});

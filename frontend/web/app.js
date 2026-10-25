@@ -314,6 +314,10 @@ function renderFeed(result) {
 
 function renderCard(card) {
   state.card = card;
+  if (api.mode === 'server' && Object.hasOwn(card,'feedback')) {
+    const key=feedbackKey(card);
+    if (card.feedback) state.preferences[key]=card.feedback; else delete state.preferences[key];
+  }
   if (card.outcome && card.outcome !== 'COMPLETE') {
     const warning=node('section','','limitations'); warning.setAttribute('role','status');
     warning.append(node('h2', InsightsIntegration.outcomes[card.outcome] || 'Статус результата не распознан'), node('p',card.outcome_message || 'Учитывайте ограничения результата.'));
