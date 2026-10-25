@@ -53,6 +53,7 @@ class QueuedInputSnapshotTest {
     private OperationStore store;
     private InsightService service;
     private CompanyProfileService profiles;
+    private MlClient ml;
 
     @BeforeEach
     void initializeRealQueueAndStore() throws Exception {
@@ -62,7 +63,7 @@ class QueuedInputSnapshotTest {
         currentProfile.set(profile("P1", "10001.25"));
         when(profiles.hasAccess("F_1", "U_1")).thenReturn(true);
         when(profiles.loadProfile(eq("U_1"), anyMap())).thenAnswer(ignored -> currentProfile.get());
-        MlClient ml = mock(MlClient.class);
+        ml = mock(MlClient.class);
         when(ml.trace(anyString())).thenReturn(List.of());
         when(ml.generate(any())).thenAnswer(invocation -> {
             MlContracts.InsightRequest request = invocation.getArgument(0);
@@ -245,6 +246,29 @@ class QueuedInputSnapshotTest {
             assertEquals(1, generateCalls.get());
             assertEquals(1, database.jdbc().queryForObject("SELECT count(*) FROM backend_api.operation WHERE request_key='concurrent-key'", Integer.class));
         }
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"company_id,U_2", "event_id,other-event", "corpus_revision,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "as_of,2026-10-22T09:00:00Z"})
+    void qaRejectsAnswersOutsideSavedParentContext(String field, String value) throws Exception {
+        var event = new MlContracts.NewsEvent("queued", "Event", "R1 original text", null,
+                new MlContracts.SourceRef("source-R1", MlContracts.SourceKind.news, "Source", null, null, null), List.of(), List.of());
+        var request = new MlContracts.InsightRequest(currentProfile.get().profile(), MlContracts.UserRole.cfo, event,
+                "parent-request", null, Instant.parse("2026-10-21T09:00:00Z"), "a".repeat(64), "1".repeat(64));
+        var parent = store.create("F_1", "U_1", "cfo", "ANALYSIS", null, "queued", "qa-parent", "parent", Map.of()).operation();
+        store.start(parent.id()); store.saveProfile(parent.id(), currentProfile.get()); store.finish(parent.id(), "SUCCEEDED", response(request), List.of());
+        var answer = mapper.createObjectNode().put("insight_id", "ins_queue_fixture").put("run_id", "run_qa")
+                .put("company_id", "U_1").put("event_id", "queued").put("status", "answered").put("text", "Saved P1 context")
+                .put("corpus_revision", "a".repeat(64)).put("event_content_sha256", "1".repeat(64)).put("as_of", "2026-10-21T09:00:00Z");
+        answer.put(field, value);
+        when(ml.ask(anyString(), anyString(), any())).thenReturn(mapper.treeToValue(answer, MlContracts.Answer.class));
+        currentProfile.set(profile("P2", "20002.50"));
+        var operation = service.question("F_1", parent.id(), new ru.businessinsights.backend.api.ApiModels.QuestionInput("Что изменилось?"), "qa-key");
+        service.close(); service = null;
+        var completed = store.find(operation.operationId()).orElseThrow();
+        assertEquals("FAILED", completed.status());
+        assertEquals("ML_INVALID_RESPONSE", completed.errorCode());
+        assertNull(completed.result(), "An answer from another context must never be published");
     }
 
     private void occupyOnlyWorker() throws Exception {

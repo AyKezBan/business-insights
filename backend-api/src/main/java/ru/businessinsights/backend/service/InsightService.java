@@ -154,7 +154,12 @@ public class InsightService {
         Operation parent = requireInsight(person, insightId);
         // Include parent ID in the fingerprint; a key cannot silently move a question to another insight.
         var payload = mapper.createObjectNode().put("question", input.question()).put("parentId", parent.id().toString());
-        var submission = store.create(person, parent.companyId(), parent.role(), "QUESTION", parent.id(), parent.eventId(), key, hash(payload), payload);
+        var context = mapper.createObjectNode();
+        for (String field : List.of("corpus_revision", "event_content_sha256", "as_of")) {
+            if (parent.result().has(field)) context.set(field, parent.result().get(field));
+        }
+        payload.set("request", context);
+        var submission = store.createFrozen(person, parent.companyId(), parent.role(), "QUESTION", parent.id(), parent.eventId(), key, hash(payload), payload, parent.profileSnapshot());
         if (submission.created()) {
             enqueue(submission.operation().id());
         }
@@ -325,6 +330,12 @@ public class InsightService {
         var insight = store.convert(parent.result(), MlContracts.Insight.class);
         var profile = store.convert(parent.profileSnapshot().path("profile"), MlContracts.CompanyProfile.class);
         var answer = ml.ask(insight.insightId(), op.payload().path("question").asText(), profile);
+        if ((answer.companyId() != null && !parent.companyId().equals(answer.companyId()))
+                || (answer.eventId() != null && !parent.eventId().equals(answer.eventId()))
+                || (insight.corpusRevision() != null && !insight.corpusRevision().equals(answer.corpusRevision()))
+                || (insight.eventContentSha256() != null && !insight.eventContentSha256().equals(answer.eventContentSha256()))
+                || (insight.asOf() != null && !insight.asOf().equals(answer.asOf())))
+            throw new MlException(MlException.Code.INVALID_RESPONSE, "ML answer differs from the saved insight context", false);
         List<String> warnings = new ArrayList<>(parent.warnings());
         String status = "no_answer".equals(answer.status()) ? "NO_RESULT" : warnings.isEmpty() ? "SUCCEEDED" : "LIMITED";
         store.finish(op.id(), status, answer, List.copyOf(warnings));
