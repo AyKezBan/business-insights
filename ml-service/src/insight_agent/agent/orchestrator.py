@@ -6,7 +6,8 @@ from collections import OrderedDict
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from pydantic import BaseModel
+import httpx
+from pydantic import BaseModel, Field
 
 from insight_agent.agent.analyst import analyze_event
 from insight_agent.agent.critic import check, check_event_analysis, has_errors
@@ -19,6 +20,10 @@ from insight_agent.agent.store import InsightStore
 from insight_agent.agent.versions import PROMPT_VERSION, git_sha
 from insight_agent.budget import Price, PriceTable, RubleLedger
 from insight_agent.config import Settings
+from insight_agent.research.fetch import SafeFetcher
+from insight_agent.research.indicators import OpenDocument
+from insight_agent.research.plan import build_plan
+from insight_agent.research.service import OpenResearch, TtlCache
 from insight_agent.materials.models import CorpusSnapshot
 from insight_agent.materials.artifacts import digest
 from insight_agent.materials.policy import bank_policy, restrict_bank_args
@@ -32,8 +37,11 @@ from insight_agent.schemas import (
     InsightRequest,
     InsightStatus,
     Level,
+    NewsEvent,
     Outcome,
     PersonalizationDraft,
+    SourceKind,
+    SourceRef,
     SelfCheckReport,
 )
 from insight_agent.tools import bank as bank_tool
@@ -57,6 +65,11 @@ class NoArgs(BaseModel):
     pass
 
 
+class OpenSearchArgs(BaseModel):
+    query: str | None = Field(default=None, max_length=200)
+    top_k: int = Field(default=3, ge=1, le=5)
+
+
 @dataclass
 class RunRecord:
     state: AgentState
@@ -72,6 +85,7 @@ class InsightAgent:
         news: news_tool.NewsStore,
         daily: DailyBudget | None = None,
         corpus_snapshot: CorpusSnapshot | None = None,
+        research: OpenResearch | None = None,
     ):
         self.client = client
         self.settings = settings
@@ -79,6 +93,7 @@ class InsightAgent:
         self.news = news
         self.corpus_snapshot = corpus_snapshot
         self.daily = daily or self._build_daily_budget(settings)
+        self.research = research if research is not None else self._build_research(settings)
         self.analysis_cache: dict[str, tuple[EventAnalysis, list[CheckIssue]]] = {}
         self.records: OrderedDict[str, RunRecord] = OrderedDict()
         self.requests: OrderedDict[str, tuple[str, Insight]] = OrderedDict()
@@ -100,6 +115,20 @@ class InsightAgent:
             timezone=settings.budget_timezone,
         )
         return DailyBudget(settings.llm_daily_token_budget, ledger, prices)
+
+    @staticmethod
+    def _build_research(settings: Settings) -> OpenResearch | None:
+        if not settings.open_research_enabled:
+            return None
+        cache_dir = settings.open_research_cache_dir or settings.trace_dir / "open_cache"
+        return OpenResearch(SafeFetcher(httpx.Client()), TtlCache(cache_dir))
+
+    @staticmethod
+    def _as_news_event(doc: OpenDocument) -> NewsEvent:
+        published = doc.published if isinstance(doc.published, datetime) else datetime.combine(doc.published, datetime.min.time(), UTC)
+        ref = SourceRef(source_id=doc.source_id, kind=SourceKind.news, title=doc.title, date=published.date(), url=doc.url,
+                        content_sha256=digest(doc.text.encode()))
+        return NewsEvent(event_id=doc.source_id, title=doc.title, text=doc.text, published_at=published, source=ref, topics=doc.topics)
 
     def new_run(self) -> tuple[Tracer, StructuredLLM]:
         tracer = Tracer(new_run_id(), self.settings.trace_dir)
@@ -125,8 +154,32 @@ class InsightAgent:
                 args = args.model_copy(update={"not_after": limit})
             return self.news.search(args)
 
+        def search_open(args: OpenSearchArgs):
+            plan = build_plan(state.request.profile, matched_channels(state), args.query)
+            if plan.empty:
+                return []
+            event_day = state.event.published_at.date() if state.event.published_at else None
+            when = (as_of.date() if as_of else event_day) or datetime.now(UTC).date()
+            tracer.emit("plan", "open_research_plan", {"as_of": when.isoformat(), "reasons": plan.reasons})
+            found = self.research.search(plan, as_of=when, top_k=args.top_k)
+            for message in found.errors:
+                tracer.emit("error", "open_research", {"error": message})
+            events = [self._as_news_event(d) for d in found.docs]
+            for doc in found.docs:
+                self.news.register_source_text(doc.source_id, doc.text)
+            return events
+
+        open_tools = [Tool(
+            "search_open_sources",
+            "официальные открытые данные по профилю клиента: ключевая ставка и курсы валют Банка России, его пресс-релизы; что искать, определяется профилем.",
+            OpenSearchArgs,
+            search_open,
+            lambda r: {"documents": [{"id": e.event_id, "url": e.source.url, "date": str(e.source.date)} for e in r]},
+        )] if self.research is not None else []
+
         return ToolRegistry(
             [
+                *open_tools,
                 Tool(
                     "search_bank_analytics",
                     "поиск фрагментов аналитики Альфа-Банка по теме.",
@@ -254,6 +307,7 @@ class InsightAgent:
         issues: list[CheckIssue] = []
         iterations = 0
         try:
+            tracer.agent = "analyst"
             texts = state.source_texts()
             _, truncated = pack_sources(texts)
             if truncated:
@@ -282,9 +336,11 @@ class InsightAgent:
                 },
             )
 
+            tracer.agent = "planner"
             plan, by_llm = make_plan(llm, s.llm_model_light, state, tools)
             state.plan = [step.model_dump() for step in plan.steps]
             tracer.emit("plan", "plan", {"by_llm": by_llm, "steps": state.plan})
+            tracer.agent = "researcher"
             for step in plan.steps:
                 try:
                     self.absorb(state, tools.call(step.tool, step.args, step="execute_plan"))
@@ -296,11 +352,13 @@ class InsightAgent:
             self._scan_injection(state, tracer, scanned)
 
             for iterations in range(1, s.agent_max_iterations + 1):
+                tracer.agent = "personalizer"
                 if iterations > 1 and not self.daily.optional_allowed():
                     self._skip_optional(state, tracer, "revise")
                     iterations -= 1
                     break
                 state.draft = personalize(llm, s.llm_model_reasoning, state, feedback=issues if iterations > 1 else None)
+                tracer.agent = "verifier"
                 issues = check(state, state.draft)
                 tracer.emit(
                     "check",
@@ -317,6 +375,7 @@ class InsightAgent:
                 return self._failed(state, tracer, llm, str(exc), error_code(exc))
             issues = check(state, state.draft)
 
+        tracer.agent = "orchestrator"
         insight = self._assemble(state, issues, iterations, llm)
         tracer.emit(
             "final",
@@ -336,6 +395,7 @@ class InsightAgent:
             self._skip_optional(state, tracer, "broaden_bank_search")
             return
         state.bank_search_broadened = True
+        tracer.agent = "researcher"
         channels = matched_channels(state) or (state.analysis.impact_channels if state.analysis else [])
         queries = [CHANNELS[c] for c in channels[:2]] + [state.event.title]
         found_before = len(state.bank)
@@ -375,6 +435,7 @@ class InsightAgent:
         codes = {i.code for i in issues if i.severity == "error"}
         if "bank_view_without_bank_source" in codes and not state.bank_search_broadened:
             self.broaden_bank_search(state, tools, tracer)
+        tracer.agent = "verifier"
         state.adaptations.append("revise:" + ",".join(sorted(codes)))
         tracer.emit("adapt", "revise_with_feedback", {"codes": sorted(codes)})
 

@@ -36,6 +36,10 @@ class NewsStore:
     def resolve_source_text(self, source_id: str) -> str | None:
         return self._source_texts.get(source_id)
 
+    def register_source_text(self, source_id: str, text: str) -> None:
+        """Текст документа, найденного в открытом источнике во время запуска (в поиск по корпусу не попадает)."""
+        self._source_texts[source_id] = text
+
     @classmethod
     def from_jsonl(cls, path: Path) -> "NewsStore":
         if not path.exists():

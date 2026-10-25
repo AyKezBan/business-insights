@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     materials_dir: Path | None = None
     materials_public_base_url: str = ""
     bank_max_age_days: int = 180
+    # Открытые официальные источники (cbr.ru): ставка, курсы, пресс-релизы. Без LLM, только по списку хостов.
+    open_research_enabled: bool = True
+    open_research_cache_dir: Path | None = None
     trace_dir: Path = Path("traces")
 
 

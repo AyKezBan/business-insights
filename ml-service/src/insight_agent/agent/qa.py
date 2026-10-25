@@ -23,6 +23,7 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
         return None
     state, insight = deepcopy(record.state), record.insight
     tracer, llm = agent.new_run()
+    tracer.agent = "qa"
     tracer.emit("plan", "question", {"insight_id": insight_id, "parent_run_id": insight.run_id, "question": question})
     tools = agent.tools_for(state, tracer)
     for name in ("search_bank_analytics", "search_news"):

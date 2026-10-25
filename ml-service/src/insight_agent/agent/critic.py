@@ -89,6 +89,29 @@ def _language_issues(claim: Claim, location: str) -> list[CheckIssue]:
     return issues
 
 
+_KEYRATE_SOURCE = "cbr_keyrate_"
+_KEYRATE_CURRENT = re.compile(r"на \d{2}\.\d{2}\.\d{4}: (\d+[.,]\d+)% годовых")
+_KEYRATE_PREVIOUS = re.compile(r"Предыдущее значение: (\d+[.,]\d+)% годовых")
+_PAST_MARKER = re.compile(r"предыдущ|ранее|раньше|прежн|было|составляла|снизил|повысил|снижен|повышен|до этого", re.IGNORECASE)
+_ABOUT_KEYRATE = re.compile(r"ключев|ставк", re.IGNORECASE)
+
+
+def _keyrate_issues(claim: Claim, texts: dict[str, str], location: str) -> list[CheckIssue]:
+    """Число из прошлого значения ставки нельзя выдавать за текущее: оба числа есть в тексте источника."""
+    if not _ABOUT_KEYRATE.search(claim.text):
+        return []
+    percents = {value for value, unit in _quantities(claim.text) if unit == "percent"}
+    for sid in claim.source_ids:
+        text = texts.get(sid, "")
+        if not sid.startswith(_KEYRATE_SOURCE) or not (current := _KEYRATE_CURRENT.search(text)):
+            continue
+        previous = _KEYRATE_PREVIOUS.search(text)
+        old, now = (_norm(previous.group(1)) if previous else None), _norm(current.group(1))
+        if old and old != now and old in percents and now not in percents and not _PAST_MARKER.search(claim.text):
+            return [_issue("keyrate_value_mismatch", f"Источник: текущая ставка {now}%, значение {old}% было предыдущим", location)]
+    return []
+
+
 def _numeric_issues(text, cited, location, *, strict, profile=""):
     foreign = sorted(_numbers(text) - (_numbers(cited) | _numbers(profile)))
     if foreign:
@@ -121,6 +144,7 @@ def check_claims(claims: list[Claim], state: AgentState, *, section: str) -> lis
         issues += _numeric_issues(claim.text, cited, loc, strict=claim.kind in NEEDS_SOURCE,
                                  profile="" if claim.kind in NEEDS_SOURCE else state.profile_text())
         issues += _language_issues(claim, loc)
+        issues += _keyrate_issues(claim, texts, loc)
     return issues
 
 
