@@ -148,6 +148,10 @@ public final class HttpMlClient implements MlClient {
         return List.copyOf(result);
     }
 
+    JsonNode getJson(String path) {
+        return exchange("GET", path, null, null);
+    }
+
     private JsonNode exchange(String method, String path, JsonNode payload, MlException.Code notFound) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .timeout(requestTimeout).header("Accept", "application/json");
@@ -366,7 +370,7 @@ public final class HttpMlClient implements MlClient {
         return duration;
     }
 
-    private static String segment(String value) {
+    static String segment(String value) {
         StringBuilder encoded = new StringBuilder();
         for (byte b : value.getBytes(StandardCharsets.UTF_8)) {
             int c = b & 0xff;

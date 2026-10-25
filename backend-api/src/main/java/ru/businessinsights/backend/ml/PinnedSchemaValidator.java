@@ -40,6 +40,13 @@ final class PinnedSchemaValidator {
         validate(schema, schema, value, "$", 0);
     }
 
+    void validateDefinition(String name, String definition, JsonNode value) {
+        JsonNode root = schemas.get(name);
+        JsonNode schema = root == null ? null : root.path("$defs").get(definition);
+        if (schema == null) throw new IllegalArgumentException("Unknown pinned ML schema definition");
+        validate(root, schema, value, "$", 0);
+    }
+
     private void validate(JsonNode root, JsonNode schema, JsonNode value, String path, int depth) {
         if (depth > 64) {
             throw invalid(path, "schema nesting limit");
@@ -125,6 +132,9 @@ final class PinnedSchemaValidator {
             }
             if (schema.has("maxLength") && length > schema.get("maxLength").intValue()) {
                 throw invalid(path, "string too long");
+            }
+            if (schema.has("pattern") && !java.util.regex.Pattern.compile(schema.get("pattern").asText()).matcher(text).find()) {
+                throw invalid(path, "string does not match pattern");
             }
             try {
                 if ("date".equals(schema.path("format").asText())) {
