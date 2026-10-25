@@ -9,6 +9,7 @@ const labels = {fact: 'Факт события', open: 'Аналитика по 
 const certaintyLabels = {fact: 'Факт', inference: 'Вывод модели по источникам', hypothesis: 'Гипотеза · требует проверки', assessment: 'Оценка в аналитическом материале', recommendation: 'Рекомендация · требует проверки данных', unavailable: 'Нет данных'};
 let api = {mode: 'demo'};
 const pendingOperations = new Map();
+const materialAnalyses = new Map();
 const PROFILE_KEY = 'd09-d10-profile-v1';
 const PREFERENCES_KEY = 'd09-d10-preferences-v1';
 function readStored(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } }
@@ -54,13 +55,13 @@ function readRoute() {
   const ctx = {company_id: state.profile.company_id, role: state.profile.role, view: requestedView === 'actions' ? 'recommendations' : requestedView};
   if (!state.data.companies.some(x => x.id === ctx.company_id)) throw new Error('Компания в адресе не найдена.');
   if (!Object.hasOwn(state.data.roles, ctx.role) || !Object.hasOwn(state.data.views, ctx.view)) throw new Error('Неизвестная роль или разрез в адресе.');
-  if (!['home', 'profile', 'feed', 'insight'].includes(segments[0]) || segments.length !== (segments[0] === 'insight' ? 2 : 1)) throw new Error('Страница не найдена.');
+  if (!['home', 'profile', 'feed', 'materials', 'insight'].includes(segments[0]) || segments.length !== (segments[0] === 'insight' ? 2 : 1)) throw new Error('Страница не найдена.');
   if (segments[0] === 'insight') ctx.event_id = segments[1];
   return {page: segments[0], ctx};
 }
 function cancel() {
   state.epoch++; state.questionSeq++;
-  state.pageController?.abort(); state.questionController?.abort(); state.card = null;
+  state.pageController?.abort(); state.questionController?.abort(); state.card = null; state.analysisBusy=false; state.analysisButtons=[];
 }
 function showError(message, retry) {
   const box = $('error'); box.tabIndex = -1; box.replaceChildren(node('div', message)); box.hidden = false; box.focus();
@@ -134,7 +135,7 @@ function claimEvidence(part, sources) {
 }
 function guardAccess(error) {
   if (![401, 403].includes(error.status)) return;
-  cancel(); pendingOperations.clear(); state.data = null; state.profile = null; state.ctx = null; state.preferences = {};
+  cancel(); pendingOperations.clear(); materialAnalyses.clear(); state.data = null; state.profile = null; state.ctx = null; state.preferences = {};
   $('page').replaceChildren(); $('profile-link').textContent = 'Доступ не подтверждён';
 }
 async function service(name, input, controller, requestId) {
@@ -166,6 +167,7 @@ function renderHome() {
   for (const [title, body] of [['От факта к действию', 'Посмотрите, что произошло, как событие может повлиять на компанию, какие есть риски и что проверить дальше. Основания и источники доступны в каждом разделе.']]) {
     const p = node('section', '', 'panel'); p.append(node('h2', title), node('p', body, 'muted')); grid.append(p);
   }
+  if (api.mode === 'server') hero.append(link('Выбрать материал для анализа →','materials',{},'primary-link'));
   $('page').append(hero, grid); status('Главная страница');
 }
 function renderProfile() {
@@ -267,9 +269,74 @@ function serverFeedbackPanel(card) {
   }
   panel.append(reason,message); return panel;
 }
+function materialsNavigation() {
+  const nav=node('nav','','event-actions'); nav.setAttribute('aria-label','Материалы и готовые результаты');
+  nav.append(link('Мои инсайты','feed'),link('Доступные материалы','materials')); return nav;
+}
+function materialAnalysisKey(ctx,material) {
+  return JSON.stringify([ctx.company_id,ctx.role,material.event_id,material.corpus_revision,material.event_content_sha256]);
+}
+async function startMaterialAnalysis(ctx,material,button,epoch) {
+  if (epoch!==state.epoch || state.analysisBusy || api.mode!=='server') return;
+  const key=materialAnalysisKey(ctx,material);
+  let attempt=materialAnalyses.get(key);
+  if (!attempt) {
+    attempt={input:Object.freeze({company_id:ctx.company_id,role:ctx.role,event_id:material.event_id,corpus_revision:material.corpus_revision,
+      event_content_sha256:material.event_content_sha256,user_provided:Object.freeze({}),request_id:crypto.randomUUID()}),phase:'pending'};
+    materialAnalyses.set(key,attempt);
+  }
+  state.analysisBusy=true; (state.analysisButtons || []).forEach(item=>item.disabled=true);
+  const controller=new AbortController(); state.pageController=controller; $('error').hidden=true;
+  status('Готовим анализ выбранного материала…');
+  try {
+    const result=attempt.result || await service('analyze',attempt.input,controller,attempt.input.request_id);
+    attempt.result=result; attempt.phase='complete';
+    if (epoch!==state.epoch) return;
+    if (!result.insight_id) {
+      const notice=node('section','','limitations');notice.setAttribute('role','status');
+      notice.append(node('strong',InsightsIntegration.outcomes[result.outcome] || 'Подготовленного результата нет'));
+      for (const reason of new Set([result.outcome_message,...(result.missing_data || [])].filter(Boolean))) notice.append(node('p',reason));
+      $('page').append(notice);button.textContent='Результат недоступен';button.dataset.terminal='true';
+      status('Анализ завершён без опубликованного инсайта');return;
+    }
+    location.hash=routeURL('insight/'+result.insight_id,{view:'overview'});
+    status('Анализ завершён. Открываем результат…');
+  } catch (error) {
+    attempt.phase=error.resume ? 'pending' : 'error';
+    if ((epoch!==state.epoch && ![401,403].includes(error.status)) || error.name==='AbortError') return;
+    const message=error.status===409 ? error.message+' Выбранная версия не заменена. При необходимости обновите список материалов.' : error.message;
+    showError(message,state.data ? ()=>startMaterialAnalysis(ctx,material,button,epoch) : init); status(error.resume ? 'Анализ продолжается. Можно возобновить ожидание.' : 'Не удалось завершить анализ');
+  } finally {
+    if (epoch===state.epoch) { state.analysisBusy=false; (state.analysisButtons || []).forEach(item=>item.disabled=item.dataset.terminal==='true'); }
+  }
+}
+function renderMaterials(result) {
+  heading('Доступные материалы','Выберите источник для анализа в контексте вашей компании и должности. Просмотр списка не запускает анализ.');
+  $('page').append(materialsNavigation());
+  if (api.mode!=='server') { $('page').append(node('p','Каталог материалов и запуск анализа доступны только в серверном режиме.','empty')); return; }
+  const refresh=node('button','Обновить список'); refresh.onclick=()=>renderRoute(); $('page').append(refresh);
+  if (!result) { $('page').append(node('p','Список материалов не загружен. Готовые инсайты доступны отдельно.','muted')); return; }
+  const ctx={company_id:state.ctx.company_id,role:state.ctx.role}, epoch=state.epoch;
+  const company=state.data.companies.find(item=>item.id===ctx.company_id);
+  $('page').append(node('p','Анализ для: '+(company?.name || ctx.company_id)+' · '+state.data.roles[ctx.role],'muted'));
+  if (!result.items.length) { $('page').append(node('p','В опубликованном каталоге пока нет материалов.','empty')); status('Доступных материалов пока нет'); return; }
+  const grid=node('div','','grid'); state.analysisButtons=[];
+  for (const material of result.items) {
+    const item=node('article','','event-card'); item.append(node('h2',material.title));
+    const text=node('details'); text.append(node('summary','Текст материала'),node('p',material.text)); item.append(text);
+    item.append(sourceLinks([material.source,...(material.related_sources || [])]));
+    if ((material.conflicts || []).some(conflict=>!conflict.resolved)) item.append(node('p','Источники расходятся; это ограничение будет учтено в анализе.','limitations'));
+    const attempt=materialAnalyses.get(materialAnalysisKey(ctx,material));
+    const button=node('button',attempt?.result && !attempt.result.insight_id ? 'Результат недоступен' : attempt?.result ? 'Открыть инсайт' : attempt?.phase==='pending' ? 'Продолжить анализ' : attempt ? 'Повторить' : 'Проанализировать','primary');
+    if (attempt?.result && !attempt.result.insight_id) { button.disabled=true;button.dataset.terminal='true';item.append(node('p',attempt.result.outcome_message || InsightsIntegration.outcomes[attempt.result.outcome],'muted')); }
+    button.onclick=()=>startMaterialAnalysis(ctx,material,button,epoch); state.analysisButtons.push(button); item.append(button); grid.append(item);
+  }
+  $('page').append(grid); status('Доступно материалов: '+result.items.length);
+}
 function canShowContent(result) { return !result.outcome || ['COMPLETE','LIMITED'].includes(result.outcome); }
 function renderFeed(result) {
-  heading('Бизнес-события', 'События и разборы для компании из профиля. Изменить компанию или должность можно в разделе «Профиль».');
+  heading(api.mode==='server' ? 'Мои инсайты' : 'Бизнес-события', api.mode==='server' ? 'Сохранённые результаты для компании и должности из профиля.' : 'События и разборы для компании из профиля. Изменить компанию или должность можно в разделе «Профиль».');
+  if (api.mode==='server') $('page').append(materialsNavigation());
   if (!result.items.length) {
     const box = node('section', '', 'empty'); box.append(node('h2', 'Пока нет подготовленных событий'), node('p', result.empty_reason || 'Проверьте данные компании в профиле. Отсутствие событий не означает отсутствие рисков.'), link('Вернуться на главную', 'home'));
     $('page').append(box); status('Событий пока нет'); return;
@@ -444,12 +511,30 @@ async function renderRoute() {
     $('profile-link').href = routeURL('profile');
     document.querySelectorAll('[data-nav]').forEach(a => {
       a.href = routeURL(a.dataset.nav);
-      if (a.dataset.nav === (route.page === 'insight' ? 'feed' : route.page)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+      if (a.dataset.nav === (['insight','materials'].includes(route.page) ? 'feed' : route.page)) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
     });
     document.querySelector('.brand').href = routeURL('home');
     $('main').focus({preventScroll: true});
     if (route.page === 'home') { renderHome(); return; }
     if (route.page === 'profile') { renderProfile(); return; }
+    if (route.page === 'materials') {
+      if (api.mode!=='server') { renderMaterials(null); status('Каталог доступен в серверном режиме'); return; }
+      const controller=new AbortController(); state.pageController=controller;
+      renderMaterials(null); $('page').setAttribute('aria-busy','true'); status('Загружаем каталог материалов…');
+      try {
+        const ctx={company_id:state.ctx.company_id,role:state.ctx.role};
+        const result=await service('materialCatalog',ctx,controller);
+        if (epoch!==state.epoch) return;
+        if (result.context?.company_id!==ctx.company_id || result.context?.role!==ctx.role) throw new Error('Каталог вернул другой контекст компании.');
+        $('page').replaceChildren(); renderMaterials(result);
+      } catch (error) {
+        if ((epoch!==state.epoch && ![401,403].includes(error.status)) || error.name==='AbortError') return;
+        if (state.data) { $('page').replaceChildren(); renderMaterials(null); }
+        showError(error.message,state.data ? renderRoute : init); status('Каталог временно недоступен');
+      }
+      return;
+    }
+
     $('page').setAttribute('aria-busy', 'true'); status('Загружаем аналитику…');
     $('page').append(node('div', 'Загружаем данные выбранной компании…', 'skeleton'));
     const controller = new AbortController(); state.pageController = controller;

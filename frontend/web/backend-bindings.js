@@ -97,6 +97,75 @@
           companies:companies.map(c=>({id:c.companyId,name:'Компания '+c.companyId,sector:c.okvedName || 'Не указана'})),roles,views,
           notice:'Демонстрационный доступ по связям ФЛ–ЮЛ. Роль выбирается явно и не подтверждает полномочия. Показаны сохранённые результаты анализа; открытие ленты не запускает генерацию.'};
       },
+      async materialCatalog(ctx, options) {
+        const items=[], seen=new Set(); let token=null, total=null, offset=0;
+        while (true) {
+          const query=new URLSearchParams({limit:'100',offset:String(offset)});
+          if (token) query.set('revision',token.revision);
+          const page=await options.transport(`/api/v1/materials/events?${query}`,{...options,method:'GET'});
+          const current=page?.catalogToken;
+          if (!current || typeof current.storeId !== 'string' || !current.storeId || !Number.isSafeInteger(current.generation) || current.generation<0
+              || !/^[a-f0-9]{64}$/.test(current.revision || '') || !Array.isArray(page.items)
+              || page.offset!==offset || !Number.isSafeInteger(page.limit) || page.limit<1 || page.limit>100
+              || page.items.length>page.limit || !Number.isSafeInteger(page.total) || page.total<0) throw new Error('Сервис вернул некорректную страницу каталога.');
+          if (token && (current.storeId!==token.storeId || current.generation!==token.generation || current.revision!==token.revision || page.total!==total)) throw new Error('Версия каталога изменилась во время загрузки. Обновите список материалов.');
+          if (!token) { token={...current}; total=page.total; }
+          for (const dto of page.items) {
+            if (typeof dto.eventId!=='string' || !dto.eventId || seen.has(dto.eventId)) throw new Error('Каталог содержит повторяющийся или некорректный материал.');
+            if (dto.corpusRevision!==token.revision || !/^[a-f0-9]{64}$/.test(dto.eventContentSha256 || '')
+                || typeof dto.title!=='string' || !dto.title || typeof dto.text!=='string'
+                || !dto.source?.sourceId || dto.source.kind!=='news') throw new Error('Материал не соответствует выбранной версии каталога.');
+            seen.add(dto.eventId);
+            items.push({event_id:dto.eventId,title:dto.title,text:dto.text,published_at:dto.publishedAt,published_date:dto.publishedDate,
+              published_precision:dto.publishedPrecision,source:source(dto.source),related_sources:list(dto.relatedSources).map(source),
+              topics:list(dto.topics),conflicts:list(dto.conflicts).map(c=>({reason:c.reason,source_ids:list(c.sourceIds),resolved:c.resolved})),
+              event_content_sha256:dto.eventContentSha256,corpus_revision:dto.corpusRevision});
+          }
+          offset+=page.items.length;
+          if (offset>total || (offset<total && page.items.length<page.limit)) throw new Error('Каталог содержит неполную или противоречивую страницу материалов.');
+          if (offset===total) return {context:{company_id:ctx.company_id,role:ctx.role},catalog_token:{store_id:token.storeId,generation:token.generation,revision:token.revision},items,total};
+        }
+      },
+      async analyze(input, options) {
+        const frozen=Object.freeze({companyId:input.company_id,role:input.role,eventId:input.event_id,corpusRevision:input.corpus_revision,
+          eventContentSha256:input.event_content_sha256,requestId:input.request_id,userProvided:Object.freeze({...input.user_provided})});
+        if (!frozen.companyId || !Object.hasOwn(roles,frozen.role) || !frozen.eventId || !frozen.requestId
+            || !/^[a-f0-9]{64}$/.test(frozen.corpusRevision || '') || !/^[a-f0-9]{64}$/.test(frozen.eventContentSha256 || '')) throw new Error('Для анализа не выбран полный контекст материала.');
+        let operationURL;
+        const onProgress=progress=>{ operationURL=progress.location; options.onProgress?.(progress); };
+        const preserveResume=error=>{
+          if (!error.resume && operationURL && ![401,403].includes(error.status)) error.resume=async signal=>{
+            try { return await options.transport(operationURL,{...options,signal,onProgress,method:'GET',body:undefined,requestId:undefined}); }
+            catch (next) { preserveResume(next); throw next; }
+          };
+          return error;
+        };
+        return root.InsightsIntegration.mapOperation(async()=>{
+          try { return await options.transport('/api/v1/analyses',{...options,onProgress,method:'POST',body:frozen,requestId:frozen.requestId}); }
+          catch (error) { throw preserveResume(error); }
+        },async(operation,signal)=>{
+          const uuid=/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
+          if (operation?.kind!=='ANALYSIS' || !uuid.test(operation.operationId || '')) throw new Error('Сервис вернул другую или некорректную операцию.');
+          if (operation.requestId!=null && operation.requestId!==frozen.requestId) throw new Error('Операция относится к другому запросу анализа.');
+          if (operation.corpusRevision!=null && operation.corpusRevision!==frozen.corpusRevision) throw new Error('Операция использует другую версию материалов.');
+          if (['NO_RESULT','INSUFFICIENT_DATA','FAILED'].includes(operation.status)) {
+            return {context:{company_id:frozen.companyId,role:frozen.role},insight_id:null,operation_id:operation.operationId,event_id:frozen.eventId,
+              outcome:outcome(operation.status,operation.outcome),ml_outcome:operation.outcome,error_code:operation.error?.code,
+              operation_request_id:operation.requestId,corpus_revision:frozen.corpusRevision,event_content_sha256:frozen.eventContentSha256,
+              outcome_message:operation.error?.message || list(operation.warnings).join(' '),missing_data:list(operation.warnings)};
+          }
+          if (!['SUCCEEDED','LIMITED'].includes(operation.status)) throw new Error('Анализ не завершён: '+operation.status);
+          const id=operation.insightId || operation.operationId;
+          if (!uuid.test(id || '')) throw new Error('Сервис не передал корректный идентификатор карточки.');
+          let dto;
+          try { dto=await options.transport(`/api/v1/insights/${pathId(id)}`,{...options,signal,method:'GET'}); }
+          catch (error) { if (![401,403].includes(error.status)) error.resume=async()=>operation; throw error; }
+          const ctx={company_id:frozen.companyId,role:frozen.role,event_id:id,view:'overview'};
+          checkContext(dto,ctx,id);
+          if (dto.eventId!==frozen.eventId || dto.corpusRevision!==frozen.corpusRevision || dto.eventContentSha256!==frozen.eventContentSha256) throw new Error('Результат анализа не соответствует выбранной версии материала.');
+          const result=cardView(dto,ctx); remember(dto,ctx); return result;
+        },options.signal);
+      },
       async feed(ctx, options) {
         const items=await loadFeed(ctx,options);
         return {context:{company_id:ctx.company_id,role:ctx.role},items:items.map(dto=>({id:dto.insightId,insight_id:dto.insightId,
