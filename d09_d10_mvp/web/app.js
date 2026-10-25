@@ -7,6 +7,8 @@ const node = (tag, text = '', className = '') => {
 const status = text => { $('status').textContent = text; };
 const labels = {fact: 'Факт события', open: 'Аналитика по открытым источникам', bank: 'Аналитика от Альфа-банка', ai: 'Вывод для компании'};
 const certaintyLabels = {fact: 'Факт', inference: 'Вывод модели по источникам', hypothesis: 'Гипотеза · требует проверки', assessment: 'Оценка в аналитическом материале', recommendation: 'Рекомендация · требует проверки данных', unavailable: 'Нет данных'};
+let api = {mode: 'demo'};
+const pendingOperations = new Map();
 const PROFILE_KEY = 'd09-d10-profile-v1';
 const PREFERENCES_KEY = 'd09-d10-preferences-v1';
 function readStored(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } }
@@ -61,10 +63,16 @@ function cancel() {
   state.pageController?.abort(); state.questionController?.abort(); state.card = null;
 }
 function showError(message, retry) {
-  const box = $('error'); box.replaceChildren(node('div', message)); box.hidden = false;
+  const box = $('error'); box.tabIndex = -1; box.replaceChildren(node('div', message)); box.hidden = false; box.focus();
   if (retry) { const b = node('button', 'Повторить'); b.onclick = retry; box.append(b); }
 }
 async function request(path, ctx, controller, payload) {
+  if (api.mode === 'server') {
+    const name = path === '/api/feed' ? 'feed' : path === '/api/insight' ? 'insight' : 'clarify';
+    const result = await service(name, payload || ctx, controller, payload?.request_id);
+    for (const key of Object.keys(ctx)) if (result.context?.[key] !== ctx[key]) throw new Error('Сервис вернул ответ для другого контекста.');
+    return result;
+  }
   const timeout = setTimeout(() => controller.abort('timeout'), 15000);
   try {
     const response = await fetch(path + (payload ? '' : '?' + new URLSearchParams(ctx)), {
@@ -79,16 +87,46 @@ async function request(path, ctx, controller, payload) {
     throw e;
   } finally { clearTimeout(timeout); }
 }
-function sourceLinks(sources) {
+function sourceLinks(sources = []) {
   const container = node('div');
   for (const source of sources) {
-    // Only server-owned source identifiers; no model-generated HTML or URLs.
-    if (!/^[a-z0-9-]+$/.test(source.id)) continue;
-    const a = node('a', source.title, 'source-link');
-    a.href = '/sources/' + encodeURIComponent(source.id); a.target = '_blank'; a.rel = 'noopener noreferrer';
-    a.append(node('small', `${source.date} · стр. ${source.page} · новая вкладка`)); container.append(a);
+    const href = InsightsIntegration.sourceURL(source, api.mode === 'demo', location.origin);
+    const label = source.title || 'Первоисточник';
+    if (!href) { container.append(node('p', label + ' · ссылка недоступна', 'muted')); continue; }
+    const a = node('a', label, 'source-link');
+    a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    a.append(node('small', [source.date, Number.isInteger(source.page) && source.page > 0 ? 'стр. ' + source.page : null, 'новая вкладка'].filter(Boolean).join(' · ')));
+    container.append(a);
+    if (source.excerpt) container.append(node('blockquote', source.excerpt));
   }
   return container;
+}
+function claimEvidence(part, sources) {
+  const box = sourceLinks(sources.filter(s => (part.source_ids || []).includes(s.id)));
+  if (part.claim_id) box.dataset.claimId = part.claim_id;
+  if (part.feature_refs?.length) box.append(node('p', 'Использованные признаки: ' + part.feature_refs.join(', '), 'muted'));
+  return box;
+}
+function guardAccess(error) {
+  if (![401, 403].includes(error.status)) return;
+  cancel(); pendingOperations.clear(); state.data = null; state.profile = null; state.ctx = null; state.preferences = {};
+  $('page').replaceChildren(); $('profile-link').textContent = 'Доступ не подтверждён';
+}
+async function service(name, input, controller, requestId) {
+  const operationKey = JSON.stringify([name, input]);
+  try { if (pendingOperations.has(operationKey)) { const result = await pendingOperations.get(operationKey)(controller.signal); pendingOperations.delete(operationKey); return result; } return await api.call(name, input, {signal:controller.signal, requestId, onProgress: () => status('Анализ выполняется. Можно перейти на другой экран.')}); }
+  catch (e) { if (e.resume) pendingOperations.set(operationKey,e.resume); guardAccess(e); throw e; }
+}
+async function persistServer(key, value, button, message) {
+  const epoch = state.epoch, context = {...state.ctx}; button.disabled = true;
+  message.textContent = 'Сохраняем…';
+  try {
+    await service('savePreference', {context, key, value, insight_id:state.card?.insight_id}, new AbortController(), crypto.randomUUID());
+    if (epoch !== state.epoch) return false;
+    state.preferences = {...state.preferences, [key]:{...state.preferences[key], ...value}};
+    message.textContent = 'Сохранено на сервере.'; return true;
+  } catch (e) { if (epoch === state.epoch || [401,403].includes(e.status)) { message.textContent = 'Изменение не сохранено. ' + e.message; showError(message.textContent); } return false; }
+  finally { button.disabled = false; }
 }
 function heading(title, lead) {
   $('page').append(node('h1', title), node('p', lead, 'lead'));
@@ -111,28 +149,39 @@ function renderProfile() {
   const details = node('section', '', 'panel'); details.append(node('h2', 'Данные профиля'));
   const form = node('form'); form.id = 'profile-form';
   const nameLabel = node('label', 'Имя'); nameLabel.htmlFor = 'profile-name';
-  const nameInput = node('input'); nameInput.id = 'profile-name'; nameInput.value = state.profile.name; nameInput.maxLength = 100; nameInput.required = true; nameInput.autocomplete = 'name';
+  const nameInput = node('input'); nameInput.id = 'profile-name'; nameInput.value = state.profile.name; nameInput.maxLength = 100; nameInput.required = true; nameInput.autocomplete = 'name'; nameInput.readOnly = api.mode === 'server';
   const companyLabel = node('label', 'Компания'); companyLabel.htmlFor = 'profile-company';
   const companySelect = node('select'); companySelect.id = 'profile-company';
   for (const company of state.data.companies) { const option = node('option', company.name); option.value = company.id; companySelect.append(option); }
   companySelect.value = state.profile.company_id;
   const companyInfo = node('p', '', 'muted'); companyInfo.id = 'profile-company-info';
-  const describeCompany = () => { const company = state.data.companies.find(c => c.id === companySelect.value); companyInfo.textContent = 'Отрасль: ' + company.sector + '. Данные компании — демонстрационные.'; };
-  companySelect.onchange = describeCompany; describeCompany();
+  const describeCompany = () => { const company = state.data.companies.find(c => c.id === companySelect.value); companyInfo.textContent = 'Отрасль: ' + (company.sector || 'не указана') + (api.mode === 'demo' ? '. Данные компании — демонстрационные.' : ''); };
+  describeCompany();
   const roleLabel = node('label', 'Должность'); roleLabel.htmlFor = 'profile-role';
   const roleSelect = node('select'); roleSelect.id = 'profile-role';
   for (const [value, text] of Object.entries(state.data.roles)) { const option = node('option', text); option.value = value; roleSelect.append(option); }
   roleSelect.value = state.profile.role;
+  const restrictRoles = () => {
+    const allowed = state.data.companies.find(c=>c.id===companySelect.value)?.roles;
+    for (const option of roleSelect.children) option.disabled = Array.isArray(allowed) && !allowed.includes(option.value);
+    if (Array.isArray(allowed) && !allowed.includes(roleSelect.value)) roleSelect.value = allowed[0] || '';
+  };
+  companySelect.onchange = () => { describeCompany(); restrictRoles(); }; restrictRoles();
   const save = node('button', 'Сохранить профиль', 'primary'); save.type = 'submit';
-  form.append(nameLabel, nameInput, companyLabel, companySelect, companyInfo, roleLabel, roleSelect, node('p', 'Настройки сохраняются в этом браузере и используются в ленте и карточках.', 'muted'), save);
+  form.append(nameLabel, nameInput, companyLabel, companySelect, companyInfo, roleLabel, roleSelect, node('p', api.mode === 'demo' ? 'Настройки сохраняются в этом браузере и используются в ленте и карточках.' : 'Компания и доступные роли получены из серверной сессии.', 'muted'), save);
   form.onsubmit = async event => {
     event.preventDefault(); const name = nameInput.value.trim(); if (!name) {nameInput.setCustomValidity('Введите имя.'); nameInput.reportValidity(); return;}
+    if (!roleSelect.value) { showError('Для выбранной компании нет доступной роли.'); return; }
     const profile = {name, company_id: companySelect.value, role: roleSelect.value};
-    if (!saveStored(PROFILE_KEY, profile)) { showError('Не удалось сохранить профиль в этом браузере.'); return; }
+    if (api.mode === 'demo' && !saveStored(PROFILE_KEY, profile)) { showError('Не удалось сохранить профиль в этом браузере.'); return; }
     state.profile = profile; await renderRoute(); status('Профиль сохранён. Аналитика использует данные из профиля.');
   };
   nameInput.oninput = () => nameInput.setCustomValidity('');
   details.append(form);
+  if (api.mode === 'server') {
+    const session = node('section', '', 'panel'); session.append(node('h2', 'Сессия интернет-банка'), node('p', 'Доступ проверяет сервер. Выбор компании не предоставляет дополнительных прав.'));
+    grid.append(details, session); $('page').append(grid); status('Профиль пользователя'); return;
+  }
   const auth = node('section', '', 'panel'); auth.append(node('h2', 'Вход в аккаунт'), node('p', 'Форма будущего входа по логину и паролю. Сейчас доступен демонстрационный профиль.', 'muted'));
   const loginForm = node('form'); loginForm.id = 'login-form';
   const loginLabel = node('label', 'Логин'); loginLabel.htmlFor = 'login';
@@ -145,6 +194,7 @@ function renderProfile() {
   loginForm.append(loginLabel, login, passwordLabel, password, enter, message); auth.append(loginForm); grid.append(details, auth); $('page').append(grid); status('Профиль пользователя');
 }
 function feedbackPanel(card) {
+  if (api.mode === 'server') return serverFeedbackPanel(card);
   const panel = node('section', '', 'panel feedback-panel'); panel.append(node('h2', 'Была ли аналитика полезна?'));
   const actions = node('div', '', 'question-actions'); const message = node('p', '', 'muted'); message.setAttribute('role', 'status');
   const key = feedbackKey(card); const current = state.preferences[key]?.feedback;
@@ -173,10 +223,29 @@ function feedbackPanel(card) {
   panel.append(actions, reason, saveReason, message); return panel;
 }
 
+function serverFeedbackPanel(card) {
+  const panel = node('section', '', 'panel feedback-panel'); panel.append(node('h2', 'Была ли аналитика полезна?'));
+  const message = node('p', '', 'muted'); message.setAttribute('role','status');
+  const reason = node('select'); reason.setAttribute('aria-label','Причина отрицательной оценки (необязательно)');
+  for (const [value, text] of [['','Можно выбрать причину'],['company','Не относится к компании'],['basis','Неясно основание'],['error','Есть ошибка'],['decision','Не помогает принять решение'],['other','Другое']]) { const option=node('option',text); option.value=value; reason.append(option); }
+  const key=feedbackKey(card), epoch=state.epoch, buttons=[];
+  reason.value=state.preferences[key]?.reason || '';
+  for (const [value,text] of [['useful','Полезно'],['not_useful','Не полезно']]) {
+    const button=node('button',text); buttons.push(button); button.setAttribute('aria-pressed',String(state.preferences[key]?.feedback===value));
+    button.onclick=async()=>{
+      if (epoch!==state.epoch || !state.card || feedbackKey(state.card)!==key || buttons.some(b=>b.disabled)) return;
+      buttons.forEach(b=>b.disabled=true);
+      const ok=await persistServer(key,{feedback:value,reason:value==='not_useful' ? reason.value || null : null},button,message);
+      buttons.forEach(b=>b.disabled=false);
+      if (ok) buttons.forEach(b=>b.setAttribute('aria-pressed',String(b===button)));
+    }; panel.append(button);
+  }
+  panel.append(reason,message); return panel;
+}
 function renderFeed(result) {
   heading('Бизнес-события', 'События и разборы для компании из профиля. Изменить компанию или должность можно в разделе «Профиль».');
   if (!result.items.length) {
-    const box = node('section', '', 'empty'); box.append(node('h2', 'Пока нет подготовленных событий'), node('p', 'Проверьте данные компании в профиле. Отсутствие событий не означает отсутствие рисков.'), link('Вернуться на главную', 'home'));
+    const box = node('section', '', 'empty'); box.append(node('h2', 'Пока нет подготовленных событий'), node('p', result.empty_reason || 'Проверьте данные компании в профиле. Отсутствие событий не означает отсутствие рисков.'), link('Вернуться на главную', 'home'));
     $('page').append(box); status('Событий пока нет'); return;
   }
   const hidden = result.items.filter(event => state.preferences[preferenceKey(event.id)]?.hidden);
@@ -185,7 +254,14 @@ function renderFeed(result) {
     const hiddenBar = node('div', '', 'hidden-bar');
     hiddenBar.append(node('span', 'Скрыто событий: ' + hidden.length));
     const restore = node('button', 'Показать скрытые');
-    restore.onclick = () => {
+    const restoreContext = JSON.stringify(state.ctx);
+    restore.onclick = async () => {
+      if (JSON.stringify(state.ctx) !== restoreContext) return;
+      if (api.mode === 'server') {
+        const epoch=state.epoch;
+        for (const event of hidden) { if (epoch!==state.epoch) return; if (!await persistServer(preferenceKey(event.id), {hidden:false}, restore, hiddenBar)) return; }
+        await renderRoute(); return;
+      }
       const updated = {...state.preferences};
       for (const event of hidden) { const key = preferenceKey(event.id); updated[key] = {...updated[key], hidden: false}; }
       if (!saveStored(PREFERENCES_KEY, updated)) { showError('Не удалось восстановить события в локальном хранилище.'); return; }
@@ -200,7 +276,7 @@ function renderFeed(result) {
     const actions = node('div', '', 'event-actions');
     const hide = node('button', 'Скрыть'); hide.setAttribute('aria-label', 'Скрыть событие «' + event.title + '»');
     const hideKey = preferenceKey(event.id), hideContext = `${state.profile.company_id}:${state.profile.role}`;
-    hide.onclick = () => { if (`${state.profile.company_id}:${state.profile.role}` !== hideContext) return; const updated = {...state.preferences, [hideKey]: {...state.preferences[hideKey], hidden: true}}; if (!saveStored(PREFERENCES_KEY, updated)) { showError('Не удалось сохранить скрытие в этом браузере.'); return; } state.preferences = updated; renderRoute(); };
+    hide.onclick = async () => { if (`${state.profile.company_id}:${state.profile.role}` !== hideContext) return; if (api.mode === 'server') { const message=node('p','','muted'); card.append(message); if (await persistServer(hideKey,{hidden:true},hide,message)) await renderRoute(); return; } const updated = {...state.preferences, [hideKey]: {...state.preferences[hideKey], hidden: true}}; if (!saveStored(PREFERENCES_KEY, updated)) { showError('Не удалось сохранить скрытие в этом браузере.'); return; } state.preferences = updated; renderRoute(); };
     actions.append(link('Разобраться в событии →', 'insight/' + event.id), hide);
     card.append(meta, node('h2', event.title), node('span', 'Требует проверки данных', 'badge'), node('p', event.why), actions); grid.append(card);
   }
@@ -210,6 +286,12 @@ function renderFeed(result) {
 
 function renderCard(card) {
   state.card = card;
+  if (card.outcome && card.outcome !== 'COMPLETE') {
+    const warning=node('section','','limitations'); warning.setAttribute('role','status');
+    warning.append(node('h2', InsightsIntegration.outcomes[card.outcome] || 'Статус результата не распознан'), node('p',card.outcome_message || 'Учитывайте ограничения результата.'));
+    $('page').append(warning);
+    if (!['LIMITED'].includes(card.outcome)) { $('page').append(link('Вернуться к событиям','feed')); status(warning.textContent); return; }
+  }
   $('page').append(link('← Все бизнес-события', 'feed', {}, 'breadcrumb'));
   const company = state.data.companies.find(c => c.id === state.ctx.company_id);
   heading(card.title, `Разбор для ${company?.name || 'компании'} · ${state.data.roles[state.ctx.role]}. Изменить контекст можно в Профиле.`);
@@ -222,19 +304,19 @@ function renderCard(card) {
   const layout = node('div', '', 'card-layout'); const content = node('div'); const blocks = node('article', '', 'panel thematic-analysis');
   const fact = card.blocks.find(b => b.kind === 'fact');
   const factSection = node('section', '', 'block fact'); factSection.append(node('h2', 'Что произошло', 'block-heading'));
-  if (fact) factSection.append(node('span', 'Факт события', 'tag'), node('p', fact.text), sourceLinks(card.sources.filter(s => fact.source_ids.includes(s.id))));
+  if (fact) factSection.append(node('span', 'Факт события', 'tag'), node('p', fact.text), claimEvidence(fact, card.sources));
   else factSection.append(node('p', 'Факт события не предоставлен.', 'muted'));
   blocks.append(factSection);
   const themeMap = {consequences: 'Влияние на компанию', risks: 'Риски и неопределённость', recommendations: 'Что проверить дальше'};
-  const origins = {open: 'Вывод AI по внешним источникам', bank: 'Оценка банка · в этой демонстрации учебная', ai: 'Вывод AI для компании · не официальная позиция банка'};
+  const origins = {open: 'Вывод AI по внешним источникам', bank: api.mode === 'demo' ? 'Оценка банка · в этой демонстрации учебная' : 'Оценка банка по указанному материалу', ai: 'Вывод AI для компании · не официальная позиция банка'};
   const bankBlock = card.blocks.find(b => b.kind === 'bank');
   const bankUnavailable = !bankBlock || !bankBlock.sections?.some(part => part.certainty !== 'unavailable');
-  if (bankUnavailable) blocks.append(node('p', 'Для этого события оценка банка недоступна: в демонстрационном наборе нет релевантного материала.', 'bank-unavailable'));
+  if (bankUnavailable) blocks.append(node('p', api.mode === 'demo' ? 'Для этого события оценка банка недоступна: в демонстрационном наборе нет релевантного материала.' : 'Для этого события оценка банка недоступна: подтверждающий материал не предоставлен.', 'bank-unavailable'));
   for (const kind of ['consequences', 'risks', 'recommendations']) {
     if (state.ctx.view !== 'overview' && state.ctx.view !== kind) continue;
     const theme = node('section', '', 'theme-section'); theme.append(node('h2', themeMap[kind], 'block-heading'));
     const aiPart = card.blocks.find(b => b.kind === 'ai')?.sections?.find(section => section.kind === kind);
-    if (aiPart) theme.append(node('p', origins.ai, 'origin-note ai-origin'), node('p', aiPart.text, 'analysis-copy'), node('span', certaintyLabels[aiPart.certainty] || 'Тип утверждения не указан', 'tag'), sourceLinks(card.sources.filter(s => aiPart.source_ids.includes(s.id))));
+    if (aiPart) theme.append(node('p', origins.ai, 'origin-note ai-origin'), node('p', aiPart.text, 'analysis-copy'), node('span', certaintyLabels[aiPart.certainty] || 'Тип утверждения не указан', 'tag'), claimEvidence(aiPart, card.sources));
     else theme.append(node('p', origins.ai, 'origin-note ai-origin'), node('p', 'Вывод для компании по этой теме недоступен: раздел не предоставлен.', 'muted'), node('span', certaintyLabels.unavailable, 'tag'));
     const basis = node('details', '', 'basis-details'); basis.append(node('summary', 'На чём основан вывод'));
     for (const kindOrigin of ['open', 'bank']) {
@@ -243,7 +325,7 @@ function renderCard(card) {
       sourceOrigin.append(node('p', origins[kindOrigin], 'origin-note'));
       if (part) {
         sourceOrigin.append(node('p', part.text, 'origin-copy'));
-        sourceOrigin.append(node('span', certaintyLabels[part.certainty] || 'Тип утверждения не указан', 'tag'), sourceLinks(card.sources.filter(s => part.source_ids.includes(s.id))));
+        sourceOrigin.append(node('span', certaintyLabels[part.certainty] || 'Тип утверждения не указан', 'tag'), claimEvidence(part, card.sources));
       } else {
         sourceOrigin.append(node('p', 'Раздел по этой теме не предоставлен.', 'muted'), node('span', certaintyLabels.unavailable, 'tag'));
       }
@@ -257,9 +339,9 @@ function renderCard(card) {
     for (const text of card.missing_data) warning.append(node('p', text)); blocks.append(warning);
   }
   content.append(blocks, questionPanel(), feedbackPanel(card));
-  const aside = node('aside', '', 'panel aside-panel'); aside.append(node('h2', 'Основания и источники'), node('p', 'Синтетические материалы для проверки интерфейса. Оригинал открывается в новой вкладке.'), sourceLinks(card.sources), node('p', 'Вывод не заменяет проверку договоров и фактических показателей.'));
+  const aside = node('aside', '', 'panel aside-panel'); aside.append(node('h2', 'Основания и источники'), node('p', api.mode === 'demo' ? 'Синтетические материалы для проверки интерфейса. Оригинал открывается в новой вкладке.' : 'Первоисточники выводов. Оригинал открывается в новой вкладке.'), sourceLinks(card.sources), node('p', 'Вывод не заменяет проверку договоров и фактических показателей.'));
   const disclaimer = node('div', '', 'investment-note'); disclaimer.append(node('strong', 'Не является инвестрекомендацией'), node('p', card.disclaimer)); aside.append(disclaimer);
-  layout.append(content, aside); $('page').append(layout); status('Карточка готова · есть ограничения данных');
+  layout.append(content, aside); $('page').append(layout); status(card.outcome === 'LIMITED' || card.missing_data.length ? 'Карточка готова · есть ограничения данных' : 'Карточка готова');
 }
 function questionPanel() {
   const panel = node('section', '', 'panel question-panel'); panel.append(node('h2', 'Уточнить по этому событию'));
@@ -276,11 +358,11 @@ function questionPanel() {
   const reply = node('div'); reply.id = 'reply'; reply.setAttribute('aria-live', 'polite');
   panel.append(quick, form, reply); return panel;
 }
-async function ask(question) {
+async function ask(question, requestId = crypto.randomUUID()) {
   if (!state.card) return;
   state.questionController?.abort(); const controller = new AbortController(); state.questionController = controller;
   const epoch = state.epoch, seq = ++state.questionSeq, ctx = {...state.ctx};
-  const payload = {...ctx, insight_id: state.card.insight_id, question, request_id: crypto.randomUUID()};
+  const payload = {...ctx, insight_id: state.card.insight_id, question, request_id: requestId};
   const target = $('reply'); target.replaceChildren(node('p', 'Готовим уточнение…')); target.setAttribute('aria-busy', 'true');
   $('submit').disabled = true; $('error').hidden = true; status('Готовим уточнение в текущем контексте…');
   try {
@@ -288,11 +370,11 @@ async function ask(question) {
     if (epoch !== state.epoch || seq !== state.questionSeq) return;
     if (result.request_id !== payload.request_id || result.insight_id !== payload.insight_id) throw new Error('Ответ не соответствует запросу или версии карточки.');
     target.replaceChildren(); target.className = 'reply';
-    target.append(node('strong', result.status === 'no_answer' ? 'Достоверный ответ недоступен' : 'Уточнение · есть ограничения'), node('p', question, 'muted'), node('p', result.text), sourceLinks(result.sources));
+    target.append(node('strong', InsightsIntegration.outcomes[result.outcome] || (result.status === 'no_answer' ? 'Достоверный ответ недоступен' : 'Уточнение · есть ограничения')), node('p', question, 'muted'), node('p', result.text), sourceLinks(result.sources));
     status(result.status === 'no_answer' ? 'Недостаточно оснований для ответа' : 'Уточнение готово');
   } catch (e) {
-    if (epoch !== state.epoch || seq !== state.questionSeq || e.name === 'AbortError') return;
-    target.replaceChildren(); showError(e.message, () => ask(question)); status('Не удалось получить уточнение');
+    if (((epoch !== state.epoch || seq !== state.questionSeq) && ![401,403].includes(e.status)) || e.name === 'AbortError') return;
+    target.replaceChildren(); showError(e.message, state.data ? () => ask(question, requestId) : init); status('Не удалось получить уточнение');
   } finally {
     if (epoch === state.epoch && seq === state.questionSeq) { target.setAttribute('aria-busy', 'false'); $('submit').disabled = false; }
   }
@@ -316,27 +398,37 @@ async function renderRoute() {
     $('page').setAttribute('aria-busy', 'true'); status('Загружаем аналитику…');
     $('page').append(node('div', 'Загружаем данные выбранной компании…', 'skeleton'));
     const controller = new AbortController(); state.pageController = controller;
+    if (api.mode === 'server') {
+      const preferences = await service('preferences', {...state.ctx}, controller);
+      if (epoch !== state.epoch) return;
+      state.preferences = normalizePreferences(preferences);
+    }
     const ctx = route.page === 'feed' ? {company_id: state.ctx.company_id, role: state.ctx.role} : {...state.ctx, view: 'overview'};
     const result = await request(route.page === 'feed' ? '/api/feed' : '/api/insight', ctx, controller);
     if (epoch !== state.epoch) return;
-    $('page').replaceChildren(); if (route.page === 'feed') renderFeed(result); else renderCard(result);
+    $('page').replaceChildren(); if (route.page === 'feed') renderFeed(result); else { renderCard(result);
+      if (api.mode === 'server') service('opened', {context:{...state.ctx}, insight_id:result.insight_id}, controller, crypto.randomUUID()).catch(e=>{if(epoch===state.epoch || [401,403].includes(e.status)) showError('Не удалось сохранить открытие. ' + e.message);});
+    }
   } catch (e) {
-    if (epoch !== state.epoch || e.name === 'AbortError') return;
-    $('page').replaceChildren(); showError(e.message, renderRoute); status('Не удалось открыть страницу');
+    if ((epoch !== state.epoch && ![401,403].includes(e.status)) || e.name === 'AbortError') return;
+    $('page').replaceChildren(); showError(e.message, state.data ? renderRoute : init); status('Не удалось открыть страницу');
     const a = node('a', 'Вернуться на главную'); a.href = '#/home'; $('page').append(a);
   } finally { if (epoch === state.epoch) $('page').setAttribute('aria-busy', 'false'); }
 }
 async function init() {
   try {
+    api = InsightsIntegration.createClient(window.INSIGHTS_CONFIG || {});
     const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 15000);
     let result;
-    try { const response = await fetch('/api/bootstrap', {signal: controller.signal}); if (!response.ok) throw new Error('Сервис недоступен.'); result = await response.json(); }
+    try { if (api.mode === 'server') result = await service('bootstrap', {}, controller); else { const response = await fetch('/api/bootstrap', {signal: controller.signal}); if (!response.ok) throw new Error('Сервис недоступен.'); result = await response.json(); } }
     finally { clearTimeout(timeout); }
+    if (!result.companies?.length || !result.profile || !result.roles) throw new Error('В сессии нет доступного профиля компании.');
     state.data = result;
-    const stored = readStored(PROFILE_KEY, result.profile);
+    const badge=document.querySelector('.demo-pill'); if (badge) badge.textContent=api.mode==='demo' ? 'Учебные данные' : 'Серверный режим';
+    const stored = api.mode === 'demo' ? readStored(PROFILE_KEY, result.profile) : result.profile;
     const valid = stored && typeof stored.name === 'string' && stored.name.trim().length > 0 && stored.name.length <= 100 && result.companies.some(c => c.id === stored.company_id) && Object.hasOwn(result.roles, stored.role);
     state.profile = valid ? {name: stored.name, company_id: stored.company_id, role: stored.role} : {...result.profile};
-    state.preferences = normalizePreferences(readStored(PREFERENCES_KEY, {}));
+    state.preferences = api.mode === 'demo' ? normalizePreferences(readStored(PREFERENCES_KEY, {})) : {};
     $('notice').textContent = result.notice;
     await renderRoute();
   } catch (e) { showError('Не удалось подключить сервис. ' + e.message, init); status('Ошибка подключения'); $('page').setAttribute('aria-busy', 'false'); }

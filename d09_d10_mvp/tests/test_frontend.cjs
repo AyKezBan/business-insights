@@ -36,7 +36,7 @@ function setup(source, base, storage = new Map(), hash = '#/home', fetchOverride
   const location = {hash}; const requests = [];
   const sandbox = {document:doc, location, history:{replaceState: (_s,_t,url) => {location.hash=url;}},
     window:{addEventListener(){}}, localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v)},
-    URLSearchParams, AbortController, crypto:webcrypto, setTimeout, clearTimeout,
+    URL, URLSearchParams, AbortController, crypto:webcrypto, setTimeout, clearTimeout,
     fetch: (url, options) => {requests.push({url,options}); return fetchOverride ? fetchOverride(url,options,base) : fetch(base+url,options);}};
   vm.createContext(sandbox); vm.runInContext(source.slice(0, source.lastIndexOf('init();')), sandbox);
   return {root,doc,storage,requests,location,run:code=>vm.runInContext(code,sandbox), text:()=>doc.getElementById('page').textContent};
@@ -93,13 +93,13 @@ async function testQuestionRaces(source, base) {
   assert.equal(app.doc.getElementById('submit').disabled,false);
 }
 async function main() {
-  const child = spawn('python',['server.py','--port','0','--delay','0'],{cwd:project,windowsHide:true,stdio:['ignore','pipe','pipe']});
+  const child = spawn(process.env.PYTHON || 'python',['server.py','--port','0','--delay','0'],{cwd:project,windowsHide:true,stdio:['ignore','pipe','pipe']});
   const base = await new Promise((resolve,reject)=>{
     const timer=setTimeout(()=>reject(new Error('Server startup timeout')),10000);
     child.once('error',reject); child.stdout.once('data',data=>{clearTimeout(timer);resolve(String(data).trim().split(' ')[1]);});
   });
   try {
-    const source = await readFile(path.join(project,'web/app.js'),'utf8');
+    const source = await readFile(path.join(project,'web/integration.js'),'utf8') + '\n' + await readFile(path.join(project,'web/app.js'),'utf8');
     const app = setup(source,base); await app.run('init()');
     assert(!app.text().includes('Ваш контекст'));
     assert(app.doc.querySelectorAll('[data-nav]').map(n=>n.dataset.nav).join(',') === 'home,profile,feed');
@@ -214,4 +214,5 @@ async function main() {
     console.log('PASS: profile/context, corrupt and blocked storage, 3 thematic disclosures, content/provenance, missing bank material, source safety, filters, clarification races/mismatch/network retry, versioned feedback, hide/restore.');
   } finally {child.kill();}
 }
-main().catch(error=>{console.error(error);process.exitCode=1;});
+module.exports = {setup, walk};
+if (require.main === module) main().catch(error=>{console.error(error);process.exitCode=1;});

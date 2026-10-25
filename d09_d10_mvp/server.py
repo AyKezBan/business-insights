@@ -161,6 +161,7 @@ class Handler(BaseHTTPRequestHandler):
         params = {k: v[0] for k, v in parse_qs(url.query).items()}
         try:
             files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
+                     "/integration.js": ("integration.js", "text/javascript"),
                      "/styles.css": ("styles.css", "text/css")}
             if url.path in files:
                 name, mime = files[url.path]
