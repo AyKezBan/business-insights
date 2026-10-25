@@ -77,6 +77,16 @@ Jobs используют существующую CLI без изменений
 
 После новой публикации snapshot выполните `docker compose -f compose.yaml -f infra/compose.materials.yaml restart ml`: ML закрепляет ревизию при старте. Для дальнейших `up` этого окружения используйте `materials-up`, чтобы не снять подключение корпуса. `MATERIALS_PUBLIC_BASE_URL` по умолчанию `http://127.0.0.1:${WEB_PORT}`; Java принимает только абсолютные http(s) ссылки. Пустое значение заменяется этим default. Произвольные ML generation/trace endpoints наружу не проксируются.
 
+## Регулярное обновление материалов (необязательно)
+
+После bootstrap корпуса, готовности `sync` из T05 и runtime/catalog T07/T09 явно запустите `./stack materials-watch`. Команда собирает и запускает только `materials-poller` из профиля `jobs`; `materials-up` сохраняет прежний ручной режим. Poller выполняет существующую команду `python -m insight_agent.materials.cli sync --sources cbr_press,fns_news,eia_today --limit-per-source 5 --store /app/materials` сразу, затем через 900 секунд после завершения предыдущей попытки. Он не вызывает LLM и не отправляет события в backend сам.
+
+Коды 1/2 и неизвестные ошибки увеличивают паузу до 1800/3600 секунд, код 0 сбрасывает её; частичный результат 3 остаётся виден и даёт обычную паузу 900 секунд. Только код 0 сбрасывает накопленный backoff. `MATERIALS_POLL_INTERVAL_SECONDS` меняет обычную паузу (положительная, не более 3600), `MATERIALS_POLL_TIMEOUT_SECONDS` — предел одной попытки (по умолчанию 600 секунд). После timeout дочерняя CLI получает terminate и до 10 секунд на остановку, затем kill. SIGTERM/SIGINT прерывают ожидание и останавливают только собственную CLI; новая попытка после stop не начинается.
+
+Poller пишет только в `MATERIALS_STORE`, под UID/GID пользователя; ключи LLM, credentials БД и admin token ему не передаются, дополнительные порты не открываются. Постоянный `.poller.lock` не допускает двух poller над одним store на файловой системе с POSIX flock. Общий `.writer.lock` CLI по-прежнему защищает публикации вместе с ручными jobs. Файл lock не удаляйте во время работы. `poller-status.json` атомарно хранит статус последней попытки, exit code, длительность и следующую паузу; подробные source reports принадлежат CLI. Её metadata output и статус poller доступны через `./stack logs materials-poller`; `./stack status` показывает его состояние. `./stack down` останавливает также poller и сохраняет volumes/store; `down -v` удаляет named volumes как прежде.
+
+Проверки supervisor выполняются без сети и LLM. На исходном DevOps baseline команда `sync` ещё отсутствует: запуск watcher требует интеграции T05; offline тесты poller не являются проверкой реальных publisher/runtime/Java/browser gates. Автоматический restart supervisor отключён: ошибка конфигурации или занятый `.poller.lock` требует исправления и явного повторного запуска.
+
 ## Проверки и ограничения
 
 ```sh
