@@ -180,6 +180,15 @@ class RunBudget:
             self.cost += cost
         return cost
 
+    def check_terminal(self) -> None:
+        """Validate incurred usage after settlement without reserving another call."""
+        if self.deadline is not None and time.monotonic() > self.deadline:
+            raise RunTimeout("Исчерпано время на один запуск агента")
+        if self.used > self.limit:
+            raise RunBudgetExceeded("Исчерпан лимит токенов на один запуск агента")
+        if self.daily.used > self.daily.limit:
+            raise DailyBudgetExceeded("Исчерпан дневной лимит токенов")
+
     def release(self) -> None:
         self.daily.release(self._reservation)
         self._reservation = None
@@ -242,6 +251,11 @@ class StructuredLLM:
                                        completion_tokens=resp.completion_tokens)
                 if current not in self.models_used:
                     self.models_used.append(current)
+                try:
+                    self.budget.check_terminal()
+                except BudgetExceeded as exc:
+                    self._trace(step, current, attempt_messages, resp, error=str(exc), started=started, cost=cost)
+                    raise
                 try:
                     result = schema.model_validate(extract_json(resp.text))
                 except (ValueError, ValidationError) as exc:
