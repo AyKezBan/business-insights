@@ -70,7 +70,11 @@
       "target_period": null,
       "valid_until": null,
       "rights_url": "https://example.org/rights",
-      "translation_attribution": null
+      "translation_attribution": null,
+      "raw_publication": "25 октября 2026",
+      "source_timezone": "Europe/Moscow",
+      "source_utc_offset_seconds": 10800,
+      "timezone_provenance": "source_policy"
     },
     {
       "source_id": "source:opaque:2",
@@ -95,7 +99,11 @@
       "target_period": null,
       "valid_until": null,
       "rights_url": "https://example.org/rights",
-      "translation_attribution": null
+      "translation_attribution": null,
+      "raw_publication": "25 октября 2026",
+      "source_timezone": "Europe/Moscow",
+      "source_utc_offset_seconds": 10800,
+      "timezone_provenance": "source_policy"
     }
   ],
   "conflicts": [

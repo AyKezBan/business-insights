@@ -98,7 +98,8 @@ public final class ApiModels {
                              String docId, String contentSha256, String excerpt, String publisherId, String adapterId,
                              String materialType, String completeness, String language, LocalDate publishedDate,
                              String publishedPrecision, Instant firstSeenAt, Instant retrievedAt, String statementType,
-                             String targetPeriod, LocalDate validUntil, String rightsUrl, String translationAttribution) {
+                             String targetPeriod, LocalDate validUntil, String rightsUrl, String translationAttribution,
+                             String rawPublication, String sourceTimezone, Integer sourceUtcOffsetSeconds, String timezoneProvenance) {
     }
 
     public record ClaimView(String text, String kind, String origin, List<String> sourceIds,

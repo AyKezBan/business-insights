@@ -22,6 +22,17 @@ class MlEvidenceContractTest {
                 "opaque:event:1", "LIMITED", JSON.createObjectNode(), JSON.createObjectNode(), result, null, "PENDING", List.of(),
                 null, null, false, Instant.parse("2026-10-26T09:00:00Z"), Instant.parse("2026-10-26T09:00:00Z"));
     }
+    @Test void allPinnedFieldsHaveTypedRecordComponents() throws Exception {
+        var schema = JSON.readTree(getClass().getResourceAsStream("/ml-contracts/insight.schema.json"));
+        for (Class<?> type : List.of(MlContracts.SourceRef.class, MlContracts.Claim.class, MlContracts.Impact.class, MlContracts.Insight.class)) {
+            var fields = new java.util.HashSet<String>();
+            for (var component : type.getRecordComponents())
+                fields.add(com.fasterxml.jackson.databind.PropertyNamingStrategies.SnakeCaseStrategy.INSTANCE.translate(component.getName()));
+            var modelSchema = type == MlContracts.Insight.class ? schema : schema.path("$defs").path(type.getSimpleName());
+            modelSchema.path("properties").fieldNames().forEachRemaining(field -> assertTrue(fields.contains(field), type.getSimpleName() + "." + field + " must not be silently ignored"));
+        }
+    }
+
     @Test void typedRoundTripPreservesEvidenceAndRunContext() throws Exception {
         var input = fixture();
         var stored = JSON.readTree(JSON.writeValueAsString(JSON.treeToValue(input, MlContracts.Insight.class)));
@@ -40,6 +51,8 @@ class MlEvidenceContractTest {
         assertEquals("doc:opaque:1", view.at("/sources/0/docId").asText());
         assertEquals("a".repeat(64), view.at("/sources/0/contentSha256").asText());
         assertEquals("cbr", view.at("/sources/0/publisherId").asText());
+        assertEquals("Europe/Moscow", view.at("/sources/0/sourceTimezone").asText());
+        assertEquals(10800, view.at("/sources/0/sourceUtcOffsetSeconds").asInt());
         assertEquals("date", view.at("/sources/0/publishedPrecision").asText());
         assertEquals("2026-10-25T12:30:00Z", view.at("/sources/0/firstSeenAt").asText());
         assertEquals("2026-10-26T08:00:00Z", view.at("/sources/0/retrievedAt").asText());

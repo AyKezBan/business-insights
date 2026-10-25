@@ -89,7 +89,8 @@ public class InsightMapper {
                     mapper.convertValue(s.get("published_date"), java.time.LocalDate.class), text(s, "published_precision"),
                     mapper.convertValue(s.get("first_seen_at"), java.time.Instant.class), mapper.convertValue(s.get("retrieved_at"), java.time.Instant.class),
                     text(s, "statement_type"), text(s, "target_period"), mapper.convertValue(s.get("valid_until"), java.time.LocalDate.class),
-                    safeUrl(text(s, "rights_url")), text(s, "translation_attribution")));
+                    safeUrl(text(s, "rights_url")), text(s, "translation_attribution"), text(s, "raw_publication"), text(s, "source_timezone"),
+                    s.path("source_utc_offset_seconds").isIntegralNumber() ? s.path("source_utc_offset_seconds").intValue() : null, text(s, "timezone_provenance")));
         }
         return result;
     }

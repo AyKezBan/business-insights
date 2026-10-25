@@ -14,7 +14,7 @@ import java.util.Map;
  * Wire types for the pinned ML contract.
  */
 public final class MlContracts {
-    public static final String CONTRACT_COMMIT = "7cbd690892addc495fbf9bee144c48931c464170";
+    public static final String CONTRACT_COMMIT = "b34b724b048b0f59ac0b65f88944c84a662bfc00";
     public static final String DISCLAIMER = "Аналитика носит информационный характер и не является инвестиционной рекомендацией. "
             + "Выводы с пометкой «вывод модели» и «гипотеза» сформированы AI и не являются позицией Альфа-Банка.";
 
@@ -76,14 +76,15 @@ public final class MlContracts {
                             String publisherId, String adapterId, String materialType, String completeness,
                             String language, LocalDate publishedDate, String publishedPrecision,
                             Instant firstSeenAt, Instant retrievedAt, String statementType, String targetPeriod,
-                            LocalDate validUntil, String rightsUrl, String translationAttribution) {
+                            LocalDate validUntil, String rightsUrl, String translationAttribution,
+                            String rawPublication, String sourceTimezone, Integer sourceUtcOffsetSeconds, String timezoneProvenance) {
         public SourceRef {
             if (page != null && page < 1) throw new IllegalArgumentException("Source page must be positive");
             if (contentSha256 != null && !contentSha256.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid source content SHA256");
         }
         public SourceRef(String sourceId, SourceKind kind, String title, LocalDate date, Integer page, String url) {
             this(sourceId, kind, title, date, page, url, null, null, null, null, null, null, null, null, null, null,
-                    null, null, null, null, null, null, null);
+                    null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 

@@ -464,6 +464,10 @@ components:
         targetPeriod: {type: string, nullable: true}
         rightsUrl: {type: string, nullable: true}
         translationAttribution: {type: string, nullable: true}
+        rawPublication: {type: string, nullable: true}
+        sourceTimezone: {type: string, nullable: true}
+        sourceUtcOffsetSeconds: {type: integer, nullable: true}
+        timezoneProvenance: {type: string, enum: [explicit_offset, source_policy, unknown], nullable: true}
         publishedDate: {type: string, format: date, nullable: true}
         validUntil: {type: string, format: date, nullable: true}
         firstSeenAt: {type: string, format: date-time, nullable: true}
