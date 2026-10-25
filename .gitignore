@@ -27,6 +27,9 @@ dist/
 # Логи
 *.log
 
+# Исходные CSV импорта (хранятся локально)
+/data-import/source-data/*.csv
+
 # MacOS
 .DS_Store
 
