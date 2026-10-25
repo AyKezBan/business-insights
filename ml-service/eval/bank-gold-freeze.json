@@ -1,0 +1,16 @@
+{
+  "frozen_at": "2026-10-26",
+  "frozen_before_real_retrieval": true,
+  "annotators": [
+    "review_a",
+    "review_b",
+    "review_c",
+    "c2_root_pre_retrieval"
+  ],
+  "sha256": {
+    "bank-retrieval-gold.jsonl": "29cfcf4a6945f2b2a086a355d04ff53c532d5a4e631fdd45b865c4650a1236cb",
+    "bank-retrieval-extended.jsonl": "a362fc18625451e847dc5c58d62fc3a4eca829e3222f66f41181fa509f5297b6",
+    "bank-retrieval-negatives.jsonl": "f9d92dadcd8cd1d31ce6bc4f8389a77cb208aea883af81d9cfb6cd1386980292"
+  },
+  "rule": "Do not edit these cases after retrieval observation; measured gaps require a regression and fresh independent holdout."
+}
