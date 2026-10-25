@@ -1,6 +1,6 @@
 # Интеграция ML с импортом данных и интерфейсом
 
-Сверено с ветками `feature/data-import` (схема БД, `DATA_RULES.md`) и `feature/d09-d10-clarity` (`API_CONTRACT.md`, версия 2.0). Backend между ними ещё не написан: ниже то, что он должен передать в ML и забрать из ML.
+Сверено с ветками `feature/data-import` (схема БД, `DATA_RULES.md`) и `feature/d09-d10-clarity` (`API_CONTRACT.md`, версия 2.0). Java Backend уже реализован и объединён в develop (PR #5, 5572d5a), а общий runtime и UI bindings находятся в DevOps PR #7. Ниже описан целевой обмен; сохранность новых metadata, version context и outcome отдельно проверяется задачами T08/T09 согласованной финализации.
 
 ## Импорт данных -> запрос ML (`POST /v1/insights`)
 
