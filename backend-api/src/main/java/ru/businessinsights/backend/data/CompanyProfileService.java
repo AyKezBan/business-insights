@@ -44,6 +44,9 @@ public class CompanyProfileService {
 
     @Transactional(readOnly = true)
     public boolean hasAccess(String personId, String companyId) {
+        // This can join the submission transaction. Lock before its first importer-table
+        // read so authorization and profile loading cannot invert the importer's order.
+        repository.lockSnapshot();
         return repository.hasAccess(personId, companyId);
     }
 
