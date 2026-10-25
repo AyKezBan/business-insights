@@ -112,3 +112,28 @@ def test_rate_quoted_from_an_official_source_passes_and_the_previous_one_is_not_
     past = Claim(text="Ранее, на 10.09.2026, ключевая ставка составляла 15,00% годовых.", kind=ClaimKind.fact,
                  source_ids=["cbr_keyrate_2026-10-23"])
     assert [i for i in check_claims([past], state, section="why_it_matters") if i.severity == "error"] == []
+
+
+def test_start_of_period_fx_rate_is_not_taken_for_the_current_one(request_):
+    from datetime import date
+
+    from insight_agent.research.plan import build_plan
+
+    service, _ = research()
+    profile = _profile(request_)
+    fx = next(d for d in service.search(build_plan(profile, []), as_of=date(2026, 10, 23)).docs if d.source_id.startswith("cbr_fx_cny"))
+    state = AgentState(run_id="run_x", request=request_, signals=derive_signals(profile), missing_profile=[])
+    event = InsightAgent._as_news_event(fx)
+    state.news[event.event_id] = event
+    state.resolved_news_texts[event.source.source_id] = fx.text
+
+    now, start = "11,5000", "12,0000"
+    assert f"= {now} руб." in fx.text and f"{start} руб." in fx.text
+
+    def codes(text):
+        claim = Claim(text=text, kind=ClaimKind.fact, source_ids=[fx.source_id])
+        return {i.code for i in check_claims([claim], state, section="why_it_matters")}
+
+    assert "fx_value_mismatch" in codes(f"Официальный курс юаня составляет {start} руб.")
+    assert "fx_value_mismatch" not in codes(f"Официальный курс юаня составляет {now} руб.")
+    assert "fx_value_mismatch" not in codes(f"Месяц назад курс юаня был {start} руб.")

@@ -49,7 +49,7 @@ class Site:
             return httpx.Response(500) if self.fail_key_rate else httpx.Response(200, content=key_rate_html(RATE_ROWS))
         if path == "/scripts/XML_daily.asp":
             old = "/09/2026" in request.url.params["date_req"]
-            return httpx.Response(200, content=fx_xml("25.09.2026", "80,0000") if old else fx_xml("24.10.2026", "83,5588"))
+            return httpx.Response(200, content=fx_xml("25.09.2026", "80,0000", cny="12,0000") if old else fx_xml("24.10.2026", "83,5588"))
         if path == "/rss/RssPress":
             return httpx.Response(200, content=RSS.encode())
         if path.startswith("/press/pr/"):

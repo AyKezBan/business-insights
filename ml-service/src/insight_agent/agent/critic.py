@@ -112,6 +112,28 @@ def _keyrate_issues(claim: Claim, texts: dict[str, str], location: str) -> list[
     return []
 
 
+_FX_SOURCE = "cbr_fx_"
+_FX_CURRENT = re.compile(r"на \d{2}\.\d{2}\.\d{4}: 1 [^=]+= (\d+[.,]\d+) руб\.")
+_FX_START = re.compile(r"На \d{2}\.\d{2}\.\d{4}: (\d+[.,]\d+) руб\.")
+_ABOUT_FX = re.compile(r"курс|валют|юан|доллар|евро|лир|дирхам|тенге|рупи|иен", re.IGNORECASE)
+_START_MARKER = re.compile(r"назад|начал|ранее|было|составлял|в начале|на \d{2}\.\d{2}\.\d{4}", re.IGNORECASE)
+
+
+def _fx_issues(claim: Claim, texts: dict[str, str], location: str) -> list[CheckIssue]:
+    """Курс на начало периода нельзя выдать за текущий официальный курс."""
+    if not _ABOUT_FX.search(claim.text):
+        return []
+    numbers = _numbers(claim.text)
+    for sid in claim.source_ids:
+        text = texts.get(sid, "")
+        if not sid.startswith(_FX_SOURCE) or not (now := _FX_CURRENT.search(text)) or not (start := _FX_START.search(text)):
+            continue
+        current, old = _plain(Decimal(now.group(1).replace(",", "."))), _plain(Decimal(start.group(1).replace(",", ".")))
+        if old != current and old in numbers and current not in numbers and not _START_MARKER.search(claim.text):
+            return [_issue("fx_value_mismatch", f"Источник: текущий курс {current} руб., значение {old} руб. относится к началу периода", location)]
+    return []
+
+
 def _numeric_issues(text, cited, location, *, strict, profile=""):
     foreign = sorted(_numbers(text) - (_numbers(cited) | _numbers(profile)))
     if foreign:
@@ -145,6 +167,7 @@ def check_claims(claims: list[Claim], state: AgentState, *, section: str) -> lis
                                  profile="" if claim.kind in NEEDS_SOURCE else state.profile_text())
         issues += _language_issues(claim, loc)
         issues += _keyrate_issues(claim, texts, loc)
+        issues += _fx_issues(claim, texts, loc)
     return issues
 
 
