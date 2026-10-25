@@ -1,8 +1,6 @@
 """Corpus preparation is explicit and transactional; serving pins a revision at startup."""
 import argparse
-from contextlib import contextmanager
 from datetime import datetime, timezone
-import fcntl
 import json
 from pathlib import Path
 import sys
@@ -14,18 +12,7 @@ from insight_agent.materials.dedup import link_source, merge_news
 from insight_agent.materials.models import CorpusSnapshot
 from insight_agent.materials.news import CbrRssSource, read_saved_news
 from insight_agent.materials.ocr import TesseractOCR
-from insight_agent.materials.store import load_snapshot, publish_snapshot
-
-
-@contextmanager
-def corpus_lock(root: Path):
-    root.mkdir(parents=True, exist_ok=True)
-    with (root / '.writer.lock').open('a') as lock:
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        try:
-            yield
-        finally:
-            fcntl.flock(lock, fcntl.LOCK_UN)
+from insight_agent.materials.store import corpus_lock, load_snapshot, publish_snapshot
 
 
 def _counts(snapshot):
@@ -38,10 +25,13 @@ def _counts(snapshot):
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
-    for name in ('bank', 'news', 'link', 'check'):
+    for name in ('bank', 'news', 'link', 'check', 'sync'):
         sub = commands.add_parser(name)
         sub.add_argument('--store', type=Path, required=True)
-        if name == 'bank':
+        if name == 'sync':
+            sub.add_argument('--sources', required=True)
+            sub.add_argument('--limit-per-source', type=int, default=5)
+        elif name == 'bank':
             sub.add_argument('--pdf-dir', type=Path, required=True)
             sub.add_argument('--manifest', type=Path, required=True)
             sub.add_argument('--review-file', type=Path)
@@ -56,6 +46,25 @@ def main(argv=None) -> int:
             sub.add_argument('--source-id', required=True)
     args = parser.parse_args(argv)
     try:
+        if args.command == 'sync':
+            from insight_agent.materials.collector import collect_sources, sync_sources
+            from insight_agent.materials.registry import get_spec
+            specs = [get_spec(source.strip()) for source in args.sources.split(',')]
+            batches = collect_sources(specs, args.limit_per_source, cache_dir=args.store / 'http-cache')
+            result = sync_sources(args.store, batches, datetime.now(timezone.utc))
+            print(result.model_dump_json())
+            return result.exit_code
+        # Legacy fetch also precedes the writer transaction; its failure semantics stay 0/1/2.
+        incoming = None
+        if args.command == 'news':
+            if args.saved:
+                incoming = read_saved_news(args.saved)
+            else:
+                with httpx.Client(headers={'User-Agent': 'BusinessInsightsMaterials/1.0'}) as client:
+                    incoming = CbrRssSource(client).fetch(args.limit)
+            if not incoming:
+                print('No usable source records; current snapshot retained', file=sys.stderr)
+                return 2
         with corpus_lock(args.store):
             current = load_snapshot(args.store) if (args.store / 'current.json').exists() else CorpusSnapshot()
             if args.command == 'check':
@@ -78,14 +87,6 @@ def main(argv=None) -> int:
                 candidate.news, candidate.source_versions = current.news, current.source_versions
             else:
                 if args.command == 'news':
-                    if args.saved:
-                        incoming = read_saved_news(args.saved)
-                    else:
-                        with httpx.Client(headers={'User-Agent': 'BusinessInsightsMaterials/1.0'}) as client:
-                            incoming = CbrRssSource(client).fetch(args.limit)
-                    if not incoming:
-                        print('No usable source records; current snapshot retained', file=sys.stderr)
-                        return 2
                     result = merge_news(current.news, current.source_versions, incoming, observed_at=datetime.now(timezone.utc))
                 else:
                     result = link_source(current.news, current.source_versions, args.event_id, args.source_id)

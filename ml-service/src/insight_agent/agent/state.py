@@ -34,6 +34,14 @@ class AgentState:
     limited_reasons: list[str] = field(default_factory=list)
 
     @property
+    def corpus_revision(self) -> str | None:
+        return self.request.corpus_revision
+
+    @property
+    def event_content_sha256(self) -> str | None:
+        return self.request.event_content_sha256
+
+    @property
     def event(self) -> NewsEvent:
         return self.request.event
 
@@ -63,6 +71,9 @@ class AgentState:
                 doc_id=frag.doc_id,
                 content_sha256=frag.content_sha256,
                 excerpt=frag.text,
+                statement_type=frag.statement_type,
+                target_period=frag.target_period,
+                valid_until=frag.valid_until,
             )
         return catalog
 

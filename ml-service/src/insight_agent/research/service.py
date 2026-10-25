@@ -1,11 +1,13 @@
 """Поиск по открытым официальным источникам: показатели Банка России и его пресс-релизы."""
 import hashlib
 import json
+import os
 import re
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import Callable
+from tempfile import NamedTemporaryFile
 
 from insight_agent.materials.news import extract_cbr_article, parse_rss
 from insight_agent.research.fetch import OpenSourceError, SafeFetcher
@@ -42,22 +44,42 @@ class TtlCache:
         return hashlib.sha256(json.dumps([url, sorted((params or {}).items())]).encode()).hexdigest()
 
     def get(self, key: str, ttl: int) -> bytes | None:
+        hit = self.get_entry(key, ttl)
+        return hit[1] if hit else None
+
+    def get_entry(self, key: str, ttl: int) -> tuple[datetime, bytes] | None:
+        """Acquisition time and bytes from the same cache entry, including after restart."""
         now = self.clock()
         if self.directory:
             path = self.directory / key
-            if path.exists() and now - datetime.fromtimestamp(path.stat().st_mtime, UTC) < timedelta(seconds=ttl):
-                return path.read_bytes()
+            try:
+                with path.open("rb") as stream:
+                    acquired = datetime.fromtimestamp(os.fstat(stream.fileno()).st_mtime, UTC)
+                    if now - acquired < timedelta(seconds=ttl):
+                        return acquired, stream.read()
+            except FileNotFoundError:
+                pass
             return None
         hit = self._memory.get(key)
-        return hit[1] if hit and now - hit[0] < timedelta(seconds=ttl) else None
+        return hit if hit and now - hit[0] < timedelta(seconds=ttl) else None
 
-    def set(self, key: str, data: bytes) -> None:
+    def set(self, key: str, data: bytes, *, acquired_at: datetime | None = None) -> None:
+        acquired = acquired_at or self.clock()
         if self.directory:
-            tmp = self.directory / f"{key}.tmp"
-            tmp.write_bytes(data)
-            tmp.replace(self.directory / key)
+            temporary = None
+            try:
+                with NamedTemporaryFile(dir=self.directory, prefix=f".{key}-", delete=False) as stream:
+                    temporary = Path(stream.name)
+                    stream.write(data)
+                # Timestamp and bytes are published together by rename; no second metadata pointer.
+                stamp = acquired.timestamp()
+                os.utime(temporary, (stamp, stamp))
+                temporary.replace(self.directory / key)
+            finally:
+                if temporary:
+                    temporary.unlink(missing_ok=True)
         else:
-            self._memory[key] = (self.clock(), data)
+            self._memory[key] = (acquired, data)
 
 
 @dataclass
@@ -71,27 +93,27 @@ class OpenResearch:
                  clock: Callable[[], datetime] = lambda: datetime.now(UTC)):
         self.fetcher, self.cache, self.clock = fetcher, cache or TtlCache(), clock
 
-    def _get(self, url: str, params: dict | None, ttl: int) -> bytes:
+    def _get(self, url: str, params: dict | None, ttl: int) -> tuple[datetime, bytes]:
         key = self.cache.key(url, params)
-        if (hit := self.cache.get(key, ttl)) is not None:
+        if (hit := self.cache.get_entry(key, ttl)) is not None:
             return hit
         data = self.fetcher.get(url, params)
-        self.cache.set(key, data)
-        return data
+        acquired = self.clock()
+        self.cache.set(key, data, acquired_at=acquired)
+        return acquired, data
 
     def _ttl(self, as_of: date) -> int:
         return LIVE_TTL if as_of >= self.clock().date() else ARCHIVE_TTL
 
     def search(self, plan: ResearchPlan, *, as_of: date, top_k: int = 3) -> ResearchResult:
         result = ResearchResult()
-        retrieved = self.clock()
         steps = []
         if plan.key_rate:
-            steps.append(("ключевая ставка", lambda: [self._key_rate(as_of, retrieved)]))
+            steps.append(("ключевая ставка", lambda: [self._key_rate(as_of)]))
         if plan.currencies:
-            steps.append(("курсы валют", lambda: self._fx(plan.currencies, as_of, retrieved)))
+            steps.append(("курсы валют", lambda: self._fx(plan.currencies, as_of)))
         if plan.keywords:
-            steps.append(("пресс-релизы", lambda: self._press(plan.keywords, as_of, top_k, retrieved, result)))
+            steps.append(("пресс-релизы", lambda: self._press(plan.keywords, as_of, top_k, result)))
         for label, run in steps:
             try:
                 result.docs += run()
@@ -100,27 +122,31 @@ class OpenResearch:
         result.docs = list({d.source_id: d for d in result.docs}.values())
         return result
 
-    def _key_rate(self, as_of: date, retrieved: datetime) -> OpenDocument:
+    def _key_rate(self, as_of: date) -> OpenDocument:
         params = {"UniDbQuery.Posted": "True", "UniDbQuery.From": fmt_date(as_of - timedelta(days=KEY_RATE_WINDOW_DAYS)),
                   "UniDbQuery.To": fmt_date(as_of)}
-        return key_rate_document(parse_key_rate(self._get(KEY_RATE_URL, params, self._ttl(as_of))), as_of, retrieved)
+        retrieved, body = self._get(KEY_RATE_URL, params, self._ttl(as_of))
+        return key_rate_document(parse_key_rate(body), as_of, retrieved)
 
-    def _fx(self, codes: list[str], as_of: date, retrieved: datetime) -> list[OpenDocument]:
+    def _fx(self, codes: list[str], as_of: date) -> list[OpenDocument]:
         ttl = self._ttl(as_of)
-        now = parse_fx_daily(self._get(FX_DAILY_URL, {"date_req": as_of.strftime("%d/%m/%Y")}, ttl))
-        before = parse_fx_daily(self._get(FX_DAILY_URL, {"date_req": (as_of - timedelta(days=FX_WINDOW_DAYS)).strftime("%d/%m/%Y")}, ttl))
+        now_at, body = self._get(FX_DAILY_URL, {"date_req": as_of.strftime("%d/%m/%Y")}, ttl)
+        now = parse_fx_daily(body)
+        before_at, body = self._get(FX_DAILY_URL, {"date_req": (as_of - timedelta(days=FX_WINDOW_DAYS)).strftime("%d/%m/%Y")}, ttl)
+        before = parse_fx_daily(body)
         docs = []
         for code in codes:
             try:
-                docs.append(fx_document(code, now, before, retrieved))
+                docs.append(fx_document(code, now, before, max(now_at, before_at)))
             except ParseError:
                 continue  # валюты нет в официальном списке на эту дату: ничего не придумываем
         return docs
 
-    def _press(self, keywords: list[str], as_of: date, top_k: int, retrieved: datetime, result: ResearchResult) -> list[OpenDocument]:
+    def _press(self, keywords: list[str], as_of: date, top_k: int, result: ResearchResult) -> list[OpenDocument]:
         limit = datetime.combine(as_of, datetime.max.time(), UTC)
         scored = []
-        for item in parse_rss(self._get(PRESS_FEED_URL, None, FEED_TTL)):
+        _, feed = self._get(PRESS_FEED_URL, None, FEED_TTL)
+        for item in parse_rss(feed):
             published = item["published_at"]
             if published is None or published > limit:
                 continue
@@ -133,11 +159,15 @@ class OpenResearch:
         docs = []
         for _, published, item in scored[:top_k]:
             try:
-                text = extract_cbr_article(self._get(item["url"], None, ARCHIVE_TTL).decode("utf-8-sig"))
+                retrieved, body = self._get(item["url"], None, ARCHIVE_TTL)
+                text = extract_cbr_article(body.decode("utf-8-sig"))
             except (OpenSourceError, ValueError) as exc:
                 result.errors.append(f"пресс-релиз {item['url']}: {exc}")
                 continue
             digest = hashlib.sha256(item["url"].encode()).hexdigest()[:12]
             docs.append(OpenDocument(source_id=f"cbr_press_{digest}", title=item["title"], text=text, url=item["url"],
-                                     published=published, retrieved_at=retrieved, kind="press"))
+                                     published=published, retrieved_at=retrieved, kind="press",
+                                     published_date=item["published_date"], raw_publication=item["raw_publication"],
+                                     source_utc_offset_seconds=item["source_utc_offset_seconds"],
+                                     timezone_provenance=item["timezone_provenance"]))
         return docs

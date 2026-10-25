@@ -188,3 +188,39 @@ def test_keyword_must_match_the_start_of_a_word():
     assert "курс" in plan.keywords
     titles = [d.title for d in service.search(plan, as_of=date(2026, 10, 25)).docs if d.kind == "press"]
     assert all("Конкурс" not in t for t in titles)
+
+
+@pytest.mark.parametrize("storage", ["memory", "disk", "restart"])
+def test_cached_research_retains_acquisition_time_and_expiry(tmp_path, storage):
+    from datetime import timedelta
+    from insight_agent.research.indicators import KEY_RATE_URL
+    from insight_agent.research.plan import ResearchPlan
+    clock = [NOW]
+    site = Site()
+
+    def respond(request):
+        clock[0] += timedelta(seconds=2)  # Acquisition finishes after the request started.
+        return site(request)
+
+    directory = tmp_path / "cache" if storage != "memory" else None
+    cache = TtlCache(directory, clock=lambda: clock[0])
+    with httpx.Client(transport=httpx.MockTransport(respond)) as http:
+        service = OpenResearch(safe_fetcher(http), cache, clock=lambda: clock[0])
+        plan = ResearchPlan(key_rate=True)
+        first = service.search(plan, as_of=NOW.date()).docs[0]
+        assert first.retrieved_at == NOW + timedelta(seconds=2)
+        assert len(site.requests) == 1
+        key = cache.key(KEY_RATE_URL, {"UniDbQuery.Posted": "True", "UniDbQuery.From": "28.04.2026",
+                                      "UniDbQuery.To": "25.10.2026"})
+        assert cache.get(key, 900) == key_rate_html(RATE_ROWS)  # Existing byte API remains supported.
+        clock[0] += timedelta(minutes=5)
+        if storage == "restart":
+            service = OpenResearch(safe_fetcher(http), TtlCache(directory, clock=lambda: clock[0]),
+                                   clock=lambda: clock[0])
+        second = service.search(plan, as_of=NOW.date()).docs[0]
+        assert second.retrieved_at == first.retrieved_at
+        assert len(site.requests) == 1
+        clock[0] = NOW + timedelta(seconds=903)
+        expired = service.search(plan, as_of=NOW.date()).docs[0]
+        assert expired.retrieved_at == NOW + timedelta(seconds=905)
+        assert len(site.requests) == 2

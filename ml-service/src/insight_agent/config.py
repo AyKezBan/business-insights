@@ -34,6 +34,7 @@ class Settings(BaseSettings):
     news_path: Path = Path("data/news.jsonl")
     materials_dir: Path | None = None
     materials_public_base_url: str = ""
+    materials_cache_size: int = 4
     bank_max_age_days: int = 180
     # Открытые официальные источники (cbr.ru): ставка, курсы, пресс-релизы. Без LLM, только по списку хостов.
     open_research_enabled: bool = True

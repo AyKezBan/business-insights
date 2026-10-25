@@ -12,7 +12,7 @@ from insight_agent.tools.bank import BankIndex
 from insight_agent.tools.news import NewsStore
 from insight_agent.trace import load_trace
 from insight_agent.materials.api import create_material_router
-from insight_agent.materials.store import load_snapshot
+from insight_agent.materials.runtime import CorpusError, CorpusRegistry
 
 
 class ClarificationRequest(BaseModel):
@@ -23,16 +23,16 @@ class ClarificationRequest(BaseModel):
 
 def build_agent(settings: Settings, client: ChatClient | None = None) -> InsightAgent:
     client = client or OpenAICompatibleClient(settings.llm_base_url, settings.llm_api_key, settings.llm_timeout_seconds)
-    snapshot = load_snapshot(settings.materials_dir) if settings.materials_dir is not None else None
-    fragments = [] if snapshot is None else [f.model_copy(update={"source_url":
-        f"{settings.materials_public_base_url.rstrip('/')}/v1/materials/documents/{f.doc_id}/file#page={f.page}"})
-        for f in snapshot.bank_fragments]
+    registry = CorpusRegistry(settings.materials_dir, settings.materials_public_base_url,
+                              settings.materials_cache_size) if settings.materials_dir is not None else None
+    bundle = registry.current() if registry else None
     return InsightAgent(
         client,
         settings,
-        BankIndex(fragments) if snapshot is not None else BankIndex.from_jsonl(settings.bank_fragments_path),
-        NewsStore(snapshot.news, snapshot.source_versions) if snapshot is not None else NewsStore.from_jsonl(settings.news_path),
-        corpus_snapshot=snapshot,
+        bundle.bank if bundle else BankIndex.from_jsonl(settings.bank_fragments_path),
+        bundle.news if bundle else NewsStore.from_jsonl(settings.news_path),
+        corpus_snapshot=bundle.snapshot if bundle else None,
+        corpus_registry=registry,
     )
 
 
@@ -40,12 +40,12 @@ def create_app(agent: InsightAgent | None = None) -> FastAPI:
     settings = agent.settings if agent else get_settings()
     agent = agent or build_agent(settings)
     app = FastAPI(title="Insight Agent", version=__version__)
-    if agent.corpus_snapshot is not None and settings.materials_dir is not None:
-        app.include_router(create_material_router(settings.materials_dir, agent.corpus_snapshot))
+    if agent.corpus_registry is not None:
+        app.include_router(create_material_router(agent.corpus_registry))
 
     @app.get("/health")
     def health() -> dict:
-        return {
+        result = {
             "status": "ok",
             "bank_fragments": len(agent.bank.fragments),
             "news": len(agent.news.events),
@@ -56,6 +56,11 @@ def create_app(agent: InsightAgent | None = None) -> FastAPI:
             "corpus_revision": agent.corpus_snapshot.revision if agent.corpus_snapshot else None,
             "verified_bank_fragments": sum(f.review_status == "verified" for f in agent.bank.fragments),
         }
+        if agent.corpus_registry:
+            result.update(agent.corpus_registry.health())
+            if result["last_refresh_error"] or result["source_health"] in {"degraded", "failed"}:
+                result["status"] = "degraded"
+        return result
 
     @app.post("/v1/insights", response_model=Insight)
     def create_insight(request: InsightRequest) -> Insight:
@@ -63,6 +68,8 @@ def create_app(agent: InsightAgent | None = None) -> FastAPI:
             return agent.run(request)
         except RequestIdConflict:
             raise HTTPException(409, "request_id уже использован с другим содержимым запроса")
+        except CorpusError as exc:
+            raise HTTPException(409, {"code": exc.code, "message": str(exc)}) from None
 
     @app.post("/v1/insights/{insight_id}/questions", response_model=Answer)
     def ask(insight_id: str, body: QuestionRequest) -> Answer:

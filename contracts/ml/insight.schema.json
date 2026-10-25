@@ -678,6 +678,45 @@
       "title": "Cache Hit",
       "type": "boolean"
     },
+    "corpus_revision": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Corpus Revision"
+    },
+    "event_content_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Event Content Sha256"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "As Of"
+    },
     "headline": {
       "title": "Headline",
       "type": "string"

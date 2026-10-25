@@ -15,8 +15,8 @@ _SPECS = {
         rights_url='https://www.nalog.gov.ru/rn77/copyright/'),
     'eia_today': SourceSpec(source_id='eia_today', publisher_id='eia',
         hosts=('www.eia.gov', 'eia.gov'),
-        allowed_paths=('/todayinenergy/recent.php', '/todayinenergy/detail.php'),
-        discovery_url='https://www.eia.gov/todayinenergy/recent.php', parser_version='eia-today-v1',
+        allowed_paths=('/todayinenergy/detail.php',),
+        discovery_url='https://www.eia.gov/todayinenergy/', parser_version='eia-today-v1',
         language='en', material_type='public_analysis', date_policy='day_only',
         rights_url='https://www.eia.gov/about/copyrights_reuse.php'),
 }
@@ -32,9 +32,8 @@ def get_spec(source_id: str) -> SourceSpec:
 def get_source(source_id: str, transport: ControlledTransport) -> NewsSourceAdapter:
     spec = get_spec(source_id)
     if source_id == 'cbr_press':
-        from insight_agent.materials.legacy import LegacyNewsSourceAdapter
-        from insight_agent.materials.news import CbrRssSource
-        return LegacyNewsSourceAdapter(CbrRssSource(transport.client, transport=transport), spec)
+        from insight_agent.materials.adapters.cbr import CbrNewsSource
+        return CbrNewsSource(transport, spec)
     if source_id == 'fns_news':
         from insight_agent.materials.adapters.fns import FnsNewsSource
         return FnsNewsSource(transport, spec)

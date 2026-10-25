@@ -38,3 +38,26 @@ services:
         bind:
           create_host_path: false
       - ./ml-service/config:/config:ro
+  materials-poller:
+    build: ./ml-service
+    profiles: [jobs]
+    user: '${LOCAL_UID:-1000}:${LOCAL_GID:-1000}'
+    init: true
+    entrypoint: [python, -m, insight_agent.materials.poller]
+    command:
+      - --store
+      - /app/materials
+      - --interval-seconds
+      - '${MATERIALS_POLL_INTERVAL_SECONDS:-900}'
+      - --cycle-timeout-seconds
+      - '${MATERIALS_POLL_TIMEOUT_SECONDS:-600}'
+    environment:
+      OMP_THREAD_LIMIT: '1'
+    volumes:
+      - type: bind
+        source: ${MATERIALS_STORE:-./materials}
+        target: /app/materials
+        bind:
+          create_host_path: false
+    stop_grace_period: 30s
+    restart: 'no'

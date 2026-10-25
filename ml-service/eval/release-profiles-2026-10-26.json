@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "synthetic": true,
+  "profiles": [
+    {
+      "company_id": "RELEASE_MANUFACTURING_BORROWER",
+      "okved_code": "25.11",
+      "okved_name": "Производство строительных металлических конструкций",
+      "industry": "Промышленность",
+      "revenue_rub": "500000000",
+      "revenue_year": 2025,
+      "revenue_status": "known",
+      "revenue_scope": "company",
+      "foreign_trade_data_available": true,
+      "foreign_trade": true,
+      "foreign_trade_countries": [
+        "Китай"
+      ],
+      "region": "Московская область",
+      "products": {
+        "settlement": true,
+        "loans": true,
+        "leasing": true,
+        "deposits": false
+      },
+      "profile_quality_notes": [
+        "Синтетический профиль для приёмки; не является данными клиента."
+      ]
+    },
+    {
+      "company_id": "RELEASE_MANUFACTURING_DEPOSITOR",
+      "okved_code": "25.11",
+      "okved_name": "Производство строительных металлических конструкций",
+      "industry": "Промышленность",
+      "revenue_rub": "500000000",
+      "revenue_year": 2025,
+      "revenue_status": "known",
+      "revenue_scope": "company",
+      "foreign_trade_data_available": true,
+      "foreign_trade": false,
+      "foreign_trade_countries": [],
+      "region": "Московская область",
+      "products": {
+        "settlement": true,
+        "loans": false,
+        "leasing": false,
+        "deposits": true
+      },
+      "profile_quality_notes": [
+        "Синтетический профиль для приёмки; не является данными клиента."
+      ]
+    },
+    {
+      "company_id": "RELEASE_MISSING_PROFILE",
+      "revenue_rub": null,
+      "revenue_year": 2025,
+      "revenue_status": "missing",
+      "revenue_scope": "unknown",
+      "foreign_trade_data_available": false,
+      "foreign_trade": null,
+      "products": {},
+      "missing_fields": [
+        "okved_code",
+        "industry",
+        "revenue_rub",
+        "products",
+        "foreign_trade"
+      ],
+      "profile_quality_notes": [
+        "Синтетический неполный профиль; отсутствие данных не означает отсутствие деятельности."
+      ]
+    }
+  ]
+}

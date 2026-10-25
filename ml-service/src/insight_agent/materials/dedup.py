@@ -94,7 +94,8 @@ def merge_news(existing: list[NewsEvent], versions: list[SourceVersion], incomin
             active.retrieved_at = max(active.retrieved_at, raw.retrieved_at)
             continue
         stale = active is not None and raw.retrieved_at < active.retrieved_at
-        if stale and any(v.content_sha256 == text_hash for v in url_versions):
+        if stale and any((v.content_sha256, v.title, _semantic_metadata(v)) ==
+                         (text_hash, raw.title, _semantic_metadata(raw)) for v in url_versions):
             continue
         if active:
             event_id = active.event_id

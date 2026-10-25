@@ -62,10 +62,9 @@
       "eia.gov"
     ],
     "allowed_paths": [
-      "/todayinenergy/recent.php",
       "/todayinenergy/detail.php"
     ],
-    "discovery_url": "https://www.eia.gov/todayinenergy/recent.php",
+    "discovery_url": "https://www.eia.gov/todayinenergy/",
     "parser_version": "eia-today-v1",
     "language": "en",
     "material_type": "public_analysis",

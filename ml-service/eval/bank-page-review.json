@@ -1,0 +1,2800 @@
+{
+  "schema_version": 1,
+  "reviewed_as_of": "2026-10-26",
+  "source_snapshot_revision": "169bef4e77e6219fa145de73cb3fc4b79144babca7f009ac1dfa3d38dd39316c",
+  "policy": "A page disposition is not blanket fragment approval. Only exact hash-bound verified fragments may be used. Historical horizons stay attached.",
+  "pages": [
+    {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "image_path": ".local/bank-review/review_c/images/Inflation_tracker_02-p01.png",
+      "disposition": "reviewed_text",
+      "reason": "Cover date 2 сентября 2026 года confirmed visually. Selected complete prose claims and both legacy decisions were checked against both columns. Charts, headings and the segment-chart OCR with lost minus signs remain excluded; no blanket fragment verification.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c/5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75/0001.txt"
+    },
+    {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 2,
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "text_sha256": "069152b86521143735077fd5e77303557550595789197b8d54cd292748aaa22b",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "image_sha256": "676b59c67260c87d63e7306b7742429ec4ad9975d4a906753ff286fae1c89a34",
+      "image_path": ".local/bank-review/review_c/images/Inflation_tracker_02-p02.png",
+      "disposition": "chart_only",
+      "reason": "Six inflation/decomposition charts with sources Росстат, Минэко, Альфа-Банк and historical range footnote 2017-2025 excluding 2022 were viewed. Cached OCR is mostly labels/axes and cannot support standalone claims.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c/5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75/0002.txt"
+    },
+    {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 3,
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "text_sha256": "f9f35544e8c0adae22d4b616680dfc61609a940f40b467fa85defc35764b433c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "image_sha256": "280ced278b852086027d670a2f72310bbf67732582c224221699c4603ca7cac2",
+      "image_path": ".local/bank-review/review_c/images/Inflation_tracker_02-p03.png",
+      "disposition": "legal",
+      "reason": "Contacts/disclaimer and repeated copyright text visually checked; no analytic claim selected.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c/5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75/0003.txt"
+    },
+    {
+      "doc_id": "bank-36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "page": 1,
+      "extraction_revision": "fa0ec5eaa56808707bde07bf2d55540ca9085a0e4e695155cff00d78bfee5327",
+      "text_sha256": "090c75793973b255d5ec6815976a5305b54324836bb8f9b753c64a9d7e443e7d",
+      "pdf_sha256": "36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "image_sha256": "733474f0ed4841cd8a39aff90d22123f57f6ef0aef382a3764a7cc12636ec7ab",
+      "image_path": ".local/bank-review/review_a/ALFA_Russian_Steels_1К21PreviewUpdate_15Apr2021/page-1.png",
+      "disposition": "historical",
+      "reason": "Cover explicitly15April2021; 1К21 steel forecasts and historical market quotes. Not current2026 evidence; no fragments approved.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "page": 2,
+      "extraction_revision": "fa0ec5eaa56808707bde07bf2d55540ca9085a0e4e695155cff00d78bfee5327",
+      "text_sha256": "4b8654a260afe658b317a84ca477b717736aee33124698929c0f4c160e331fa4",
+      "pdf_sha256": "36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "image_sha256": "4e6ab3c74ea85686aca1a7027045f426de60e656be6a9de12d364cd150e2a025",
+      "image_path": ".local/bank-review/review_a/ALFA_Russian_Steels_1К21PreviewUpdate_15Apr2021/page-2.png",
+      "disposition": "historical",
+      "reason": "1К21 steel-company forecasts and April2021 conference details. Historical only; no fragments approved.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "page": 3,
+      "extraction_revision": "fa0ec5eaa56808707bde07bf2d55540ca9085a0e4e695155cff00d78bfee5327",
+      "text_sha256": "f348a1e9c995b1c69a28f4317d9c2b67786f0a216ca566808f7969db62af0294",
+      "pdf_sha256": "36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "image_sha256": "e20c27a11c0b735dfc4e485156c57368ec5b46b51c041e7ef3e7c2a02b451ce3",
+      "image_path": ".local/bank-review/review_a/ALFA_Russian_Steels_1К21PreviewUpdate_15Apr2021/page-3.png",
+      "disposition": "historical",
+      "reason": "Valuation tableFY20/FY21e/FY22e, visually inspected. Historical only; no fragments approved.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "page": 4,
+      "extraction_revision": "fa0ec5eaa56808707bde07bf2d55540ca9085a0e4e695155cff00d78bfee5327",
+      "text_sha256": "a89d5e17dd4a477c526bd74eb3ce9725e935fa4b2b60699ec9915d2f7c2d5dc2",
+      "pdf_sha256": "36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "image_sha256": "467e0ee1ebdb05e215206778224e7e485fa5321b2529a2f49e608ca78331e741",
+      "image_path": ".local/bank-review/review_a/ALFA_Russian_Steels_1К21PreviewUpdate_15Apr2021/page-4.png",
+      "disposition": "legal",
+      "reason": "Disclaimer appended with2026copyright despite2021research cover; does not redate steel analysis. No claims selected.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 1,
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "text_sha256": "a5e201285913e1da520427a382fc72ffb6245b71ca6a9027e583289902057e63",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "image_sha256": "dad02ed70524fd2e35f5f27772d843413c24a787d375aa8261301673ac3d7a52",
+      "image_path": ".local/bank-review/review_a/ALFA-7M26/page-1.png",
+      "disposition": "reviewed_text",
+      "reason": "Cover date7September2026 confirmed. Selected retail/financial-result sentences match. Chart labels and fragment with rir forг/г not approved.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 2,
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "text_sha256": "cf4ba7b415eac33ce92d79d2348a0f80668e0f425ebd172d3280960623d12763",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "image_sha256": "9023f253c6e6ce3135ceb431f1aa3bb0e71fde7b8e2ee53c537f5def7b7b6268",
+      "image_path": ".local/bank-review/review_a/ALFA-7M26/page-2.png",
+      "disposition": "reviewed_text",
+      "reason": "Wage/unemployment narrative and selected assessments checked. Charts3–6 are visual context only; no chart-axis OCR approved.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 3,
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "text_sha256": "9ed23e66dab045a80dc6a0d96e76254cefa4141f59a85a61eeec127de328307f",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "image_sha256": "0296d658f0644ff7b9059d4031361e83bc32e52b813d4ff2234450ac2bf75371",
+      "image_path": ".local/bank-review/review_a/ALFA-7M26/page-3.png",
+      "disposition": "needs_correction",
+      "reason": "Tables1–2. OCR loses row labels, decimal commas and1П26; examples2,2→22 and11,9→119. No table fragments selected.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 4,
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "text_sha256": "a89d5e17dd4a477c526bd74eb3ce9725e935fa4b2b60699ec9915d2f7c2d5dc2",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "image_sha256": "467e0ee1ebdb05e215206778224e7e485fa5321b2529a2f49e608ca78331e741",
+      "image_path": ".local/bank-review/review_a/ALFA-7M26/page-4.png",
+      "disposition": "legal",
+      "reason": "Physical page4 is contacts/disclaimer; printed footer5 does not change physical page numbering. No economic evidence selected.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page": 1,
+      "extraction_revision": "87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3",
+      "text_sha256": "6f76cdc00ec3684ebd04117f8a8b8fd1492e2a6998bb779e745c8c3835cb1e37",
+      "pdf_sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "image_sha256": "0db2cc8201af2765a0a2316cc1120c9afba20e85403a34887924d3bed7e1743b",
+      "image_path": ".local/bank-review/review_c/images/Gold_digest_August26-p01.png",
+      "disposition": "unknown_date",
+      "reason": "Cover visibly says ОБЗОР РЫНКА ЗОЛОТА / АВГУСТ 2026. It supplies a reporting month, not a publication day. doc_date remains null; no claim or current evidence promoted.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245/87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3/0001.txt"
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page": 2,
+      "extraction_revision": "87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3",
+      "text_sha256": "d1c13dcd4c3ae0ca0c4c8e2d4a166ad04e2a19821a39e62ea94c0ee6ea009c27",
+      "pdf_sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "image_sha256": "f2b09ef87c3bfd0c1ed1b9aba8711a6ddb30cf678dc8d16135f58e3413ebb20a",
+      "image_path": ".local/bank-review/review_c/images/Gold_digest_August26-p02.png",
+      "disposition": "unknown_date",
+      "reason": "Two-column gold narrative viewed. August reporting period and relative future release language do not establish publication date. OCR additionally corrupts 4.1% unemployment as 41% and DXY/ФРС abbreviations. No claims promoted.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245/87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3/0002.txt"
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page": 3,
+      "extraction_revision": "87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3",
+      "text_sha256": "78202d687a55a449b8f0eca14c46ae535f6eda306465702c9748cbab0746ffca",
+      "pdf_sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "image_sha256": "27f59bd575454bb18bcc449aa2a90774f19f51a884373c58f85657467d4549a2",
+      "image_path": ".local/bank-review/review_c/images/Gold_digest_August26-p03.png",
+      "disposition": "unknown_date",
+      "reason": "Three-column gold rally comparison plus return and price charts viewed. Table cells are interleaved in OCR and +9.7% gold return is lost. Exact publication date remains unknown; no numerical claims promoted.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245/87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3/0003.txt"
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page": 4,
+      "extraction_revision": "87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3",
+      "text_sha256": "ae6acdd210121c653cc1ef381588e9e6d972c6d92c828698e6170c93ca529b50",
+      "pdf_sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "image_sha256": "0c343b6558bb1c9cd85896064cd19d03e82766a65b8d8802e3a0f6215dbe4bcf",
+      "image_path": ".local/bank-review/review_c/images/Gold_digest_August26-p04.png",
+      "disposition": "unknown_date",
+      "reason": "Employment revisions chart and macro-release comparison table viewed. OCR loses July -23 employment value and mixes column order. Reporting/release periods do not prove publication day; no claims promoted.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245/87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3/0004.txt"
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page": 5,
+      "extraction_revision": "87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3",
+      "text_sha256": "9b07df8ae9f064b5b21b8d8bebbd9eaff02d430d3152a766befd3ce32759a201",
+      "pdf_sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "image_sha256": "6381b1dec37c78526b0191ab428a70bd92e54718c175525b2e464f8d1aa3127e",
+      "image_path": ".local/bank-review/review_c/images/Gold_digest_August26-p05.png",
+      "disposition": "unknown_date",
+      "reason": "Fed-rate narrative, inflation bars and expectation table viewed. Month-end rate and 15-16 September meeting are event/reference dates, not publication evidence. Unknown-date document remains outside current evidence.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245/87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3/0005.txt"
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page": 6,
+      "extraction_revision": "87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3",
+      "text_sha256": "cef7101c0312b4a7de2fdf42c8cc01ce71887d9dd7b5a8aab4be1211f620222b",
+      "pdf_sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "image_sha256": "0f0c5a8532617cdfcda413a14bfa73729b01bd1263c04c3e2e649312e1cb6ca7",
+      "image_path": ".local/bank-review/review_c/images/Gold_digest_August26-p06.png",
+      "disposition": "unknown_date",
+      "reason": "US-debt chart and prose viewed. The label Последнее доступное значение на 7-ое сентября is an observation date, not a publication date. It must not become doc_date. OCR also breaks $40.1 trillion label.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245/87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3/0006.txt"
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page": 7,
+      "extraction_revision": "87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3",
+      "text_sha256": "13d393fc8d75a642b1f69d77926dd9fc1bb45e7f0a2cf7eb449325edf28eefa5",
+      "pdf_sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "image_sha256": "cad82c9e1584ca0871e3633c91ff8231992b301245c4366ad8b9a3518f4f24cc",
+      "image_path": ".local/bank-review/review_c/images/Gold_digest_August26-p07.png",
+      "disposition": "unknown_date",
+      "reason": "Central-bank gold purchases page viewed, including source WGC and July observations. Month/year references are retained as reporting periods only; no exact publication day, no promoted claims.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245/87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3/0007.txt"
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page": 8,
+      "extraction_revision": "87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3",
+      "text_sha256": "143270d4cf4fb8eab0dab8b70f2c3fb544bf82e99c46d365afcbad9dc3078115",
+      "pdf_sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "image_sha256": "b4a5ee37f91e74c820a4fd41848fe5b8ef48807d246bcf7242d33fbf4927e213",
+      "image_path": ".local/bank-review/review_c/images/Gold_digest_August26-p08.png",
+      "disposition": "legal",
+      "reason": "Copyright and disclaimer page visually checked. Legal boilerplate, no market claims; copyright year does not repair unknown document date.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245/87bde7100bbf7fce0340288a3879538af96353f183616043ccf9b4f113f2aff3/0008.txt"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 1,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "7fb056c185803f95fc15784fa33fb8450f213eb955a2599287ef44eef776087c",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "8f563af65eca929892389bb5d84d03bef2fc6e0eb0e102331bceebaa95ec159a",
+      "image_path": ".local/bank-review/review_b/images/fi-01.png",
+      "disposition": "rejected",
+      "reason": "Cover visually confirms title, Q3 2026 horizon, and exact date 22 July 2026. OCR omits the tactical subtitle and mangles the title. Cover fragments are not standalone financial claims; retain date evidence only.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 2,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "01ecdfdaaa05400efb01d242cec2cf6e82ca0fce0671a93edd2e702a7110e7bb",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "91b30b84db975f475f2984cc2ed5b5a79a81463cd7dd122d559b7a5ab18d8544",
+      "image_path": ".local/bank-review/review_b/images/fi-02.png",
+      "disposition": "partial",
+      "reason": "Five market-segment descriptions are visually legible. Selected H1-2026 performance sentence matches the page. Header fragments and anaphoric shares such as “this segment” do not stand alone; no blanket verification of the page.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 3,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "40f498427423a44d93468eea50082da66fd2ccb542b35bf52a6fb77e48072614",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "61f9a4c62cb6ef7ad2a2c6970c0bddaa6a5dbef0d6b4fb28479a2ae0f31745a4",
+      "image_path": ".local/bank-review/review_b/images/fi-03.png",
+      "disposition": "partial",
+      "reason": "Narrative is mostly faithful. Selected July 24 rate expectation is a forecast, capped at its meeting date; Q3 opinions are capped at 30 September. The closing recommendation is split across fragments and several claims require preceding context, so those fragments remain unverified.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 4,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "a1c6ea18234d55a5da2469921bd0c4ad82b5665c8e960272693e6bbdedc55e8e",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "79f5fb57de7c9e99d9c8d0c904b0e146b917d89ee95a1e5851f82156629cc1c9",
+      "image_path": ".local/bank-review/review_b/images/fi-04.png",
+      "disposition": "rejected",
+      "reason": "Section divider reads Results of first half 2026. Cached OCR is gibberish; no substantive financial claim is present.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 5,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "c3f8cfbb66a4a26257d7f6a9f6bf324df8342a8845300a77a9c2eeed9bd4052b",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "a33d9516dded2e85e6878142e582822a1e23b6d598c2b015fed8428079032091",
+      "image_path": ".local/bank-review/review_b/images/fi-05.png",
+      "disposition": "partial",
+      "reason": "Left narrative and right charts are interleaved in OCR. Selected 19 June action and dated market-yield observation match full page and preserve units. Chart axes/legends and contaminated narrative fragments are rejected for claim use.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 6,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "e0cb9767165807883f10b00a05d410c57edb83ab6fdc0480f595e2ad40d80ee8",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "a0da1cd99a4c8bd46befbfaf56ca673a57d9ac930fd1a50b76d290889da4e8d1",
+      "image_path": ".local/bank-review/review_b/images/fi-06.png",
+      "disposition": "partial",
+      "reason": "Selected narrative return figures are legible and faithful: total returns versus annualized rates and maturity brackets are preserved. Chart OCR/indices are garbled. Recommendations and price-pressure opinions are historical Q3 assessments, not October guidance.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 7,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "77140f32f4c738ee88493ca96be522f19dfa7f3f5a82503ada6e75402c94c424",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "23d8a704b42592597250be3bfe6295cf6ee17ac7fc8e35ee86798efd763e7fb8",
+      "image_path": ".local/bank-review/review_b/images/fi-07.png",
+      "disposition": "rejected",
+      "reason": "Macro section divider only: inflation risks rising and uncertainty high. OCR omits the contextual title; short headings do not supply standalone evidence.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 8,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "fb980a80bfd0bfda9a9e64d05310ad50d20c1627d3a206af780ff0271805e899",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "862e8e5d67139ee79bf96f182ff47194d1416b4e43ce223bde4bd9b86e6ee441",
+      "image_path": ".local/bank-review/review_b/images/fi-08.png",
+      "disposition": "rejected",
+      "reason": "Framework slide lists four policy categories. Cached fragments separate the setup sentence from its list and include bullet artifacts. No complete financial finding selected.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 9,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "8cb978a2b7127f0935e4ad4498ffc25b610a79f85b2dbb993fd7deebb6c557ab",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "811ddad30eccab946ada5efefd109a469eba50c6b1cfdcdff5aceb3f22786daf",
+      "image_path": ".local/bank-review/review_b/images/fi-09.png",
+      "disposition": "rejected",
+      "reason": "Budget narrative is extensively mixed with chart headings, axis values and month labels. A clean July 24 forecast duplicates p3 and is not separately selected. Do not use budget figures or apparent current OFZ assertions from these fragments without corrected extraction.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 10,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "3c5cf2eaeceb1159a93336584ce4a081414c5d79b22eef5594c60d4d4a98f61c",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "30257c533341ef3e10cb5734f2dc151559181706513312f9ff31b01d204ce919",
+      "image_path": ".local/bank-review/review_b/images/fi-10.png",
+      "disposition": "rejected",
+      "reason": "Two credit charts insert headings/axis values into most narrative sentences. The isolated 67 percent sentence lacks its corporate-loan scope outside the paragraph; no standalone claim selected. Broken duration/interest-risk sentences are not verified.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 11,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "febae3cc9c2e6953ccbff8f73f0da78abacd9ea3c4bd6c8f6b27624aaaa82edf",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "c7c473254191d21f225a64eca777903fcb029802307b4b815c5237eb8978acea",
+      "image_path": ".local/bank-review/review_b/images/fi-11.png",
+      "disposition": "rejected",
+      "reason": "Consumer-demand narrative merges with chart values, including a split negation in the supply-shock interpretation. The business-climate number is contaminated. No claim promoted; October demand cannot be inferred from this July slide.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 12,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "086910bfea7daf4f32fbfbdce9ce365255b95076c513c229fe207037e9da9258",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "69939c978ce76760d4596c4e4448fe1511cb6131d9100c1398ede6e228e25136",
+      "image_path": ".local/bank-review/review_b/images/fi-12.png",
+      "disposition": "partial",
+      "reason": "Full page checked including inflation plot. Two clean narrative assessments were retained with original attribution and historical periods; chart-mixed CPI and expectation-number fragments rejected. Assessments expire with Q3 horizon.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 13,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "b3ed4bf22df81969ab55d2cbb16bfe4a765aa81bb61b3ce9221051ab16ca79ef",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "3865eaa163166f90561dab6d9265a9e5651ee9f89ab22e057e81011d4969c649",
+      "image_path": ".local/bank-review/review_b/images/fi-13.png",
+      "disposition": "partial",
+      "reason": "Clean Ministry budget-rule announcement sentence retained as a dated reported fact, with dollars-per-barrel units. Other narrative risks are split or anaphoric and chart OCR is unusable; Q3 constraint sentence alone lacks antecedents and was not selected.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 14,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "6bb8ab8f898095c9a5c6f41e74de20b55155b0741f8db0da2e82629977c58e83",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "375e8208df8323e7dda0c30d7d0e3619e7941f16e29faafc032b0d8e7b122284",
+      "image_path": ".local/bank-review/review_b/images/fi-14.png",
+      "disposition": "rejected",
+      "reason": "OFZ section divider; OCR misses first heading. No substantive standalone claim.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 15,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "c94bca2e9ee0e2651ebb997535f63a4aede405b1f9e46ddcea7bdedaf11f6f7e",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "5b4d03416f42d7140fad13f72fbcdcf4b674b1f04b746c96015cb74e7c726cb2",
+      "image_path": ".local/bank-review/review_b/images/fi-15.png",
+      "disposition": "rejected",
+      "reason": "Bank OFZ holdings narrative has chart labels and digits inserted into sentences. Percent/date denominators must not be reconstructed from present fragments. No claim selected despite legible original page.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 16,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "37b68983dfc6aca39c1a60182e0273d511e7aeeef9f30b293d3d990a5f12919d",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "050580bd599c5a03b81aae2663df97b17a1e2aa5d0951e3d13036ac0d61d03e2",
+      "image_path": ".local/bank-review/review_b/images/fi-16.png",
+      "disposition": "rejected",
+      "reason": "Duration-structure narrative mixes chart labels and amounts into text; recommendations carry OCR corruption. Pie-chart labels and isolated totals are not standalone claims. No selected claim.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 17,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "1befe4e6359b037313c3d2d4830aa84cf0f51dc14fa07fc9d32cc4a89d38066c",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "bcc66500dac784fd2cc85fac041f44346ff27dd090a70348f9f7fc55b2f70a85",
+      "image_path": ".local/bank-review/review_b/images/fi-17.png",
+      "disposition": "partial",
+      "reason": "Selected dated retail-flow, fund-NAV and investor-share sentences match the narrative and charts. Units, reporting periods and comparisons checked. Chart labels/axis fragments and the ^20 approximation corruption are not verified.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 18,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "083af545a494fc3990ce4bcb3661634906dec205ae05898a5f600c767abb8e33",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "60d1468faf768cdbaba013d047e47059e455cf91c32ab7675d87607c78972d6c",
+      "image_path": ".local/bank-review/review_b/images/fi-18.png",
+      "disposition": "partial",
+      "reason": "Selected June NFO net-sales statement and explicitly qualified analyst explanation match the page. Table row OCR lacks full column hierarchy and is rejected. Source footnotes define NFO and exclude large affiliated-party trades; retained in provenance where relevant.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 19,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "02ae92f56837bcb43d4a64d2fe2d1e74af49c998619b082227c4c83a465c510c",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "2fe2e0984d86203d941edcccd00ff0a9a1b92c8479769a15f45ed7bfa87c22d4",
+      "image_path": ".local/bank-review/review_b/images/fi-19.png",
+      "disposition": "rejected",
+      "reason": "Narrative is corrupted by adjacent plot values. The conditional 12-month OFZ 26249 scenario is split across fragments and its source line is appended; it must not be treated as a complete current forecast. No fragments promoted.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 20,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "ab0a4114dc58bdea329b82ef96a18c057300c48f2b601bdd2baca6c9aff823ad",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "6be6ca10a254c9e8599544a3d749c7b44dd329d76eae6d908021347d03425929",
+      "image_path": ".local/bank-review/review_b/images/fi-20.png",
+      "disposition": "rejected",
+      "reason": "Corporate-bond section divider only. OCR loses first heading; no substantive claim.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 21,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "1d42ede205454a4e7d9bdb14b24b0306dd5ece502a99ec3ae87c1ae617e858e8",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "cbabe0fa2edbfb1432ffee0cae5982ec1665a63e894460ba33a259ea77a0dcb7",
+      "image_path": ".local/bank-review/review_b/images/fi-21.png",
+      "disposition": "rejected",
+      "reason": "Page is visually legible but selected standalone immutable fragments would omit material scope qualifiers. The 3.2-trillion calculation excludes securitizations, mortgage/convertible/perpetual/nonmarket/structured issues, CFA and Rosneft; CBR investor data covers a wider 4.8-trillion universe. Keep these qualifiers together in a future corrected extraction; no isolated total/share promoted.",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 22,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "33a6c2ca56ef23c10120faf1e49dbadb4e0dfeda731b73aa29231adbda9ec4e9",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "ed90a8eae1cf94923b12a282a86b2398ead3cba37421ff8505cbc21592796fa0",
+      "image_path": ".local/bank-review/review_c/images/FI_Strategy_3Q26_22072026-p22.png",
+      "disposition": "needs_correction",
+      "reason": "Prose, three charts and sources were visually checked. Cached OCR interleaves right-column chart headings/ticks into narrative, including market size and liquidity; p22:s175 and p22:s975 cannot be approved. No claims selected from this page.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046/5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc/0022.txt"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 23,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "71600a665e2fca2f7dc3804965d98289efcf64f092690e4442de95e07637baf5",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "011321170efdf605c02aef44befe1210f5583c8b971db5bcf3a43b5a9cadf8e5",
+      "image_path": ".local/bank-review/review_c/images/FI_Strategy_3Q26_22072026-p23.png",
+      "disposition": "needs_correction",
+      "reason": "Four prose bullets plus two charts were viewed. Chart labels split or contaminate concentration, bank liquidity, floating-rate risk and investor-outflow sentences. A few clean sentences survive but there is no blanket page approval; no claims selected here.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046/5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc/0023.txt"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 24,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "bd540bfc83f531881ff133cfd2ba8b06c2cb867ea992136ac75f02111ddf9639",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "8b1ae12c10e0a35e9dc666b3c049b2ee7a4cbd1b654d581e889a10f39da615b0",
+      "image_path": ".local/bank-review/review_c/images/FI_Strategy_3Q26_22072026-p24.png",
+      "disposition": "needs_correction",
+      "reason": "Narrative, RUFLBICP chart and eight-row floater table were viewed. OCR inserts chart ticks into assessment sentences and substitutes letters for digits in ISINs. No instrument rows or fragments selected.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046/5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc/0024.txt"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 25,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "5b93a131b53d57548115230645b177e6e5f295981d0408aabec3742e95448756",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "491eedcb1740f961ad2beab19c705962ddc8a5c349884dbdcaee5d0512f7d532",
+      "image_path": ".local/bank-review/review_c/images/FI_Strategy_3Q26_22072026-p25.png",
+      "disposition": "needs_correction",
+      "reason": "Appendix section divider only: visible full heading is Список корпоративных облигаций; cached OCR truncates it to Список корпоративных о. This is not a standalone claim.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046/5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc/0025.txt"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 26,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "51b634a15d2d882e2e37385694158d4bb0b455800393a25e806b78edcf80e75c",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "ea154effc46d416ead5b45eec0dffa3e5299b3476d457e24ce20a75ed3eeac50",
+      "image_path": ".local/bank-review/review_c/images/FI_Strategy_3Q26_22072026-p26.png",
+      "disposition": "needs_correction",
+      "reason": "Pure fixed-coupon instrument table with yields dated 20.07.2026. OCR loses the yield-date heading and corrupts ISINs, ratings and decimal durations. No table-derived claims selected.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046/5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc/0026.txt"
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 27,
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "text_sha256": "7054b2d0fbe8528a10fd32d1bd398ad629ab856397cb4d5db27bb546d50c4f98",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "image_sha256": "608bc49a395389ecdfb520ca94749b189afa270f52be444f35301f884d775af6",
+      "image_path": ".local/bank-review/review_c/images/FI_Strategy_3Q26_22072026-p27.png",
+      "disposition": "legal",
+      "reason": "Contacts/disclaimer page, including distribution and investment-risk boilerplate. Visually checked and excluded from market evidence.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046/5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc/0027.txt"
+    },
+    {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 1,
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "text_sha256": "e1f82c9f49368797b019d6808c23f7f893ae15119bf0544292a6f93249ca2832",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "image_sha256": "6d54713a162b51391e699f33af29deacef915050661a6b3f71e8e0ee512b504f",
+      "image_path": ".local/bank-review/review_a/ALFA-consumption/page-1.png",
+      "disposition": "reviewed_text",
+      "reason": "Cover5August2026 confirmed. Selected consumption and wage forecasts checked; garbled chart OCR and standalone partial references excluded.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 2,
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "text_sha256": "886a62b0c8873dcb0ff2006767ad7834e68ecb1f25bde30f96813e51eb8f2efe",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "image_sha256": "e7c327e19a4134cea259fa62cf3fecf8dbb3f7ebd03af3e9925ec271a0fdfc53",
+      "image_path": ".local/bank-review/review_a/ALFA-consumption/page-2.png",
+      "disposition": "reviewed_text",
+      "reason": "Labor and inflation narrative, forecasts and complete lending sentence checked. Continued mortgage sentence at page break excluded; chart labels excluded.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 3,
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "text_sha256": "427d833c047efdf18ae3581dde0936d0391f52cf58c0d43ab1b9abfa460f933b",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "image_sha256": "bdf8d08b136a91068ff897625cc3df143839066a4fe53583f37fe57570361c9a",
+      "image_path": ".local/bank-review/review_a/ALFA-consumption/page-3.png",
+      "disposition": "reviewed_text",
+      "reason": "Page starts with continuation frompage2, excluded as incomplete. Complete deposit-growth comparison checked; charts excluded.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 4,
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "text_sha256": "a89d5e17dd4a477c526bd74eb3ce9725e935fa4b2b60699ec9915d2f7c2d5dc2",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "image_sha256": "467e0ee1ebdb05e215206778224e7e485fa5321b2529a2f49e608ca78331e741",
+      "image_path": ".local/bank-review/review_a/ALFA-consumption/page-4.png",
+      "disposition": "legal",
+      "reason": "Contacts/disclaimer, printed footer5 onphysicalpage4. No economic claims selected.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 1,
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "text_sha256": "f42b980146e7483d10ba2e7ed3f4be651cf458d736c2ccb9f6ac363305ca4205",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "image_sha256": "f82dea254a55da35d2e90c007fe80f47c0fc12f8c7eb0b1603e4767d1f1f060a",
+      "image_path": ".local/bank-review/review_a/ALFA-macro_stat1H26/page-1.png",
+      "disposition": "needs_correction",
+      "reason": "Cover31July2026 confirmed. Summary OCR confuses1П26 with1126/11126,0,1% with01%, table loses headers and row labels. No fragments selected fromthispage.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 2,
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "text_sha256": "705fba7bac25c33bf6561f8867b41b7d7ab28ea862b83ea8a95c316ecdf43d58",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "image_sha256": "248831042021a205f9ce94f2fded84374b2bbf16a6e59733fbff479f290808c5",
+      "image_path": ".local/bank-review/review_a/ALFA-macro_stat1H26/page-2.png",
+      "disposition": "needs_correction",
+      "reason": "Two-column layout checked. Decimal commas lost7,8→78;15,1→151;10,1→101; investment sentence split across columns. Selected salary-level and income paragraphs are individually faithful.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 3,
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "text_sha256": "42fdeb189e5a6994b6e130e9cfb55c4494e57ced17d2d7d6c0f4646cf8e886a2",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "image_sha256": "ba3f8ce0b59868369319ef01a9f8f74c7b05028d6376ee720ef21409f47a631c",
+      "image_path": ".local/bank-review/review_a/ALFA-macro_stat1H26/page-3.png",
+      "disposition": "needs_correction",
+      "reason": "Two-column layout checked. GDP0,1% becomes01%; retail forecast is split by chart OCR. Selected investment/import/FX/inflation sentences individually checked and remain complete.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 4,
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "text_sha256": "e87e79704efbde0efe7c2df71360f9625e1184a71ac69d6df62b1f100255e61f",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "image_sha256": "f95f50313d6fbfbe7d35485bb4ad603588c334e8a2ee929ace89ba17c99be95c",
+      "image_path": ".local/bank-review/review_a/ALFA-macro_stat1H26/page-4.png",
+      "disposition": "needs_correction",
+      "reason": "Macro table: several row labels lost, FXyuan cells garbled. No row fragment selected. Source itself showsnominalwages10,2% in2026 table versus10% narrative; preserve source discrepancy.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 5,
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "text_sha256": "10eda0ef9a9f5bd4f357f9a831a29373e9f3e5135d22782cf635f8c184b8d84a",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "image_sha256": "233cff8acfbe062992908fda073ac4e78093c6c39929a6a6c0fae347ffc82586",
+      "image_path": ".local/bank-review/review_a/ALFA-macro_stat1H26/page-5.png",
+      "disposition": "legal",
+      "reason": "Disclaimer only, no economic evidence selected.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 1,
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "text_sha256": "2ee184fe8e8ae804cf69b5b0f748811e063d2aaa4179d70d98f38acc9a1ed078",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "image_sha256": "cdd47c370176768f9f97f9463c8d9ddb5cae6f5e49c759f2ef56b01c2789aae1",
+      "image_path": ".local/bank-review/review_c/images/Бонд_Бриф_14092026-p01.png",
+      "disposition": "reviewed_text",
+      "reason": "Cover date 14 сентября 2026 confirmed at footer. Narrative on CBR, yields and auctions checked. Only exact complete selected prose approved; 6.п., О$З, broken title/graph fragments and contextual tails are excluded.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055/75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4/0001.txt"
+    },
+    {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 2,
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "text_sha256": "d8c67445c4704bba2f5af2ded6c6d511aee20548b696c29f8b69ebd28b4e066f",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "image_sha256": "aea7692b2ffbcacdfa07503335ce80be47b1bb5a528b4e85a468662a0290b269",
+      "image_path": ".local/bank-review/review_c/images/Бонд_Бриф_14092026-p02.png",
+      "disposition": "reviewed_text",
+      "reason": "Polyus corporate-news page visually checked. Its rating is ruAAA in the image but гиААА in OCR; no rating or context-dependent Компания-only fragment is approved. Narrative and small debt/capital table are not mass verified.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055/75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4/0002.txt"
+    },
+    {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 3,
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "text_sha256": "c96741c7ad5a28d9661057e19b3c380620fec9588475d819397dae4aefa0cf23",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "image_sha256": "c38f74c7b1c1cd3e5b4aa0684d82d10cd11972bb73eedc0e34d82ba3308d2d23",
+      "image_path": ".local/bank-review/review_c/images/Бонд_Бриф_14092026-p03.png",
+      "disposition": "reviewed_text",
+      "reason": "RusHydro news, business description, analysis and financial table viewed. The complete ACRA rating news sentence is faithful and selected. The table and corrupted 806n spread unit are excluded; Компания-only fragments are not standalone.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055/75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4/0003.txt"
+    },
+    {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 4,
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "text_sha256": "a4b2ee238dc593b59f467d414d1d43f99caab8b4b0a2d969dca981b91a3f014f",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "image_sha256": "28c069d329dda8cf2c6cb3c8c11de4679013adfc85f1494289aca628b9c37640",
+      "image_path": ".local/bank-review/review_c/images/Бонд_Бриф_14092026-p04.png",
+      "disposition": "chart_only",
+      "reason": "Six market charts covering oil, FX, OFZ/corporate yields, international bonds and RUONIA were viewed. OCR merges series labels and axes; no standalone chart claim selected.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055/75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4/0004.txt"
+    },
+    {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 5,
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "text_sha256": "a80e255cf07c0820992b43da56177683cda44737cff64d1f380a04a6d3e509bf",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "image_sha256": "e47066928afa19f689aa8c43d80bc7a175a7e189bda0bd747f2da9361b76b23b",
+      "image_path": ".local/bank-review/review_c/images/Бонд_Бриф_14092026-p05.png",
+      "disposition": "legal",
+      "reason": "Contacts/disclaimer page visually checked; contains legal and distribution boilerplate only, excluded from analytic claims.",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "visual_inspection": true,
+      "source_text_path": "/Users/selebry/Documents/dev/alpha-hack/generated/business-insights-materials-2026-10-24-a3e5e14/corpus/pages/bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055/75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4/0005.txt"
+    },
+    {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "image_path": ".local/bank-review/review_a/ALFA-Macro_Insights-Policy_Rate_11Sep/page-1.png",
+      "disposition": "reviewed_text",
+      "reason": "Cover date11September2026 and all selected narrative claims, negations, rates and forecast horizons checked against image.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 2,
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "text_sha256": "ff6c476faa0a1105a54b1f396654191ec3580a4d75951f688f750b52ac979c5c",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "image_sha256": "ce16d3b7ca04abe8f57582cdd3e56e4d92cf284a552a341d3f9e59fb418c0da7",
+      "image_path": ".local/bank-review/review_a/ALFA-Macro_Insights-Policy_Rate_11Sep/page-2.png",
+      "disposition": "needs_correction",
+      "reason": "Table plus charts1–4. Average inflation OCR contains45/617/60/84/87 instead of decimal values and broken row context. No table or chart fragments selected.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 3,
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "text_sha256": "018e6a67a68d4ef55ea939d1b806ad2ff70682e90b400dbe71b5dba08105ecc3",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "image_sha256": "ad696b157cdd3e448187e8ab41b781a11f0208b26ae84c56e0de8cb9a3a95e6f",
+      "image_path": ".local/bank-review/review_a/ALFA-Macro_Insights-Policy_Rate_11Sep/page-3.png",
+      "disposition": "chart_only",
+      "reason": "Six charts5–10 visually inspected, including14% throughend2026 and12% end2027. No chart-only fragments approved; narrative page1 carries evidence.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    },
+    {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 4,
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "text_sha256": "a89d5e17dd4a477c526bd74eb3ce9725e935fa4b2b60699ec9915d2f7c2d5dc2",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "image_sha256": "467e0ee1ebdb05e215206778224e7e485fa5321b2529a2f49e608ca78331e741",
+      "image_path": ".local/bank-review/review_a/ALFA-Macro_Insights-Policy_Rate_11Sep/page-4.png",
+      "disposition": "legal",
+      "reason": "Contacts/disclaimer only; physical page4 printed footer5. No claims selected.",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26"
+    }
+  ],
+  "fragments": {
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p1:s654:756cfb4e57a983de": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 1,
+      "content_sha256": "756cfb4e57a983deef11ee8db63233c10f0a6be9dbcbbb5043c72afbfb9f640f",
+      "char_start": 654,
+      "char_end": 849,
+      "text_sha256": "a5e201285913e1da520427a382fc72ffb6245b71ca6a9027e583289902057e63",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "dad02ed70524fd2e35f5f27772d843413c24a787d375aa8261301673ac3d7a52",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "domestic_demand"
+      ],
+      "reason": "Проверены июльские5,3% и вывод об ограничениях предложения вместо торможения спроса; отрицание сохранено.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p1:s951:f3b843a51f4c5f50": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 1,
+      "content_sha256": "f3b843a51f4c5f50e5d90ad869855df34dbcdb3591886a25594fc5c3cfa27f65",
+      "char_start": 951,
+      "char_end": 1123,
+      "text_sha256": "a5e201285913e1da520427a382fc72ffb6245b71ca6a9027e583289902057e63",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "dad02ed70524fd2e35f5f27772d843413c24a787d375aa8261301673ac3d7a52",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "domestic_demand"
+      ],
+      "reason": "Полное сравнение роста розничного оборота: июль5,3% против7,2% во2К26.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p1:s2674:05ae54155acc9ade": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 1,
+      "content_sha256": "05ae54155acc9adebc18186c62470f8d3a7a9ae1f3973db2ffaa36be5a041bc6",
+      "char_start": 2674,
+      "char_end": 2843,
+      "text_sha256": "a5e201285913e1da520427a382fc72ffb6245b71ca6a9027e583289902057e63",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "dad02ed70524fd2e35f5f27772d843413c24a787d375aa8261301673ac3d7a52",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Полный факт о финансовом результате:400 млрд руб. в июне против2,3 трлн среднемесячно за5М26 и2025.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s735:18d258f76aa1eb54": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 2,
+      "content_sha256": "18d258f76aa1eb540b33165c32a2ed11e0e0d8609f2b4b66171e9e6a9747bcec",
+      "char_start": 735,
+      "char_end": 844,
+      "text_sha256": "cf4ba7b415eac33ce92d79d2348a0f80668e0f425ebd172d3280960623d12763",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "9023f253c6e6ce3135ceb431f1aa3bb0e71fde7b8e2ee53c537f5def7b7b6268",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "labor_costs"
+      ],
+      "reason": "Рост зарплат9,6% и прежнее ожидание9,0% видны в исходном абзаце; числа и период сохранены.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s845:2e3cd37799956f6f": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 2,
+      "content_sha256": "2e3cd37799956f6f41003eb1d7d354c5f992276f8fa1f36dd7b566fbe4abc3a6",
+      "char_start": 845,
+      "char_end": 932,
+      "text_sha256": "cf4ba7b415eac33ce92d79d2348a0f80668e0f425ebd172d3280960623d12763",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "9023f253c6e6ce3135ceb431f1aa3bb0e71fde7b8e2ee53c537f5def7b7b6268",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "labor_costs"
+      ],
+      "reason": "Самостоятельный факт: за1П26 зарплаты+12,7% номинально и+6,5% реально; сверены оба числа.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s933:34a49226b89e7e08": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 2,
+      "content_sha256": "34a49226b89e7e082d92b76cda1a9ba81b43c765b160e2e2d75bbaf1fed71a18",
+      "char_start": 933,
+      "char_end": 1158,
+      "text_sha256": "cf4ba7b415eac33ce92d79d2348a0f80668e0f425ebd172d3280960623d12763",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "9023f253c6e6ce3135ceb431f1aa3bb0e71fde7b8e2ee53c537f5def7b7b6268",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "labor_costs"
+      ],
+      "reason": "Полный факт объясняет2,3% безработицы при1,7 млн безработных и изменении рабочей силы74,8→74,7 млн.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s1683:3ed23d7849df3f67": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 2,
+      "content_sha256": "3ed23d7849df3f678e93d5728dadea170e8b5b04489a90de511954bd30919871",
+      "char_start": 1683,
+      "char_end": 1776,
+      "text_sha256": "cf4ba7b415eac33ce92d79d2348a0f80668e0f425ebd172d3280960623d12763",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "9023f253c6e6ce3135ceb431f1aa3bb0e71fde7b8e2ee53c537f5def7b7b6268",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "labor_costs"
+      ],
+      "reason": "Старое решение повторно сверено: условная оценка ужесточения рынка труда в конце лета, без превращения гипотезы в факт.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s2753:0ebbdca4bd9157a6": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 2,
+      "content_sha256": "0ebbdca4bd9157a63403f97c93933d22ce30dbfce7567ff372edc70cf53cdb43",
+      "char_start": 2753,
+      "char_end": 2852,
+      "text_sha256": "cf4ba7b415eac33ce92d79d2348a0f80668e0f425ebd172d3280960623d12763",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "9023f253c6e6ce3135ceb431f1aa3bb0e71fde7b8e2ee53c537f5def7b7b6268",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Старое решение: это полное предложение основного текста после заголовка; сохранены авторское мнение и июльский период.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s2853:7933d6091d5c1140": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 2,
+      "content_sha256": "7933d6091d5c11407f7b2bff5ea8774749f37c101c3e59721cb88c75c7c249cd",
+      "char_start": 2853,
+      "char_end": 3007,
+      "text_sha256": "cf4ba7b415eac33ce92d79d2348a0f80668e0f425ebd172d3280960623d12763",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "9023f253c6e6ce3135ceb431f1aa3bb0e71fde7b8e2ee53c537f5def7b7b6268",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Полное объяснение давления на финансы компаний через производство, логистику и внеплановые проекты.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s3102:138aa3c1cd06a08d": {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page": 2,
+      "content_sha256": "138aa3c1cd06a08d675b9902539dd5f6eb0b0f147708080c4ddd1f00aef72e71",
+      "char_start": 3102,
+      "char_end": 3223,
+      "text_sha256": "cf4ba7b415eac33ce92d79d2348a0f80668e0f425ebd172d3280960623d12763",
+      "extraction_revision": "b6c90ed37169cbd386cfc9eda902dbcc833b20d7e87284ed8be1ce6cccc41023",
+      "image_sha256": "9023f253c6e6ce3135ceb431f1aa3bb0e71fde7b8e2ee53c537f5def7b7b6268",
+      "pdf_sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "domestic_demand",
+        "fx"
+      ],
+      "reason": "Полная причинная оценка отставания предложения, роста импорта и ослабления курса рубля.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s132:54d92acad98c48d7": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "54d92acad98c48d7919a17fec0ba8f42c15c84d84cf147c540c7713b46553ed5",
+      "char_start": 132,
+      "char_end": 300,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Решение ЦБ сохранить14,0% сверено с первым основным абзацем; дата относится к обложке11сентября2026.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s1154:66b186290c6e87d5": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "66b186290c6e87d50fccf8a34db2bd828a0d544312cf46fabe2a22aa4103160b",
+      "char_start": 1154,
+      "char_end": 1444,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Сохранены обе пары показателей базовой инфляции:5,7→7,6% и4,1→5,4%, а также период июнь-июль.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s1445:6b593f0803090369": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "6b593f0803090369f685ef7fef835ffef4148cb0139b7f1f6cc9c8ccd0bfb733",
+      "char_start": 1445,
+      "char_end": 1654,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "cost_of_debt"
+      ],
+      "reason": "Старое решение повторно сверено: полный тезис о переносе временного шока предложения на устойчивые компоненты и жесткость ДКП.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s1955:de59881e94b21b2e": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "de59881e94b21b2e6747c9d006b5b1fd6fedd5448aa26afcde48671d72144d72",
+      "char_start": 1955,
+      "char_end": 2172,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "domestic_demand"
+      ],
+      "reason": "Полная атрибутированная оценка ЦБ о дисбалансе спроса и предложения и длительном выбытии мощностей.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s2438:0ee191944d8cb6fe": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "0ee191944d8cb6fe652b6c78a5f18418aff229f376a99ea74863e8cf3e38440d",
+      "char_start": 2438,
+      "char_end": 2645,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Старое решение: заголовок сопровождается полным предложением о выступлении главы ЦБ и ожиданиях как источнике риска.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s2646:ce00528d06b07414": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "ce00528d06b07414d7ff801f64d64a5d0b211275e09f163a76210429dba82266",
+      "char_start": 2646,
+      "char_end": 2829,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Сверены август13,7%, среднее2025г13,2%,7М26 13,3%; сохранено отсутствие новых сентябрьских данных.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s4173:e86969ad8c240f67": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "e86969ad8c240f67a88c98160c6f173411bacd508f175bcda4a7d57c30db9a7a",
+      "char_start": 4173,
+      "char_end": 4325,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Сверены профицит августа0,7 трлн и накопленный дефицит5,8 трлн; знак и разница периодов сохранены.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s4327:78ac4e6578ef99e9": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "78ac4e6578ef99e9811c4bd84eb222edded3c976ef63d08d3179adf84b38de1f",
+      "char_start": 4327,
+      "char_end": 4465,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Старое решение: законченная авторская оценка паузы23октября и пересмотра годовой траектории.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s4466:87c1c54cc107f8f1": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "87c1c54cc107f8f16020f555900514b7220ea3270dba531d45c3c6933ad3bd0e",
+      "char_start": 4466,
+      "char_end": 4616,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Старое решение: пересмотр13,5%→14,0% на конец2026 виден в последнем абзаце.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s4617:7df03de45b1b46ab": {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page": 1,
+      "content_sha256": "7df03de45b1b46ab557ae9a8be6e1079d498f01bffd48cd25dd52065a64f052f",
+      "char_start": 4617,
+      "char_end": 4690,
+      "text_sha256": "e56f66b2db4b59de7c44d0bf64b9fe3416325b46c6bb32dd80e00ec72e65967d",
+      "extraction_revision": "01f5eec2126b8a4327cbcdaade00480778d8179d129df308f2037b3cb0be471e",
+      "image_sha256": "9186e98a4901ce58d55f539296b01e10dc890d1b8d62f60bb04a14dbf16ecceb",
+      "pdf_sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Старое решение: сохранен отдельный прогноз12,0% на конец2027; не смешан с2026.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p1:s79:8aa8f45d69668c03": {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 1,
+      "content_sha256": "8aa8f45d69668c03d798634026e57949ece93d34af7e7fd1b37778f88bf21d62",
+      "char_start": 79,
+      "char_end": 310,
+      "text_sha256": "e1f82c9f49368797b019d6808c23f7f893ae15119bf0544292a6f93249ca2832",
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "image_sha256": "6d54713a162b51391e699f33af29deacef915050661a6b3f71e8e0ee512b504f",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "domestic_demand"
+      ],
+      "reason": "Полная вводная оценка с явным нулевым годовым ростом потребления в4К26.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p1:s2243:0a8b12eced476543": {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 1,
+      "content_sha256": "0a8b12eced4765432666a8b5ebe2c7f479ac35c03b1e988cca2fe3f68c97fa8b",
+      "char_start": 2243,
+      "char_end": 2526,
+      "text_sha256": "e1f82c9f49368797b019d6808c23f7f893ae15119bf0544292a6f93249ca2832",
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "image_sha256": "6d54713a162b51391e699f33af29deacef915050661a6b3f71e8e0ee512b504f",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "labor_costs"
+      ],
+      "reason": "Полное сравнение фактических110 тыс. руб. с ожидаемыми112 тыс. и оценка замедления по широкому кругу отраслей.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p1:s2884:6b5749e12d45e3c5": {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 1,
+      "content_sha256": "6b5749e12d45e3c5a5d682d0e8b302920c9df07e04c104d07a90070eebd1b175",
+      "char_start": 2884,
+      "char_end": 3042,
+      "text_sha256": "e1f82c9f49368797b019d6808c23f7f893ae15119bf0544292a6f93249ca2832",
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "image_sha256": "6d54713a162b51391e699f33af29deacef915050661a6b3f71e8e0ee512b504f",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "labor_costs"
+      ],
+      "reason": "Полный пересмотр прогнозов: зарплаты10% вместо11% и безработица2,3% на конец2026.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s1846:1ee328ee7da58fe0": {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 2,
+      "content_sha256": "1ee328ee7da58fe03282492cbcf162da8e279ae33b309ab9126b7cb3f4046a25",
+      "char_start": 1846,
+      "char_end": 2242,
+      "text_sha256": "886a62b0c8873dcb0ff2006767ad7834e68ecb1f25bde30f96813e51eb8f2efe",
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "image_sha256": "e7c327e19a4134cea259fa62cf3fecf8dbb3f7ebd03af3e9925ec271a0fdfc53",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "input_prices"
+      ],
+      "reason": "Содержательный абзац подтверждает перенос топливных издержек в конечные цены; сохранено исключение плодоовощей и пять недель повышенной базовой инфляции.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s2386:13fee173b5bb88f4": {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 2,
+      "content_sha256": "13fee173b5bb88f49204016f30d0e1a4c7d903f729dee57ce5670f3c8080dafe",
+      "char_start": 2386,
+      "char_end": 2738,
+      "text_sha256": "886a62b0c8873dcb0ff2006767ad7834e68ecb1f25bde30f96813e51eb8f2efe",
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "image_sha256": "e7c327e19a4134cea259fa62cf3fecf8dbb3f7ebd03af3e9925ec271a0fdfc53",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "cost_of_debt"
+      ],
+      "reason": "Старое решение: инфляция7,5%, два снижения по25б.п. и ставка13,5% на конец2026 в одном полном утверждении; дата5августа подтверждена обложкой.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s3378:216819c9227e2f52": {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 2,
+      "content_sha256": "216819c9227e2f525f034b66032dcfd0f58f0223cd509f71cf749443b9798168",
+      "char_start": 3378,
+      "char_end": 3504,
+      "text_sha256": "886a62b0c8873dcb0ff2006767ad7834e68ecb1f25bde30f96813e51eb8f2efe",
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "image_sha256": "e7c327e19a4134cea259fa62cf3fecf8dbb3f7ebd03af3e9925ec271a0fdfc53",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Законченное предложение до разрыва страницы: розничные кредиты около1% м/м в мае-июне против0,4% за4М26.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p3:s1227:d617f7b9e9b615de": {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 3,
+      "content_sha256": "d617f7b9e9b615de64fd0b44438ccf85834e52d020e1349b79b1c9d15372f2c3",
+      "char_start": 1227,
+      "char_end": 1460,
+      "text_sha256": "427d833c047efdf18ae3581dde0936d0391f52cf58c0d43ab1b9abfa460f933b",
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "image_sha256": "bdf8d08b136a91068ff897625cc3df143839066a4fe53583f37fe57570361c9a",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Самостоятельный факт о депозитах: прирост1,2 трлн за1П26 против3–5 трлн в предыдущие три года; латинскаяK в2K26 не меняет период.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p2:s2780:d658ff84778880cd": {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 2,
+      "content_sha256": "d658ff84778880cdb4b0419c183774688da656e783c839c9e19fdaf58ec4d1f9",
+      "char_start": 2780,
+      "char_end": 2909,
+      "text_sha256": "705fba7bac25c33bf6561f8867b41b7d7ab28ea862b83ea8a95c316ecdf43d58",
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "image_sha256": "248831042021a205f9ce94f2fded84374b2bbf16a6e59733fbff479f290808c5",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "labor_costs"
+      ],
+      "reason": "Сверены112 тыс. руб. ожидаемой и110 тыс. фактической майской зарплаты; этот фрагмент не содержит соседних ошибок151%/101%.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p2:s2910:e453e8329399d7bb": {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 2,
+      "content_sha256": "e453e8329399d7bb46fd843d0a683c83c09b603c10750aa55c8c0fa808bf6a34",
+      "char_start": 2910,
+      "char_end": 3144,
+      "text_sha256": "705fba7bac25c33bf6561f8867b41b7d7ab28ea862b83ea8a95c316ecdf43d58",
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "image_sha256": "248831042021a205f9ce94f2fded84374b2bbf16a6e59733fbff479f290808c5",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "domestic_demand"
+      ],
+      "reason": "Факт1,5% роста располагаемых доходов и авторская корректировка дооколо3% сохранены с объяснением депозитных процентов.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s498:066fc62479988182": {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 3,
+      "content_sha256": "066fc62479988182671974ab25eb61945bd5fd25217fc358491891d3ddfaf2c5",
+      "char_start": 498,
+      "char_end": 591,
+      "text_sha256": "42fdeb189e5a6994b6e130e9cfb55c4494e57ced17d2d7d6c0f4646cf8e886a2",
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "image_sha256": "ba3f8ce0b59868369319ef01a9f8f74c7b05028d6376ee720ef21409f47a631c",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "domestic_demand"
+      ],
+      "reason": "Полный прогноз спада инвестиций4% в2026; число и знак сверены.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s755:93ba779c3c3c5321": {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 3,
+      "content_sha256": "93ba779c3c3c5321543ceeda440c4e54ade2534cc55bb55cf1d2c146e8af7bda",
+      "char_start": 755,
+      "char_end": 934,
+      "text_sha256": "42fdeb189e5a6994b6e130e9cfb55c4494e57ced17d2d7d6c0f4646cf8e886a2",
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "image_sha256": "ba3f8ce0b59868369319ef01a9f8f74c7b05028d6376ee720ef21409f47a631c",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "domestic_demand"
+      ],
+      "reason": "Полный пересмотр темпов товарного импорта4%→11% на2026; оба процента видны в левой колонке.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s935:c10f7083d4436b5c": {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 3,
+      "content_sha256": "c10f7083d4436b5ccfb620afab5cd412d6840f966c090ccc362ce7b70424036b",
+      "char_start": 935,
+      "char_end": 1106,
+      "text_sha256": "42fdeb189e5a6994b6e130e9cfb55c4494e57ced17d2d7d6c0f4646cf8e886a2",
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "image_sha256": "ba3f8ce0b59868369319ef01a9f8f74c7b05028d6376ee720ef21409f47a631c",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "domestic_demand"
+      ],
+      "reason": "Фрагмент включает факт+11% за5М26 и законченный прогноз$340 млрд вместо$320 млрд; долларовые суммы сверены.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s1471:e7627bad6d8aeacc": {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 3,
+      "content_sha256": "e7627bad6d8aeacc99a8ac9a8569a3c2d972015a7cb60ba465060ff053052b52",
+      "char_start": 1471,
+      "char_end": 1732,
+      "text_sha256": "42fdeb189e5a6994b6e130e9cfb55c4494e57ced17d2d7d6c0f4646cf8e886a2",
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "image_sha256": "ba3f8ce0b59868369319ef01a9f8f74c7b05028d6376ee720ef21409f47a631c",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "fx"
+      ],
+      "reason": "Полный прогноз87руб./$ на конец2026 с объяснением текущего счета и оттока капитала; не заменен табличным87,2.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s3410:4252bf087d1a0882": {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page": 3,
+      "content_sha256": "4252bf087d1a0882a72e90240573b7c3bcf0577476d599f35a43d1c7c108c007",
+      "char_start": 3410,
+      "char_end": 3553,
+      "text_sha256": "42fdeb189e5a6994b6e130e9cfb55c4494e57ced17d2d7d6c0f4646cf8e886a2",
+      "extraction_revision": "b47729a7bf30866dfc4d1e718d9a2adec8eee5b11e28f993229bf4972da625d7",
+      "image_sha256": "ba3f8ce0b59868369319ef01a9f8f74c7b05028d6376ee720ef21409f47a631c",
+      "pdf_sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Полный прогноз инфляции7,5% на2026 и5,5% на2027; оба периода явно сохранены.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ],
+      "root_adjudication": "Two horizons share one immutable fragment; expire the complete fragment at the earlier year end."
+    },
+    "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s1664:7eaf17ae3e7d3e96": {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page": 2,
+      "content_sha256": "7eaf17ae3e7d3e96671bc30b1a1f150fd8c254a56753c67c9252747dba352b31",
+      "char_start": 1664,
+      "char_end": 1721,
+      "text_sha256": "886a62b0c8873dcb0ff2006767ad7834e68ecb1f25bde30f96813e51eb8f2efe",
+      "extraction_revision": "9c9aa153b888544daf0086fc08e4c36298e24e98c3d7a7eac10aade60156ebef",
+      "image_sha256": "e7c327e19a4134cea259fa62cf3fecf8dbb3f7ebd03af3e9925ec271a0fdfc53",
+      "pdf_sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "reviewer": "review_a",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "domestic_demand"
+      ],
+      "reason": "Exact complete declarative assessment checked against the bold subsection heading and supported by its paragraph on fuel-price pass-through and persistent core inflation. Root independently viewed the page and adjudicated retention; this is a causal claim, not a bare topic title.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p2:s633:2a971521be585088": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 2,
+      "content_sha256": "2a971521be58508813d06e9c6183605f0ec472684b62758b10c8314b38d7c5bc",
+      "char_start": 633,
+      "char_end": 710,
+      "text_sha256": "01ecdfdaaa05400efb01d242cec2cf6e82ca0fce0671a93edd2e702a7110e7bb",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "91b30b84db975f475f2984cc2ed5b5a79a81463cd7dd122d559b7a5ab18d8544",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "The H1-2026 comparative performance claim is complete and matches the first segment paragraph. Historical result; not a claim about October performance.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p3:s1687:43f3a758f3e5e965": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 3,
+      "content_sha256": "43f3a758f3e5e9656bfa76109f756c3c94d4bb881f923cdab21d43f6be8137a2",
+      "char_start": 1687,
+      "char_end": 1860,
+      "text_sha256": "40f498427423a44d93468eea50082da66fd2ccb542b35bf52a6fb77e48072614",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "61f9a4c62cb6ef7ad2a2c6970c0bddaa6a5dbef0d6b4fb28479a2ae0f31745a4",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Exact July 24 meeting forecast from a July 22 report. Preserve both 14.25 percent and expected upward revision; event-bound expiry prevents current-October use.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p3:s2631:93af0d22ac8f2176": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 3,
+      "content_sha256": "93af0d22ac8f2176997d23980e4223641e57381477888aaa61da737e94d3d1bb",
+      "char_start": 2631,
+      "char_end": 2790,
+      "text_sha256": "40f498427423a44d93468eea50082da66fd2ccb542b35bf52a6fb77e48072614",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "61f9a4c62cb6ef7ad2a2c6970c0bddaa6a5dbef0d6b4fb28479a2ae0f31745a4",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Complete analyst opinion including negation: attractive yield above 16.5 percent did not make that July moment suitable for speculative positions. Q3 horizon from cover; expired at review.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p3:s3595:a6e8c04ecc71ec84": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 3,
+      "content_sha256": "a6e8c04ecc71ec8430d931f0fd7369985b88ac7dadafbd5eaab87fd2ed9b1ea0",
+      "char_start": 3595,
+      "char_end": 3734,
+      "text_sha256": "40f498427423a44d93468eea50082da66fd2ccb542b35bf52a6fb77e48072614",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "61f9a4c62cb6ef7ad2a2c6970c0bddaa6a5dbef0d6b4fb28479a2ae0f31745a4",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Complete opinion, with minimum five-year holding horizon explicitly preserved. The view belongs to the Q3 strategy and is not refreshed for October.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p5:s1024:1338b62dc41f5c2b": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 5,
+      "content_sha256": "1338b62dc41f5c2ba9edf40342b4311969619a26381ac87db106dabe598cc5a8",
+      "char_start": 1024,
+      "char_end": 1127,
+      "text_sha256": "c3f8cfbb66a4a26257d7f6a9f6bf324df8342a8845300a77a9c2eeed9bd4052b",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "a33d9516dded2e85e6878142e582822a1e23b6d598c2b015fed8428079032091",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Complete narrative sentence matches page: cut step reduced to 25 basis points and rate cut to 14.25 percent. These are distinct units. Historical action, not current policy rate.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p5:s1647:7029e06db50513ca": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 5,
+      "content_sha256": "7029e06db50513ca16b8a416b6311d90c401bb4f8bf075d8de659f4f316b0cc7",
+      "char_start": 1647,
+      "char_end": 1847,
+      "text_sha256": "c3f8cfbb66a4a26257d7f6a9f6bf324df8342a8845300a77a9c2eeed9bd4052b",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "a33d9516dded2e85e6878142e582822a1e23b6d598c2b015fed8428079032091",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Full sentence is clear: OFZ maturities over eight years exceeded 16.3 percent yield, MOEX index below 2000 points. Preserve its historical observation date and 2022 comparison; no current price claim.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s169:1c1a732c187004d4": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 6,
+      "content_sha256": "1c1a732c187004d46cd88fab2b80d04e8c5c1e2fccbbf66cb4aebd94ee9572ef",
+      "char_start": 169,
+      "char_end": 340,
+      "text_sha256": "e0cb9767165807883f10b00a05d410c57edb83ab6fdc0480f595e2ad40d80ee8",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "a0da1cd99a4c8bd46befbfaf56ca673a57d9ac930fd1a50b76d290889da4e8d1",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Faithful sentence preserves 8.6 percent cumulative return and approximately 16 percent annualized; not two conflicting return values.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s570:fa37f03ab1fc5eb8": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 6,
+      "content_sha256": "fa37f03ab1fc5eb8da6a268db3683904abcc42f06ac045053d7604717b2fa0f1",
+      "char_start": 570,
+      "char_end": 794,
+      "text_sha256": "e0cb9767165807883f10b00a05d410c57edb83ab6fdc0480f595e2ad40d80ee8",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "a0da1cd99a4c8bd46befbfaf56ca673a57d9ac930fd1a50b76d290889da4e8d1",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Complete comparison: corporate fixed coupon maturity 3-5 years yielded 4.3 percent / 8 percent annualized; OFZ maturity 1-3 years 5.9 percent / 11 percent annualized, respectively.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s795:eb34254bd8682a47": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 6,
+      "content_sha256": "eb34254bd8682a4710e3480be17d82d5be0da72918ee7a8725f0b65621f089e6",
+      "char_start": 795,
+      "char_end": 918,
+      "text_sha256": "e0cb9767165807883f10b00a05d410c57edb83ab6fdc0480f595e2ad40d80ee8",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "a0da1cd99a4c8bd46befbfaf56ca673a57d9ac930fd1a50b76d290889da4e8d1",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Complete July analyst judgment about excessive pressure on corporate bonds maturing beyond three years. Original opinion marker preserved; expired Q3 assessment.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s1044:f6a18d1b2f3facb1": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 6,
+      "content_sha256": "f6a18d1b2f3facb1f15155c49f7f8f219d70a76622edbbcd93c38e3f5c803955",
+      "char_start": 1044,
+      "char_end": 1167,
+      "text_sha256": "e0cb9767165807883f10b00a05d410c57edb83ab6fdc0480f595e2ad40d80ee8",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "a0da1cd99a4c8bd46befbfaf56ca673a57d9ac930fd1a50b76d290889da4e8d1",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Complete recommendation identifies long fixed-coupon RZD and Atomenergoprom issues. Preserved only as historical July/Q3 advice; never current October advice.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s1210:c47e17743bbf5019": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 6,
+      "content_sha256": "c47e17743bbf50196366e141c227d81aed0818988423284d0a1335753600b5df",
+      "char_start": 1210,
+      "char_end": 1282,
+      "text_sha256": "e0cb9767165807883f10b00a05d410c57edb83ab6fdc0480f595e2ad40d80ee8",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "a0da1cd99a4c8bd46befbfaf56ca673a57d9ac930fd1a50b76d290889da4e8d1",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Complete historical long-OFZ loss statement, approximately 8 percent; sign and approximate qualifier visually checked.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p12:s329:63d9295e29e547a0": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 12,
+      "content_sha256": "63d9295e29e547a0701f6ad68c8d804d6811b9830417b0aed0022d34f3c9ce1d",
+      "char_start": 329,
+      "char_end": 446,
+      "text_sha256": "086910bfea7daf4f32fbfbdce9ce365255b95076c513c229fe207037e9da9258",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "69939c978ce76760d4596c4e4448fe1511cb6131d9100c1398ede6e228e25136",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Faithful assessment combines observed disinflation and attribution to temporary factors. It is an assessment in the Q3 report, not a current inflation reading.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p12:s2778:dd7f9cc0e6516e3f": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 12,
+      "content_sha256": "dd7f9cc0e6516e3fed3a696ab270a77f4e9940f9bacde3f4e9de244ecbd2f2da",
+      "char_start": 2778,
+      "char_end": 2979,
+      "text_sha256": "086910bfea7daf4f32fbfbdce9ce365255b95076c513c229fe207037e9da9258",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "69939c978ce76760d4596c4e4448fe1511cb6131d9100c1398ede6e228e25136",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "domestic_demand"
+      ],
+      "reason": "Complete sentence retains attribution to the CBR and connects elevated inflation expectations, income and consumption growth to June pro-inflationary risk shift; opinion is not promoted to fact.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ],
+      "root_adjudication": "Explicit CBR attribution is retained as a reported historical assessment, not an authored bank assessment."
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p13:s196:adc707157ddea9bf": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 13,
+      "content_sha256": "adc707157ddea9bfd70f99fc99d361243fce60887b87f83c974ab7b7f15bd5e4",
+      "char_start": 196,
+      "char_end": 299,
+      "text_sha256": "b3ed4bf22df81969ab55d2cbb16bfe4a765aa81bb61b3ce9221051ab16ca79ef",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "3865eaa163166f90561dab6d9265a9e5651ee9f89ab22e057e81011d4969c649",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "commodity_prices"
+      ],
+      "reason": "Clean sentence reports Ministry plans to lower budget-rule oil cutoff from 59 dollars per barrel. It reports an announcement, not enactment or a current October cutoff.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p17:s190:f04351524854ad12": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 17,
+      "content_sha256": "f04351524854ad1286b2705ae04f87efdd46efd1854e1cb049f3789bacc83c5f",
+      "char_start": 190,
+      "char_end": 349,
+      "text_sha256": "1befe4e6359b037313c3d2d4830aa84cf0f51dc14fa07fc9d32cc4a89d38066c",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "bcc66500dac784fd2cc85fac041f44346ff27dd090a70348f9f7fc55b2f70a85",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Complete retail-flow comparison: 1.8 trillion rubles into bonds versus 237 billion into equities; trailing-12-month context confirmed by charts ending June 2026.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p17:s350:c3d46c0b7326f404": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 17,
+      "content_sha256": "c3d46c0b7326f404b13b743862d6595d10d79b33a1401de3dea4bb295bdcc4bc",
+      "char_start": 350,
+      "char_end": 464,
+      "text_sha256": "1befe4e6359b037313c3d2d4830aa84cf0f51dc14fa07fc9d32cc4a89d38066c",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "bcc66500dac784fd2cc85fac041f44346ff27dd090a70348f9f7fc55b2f70a85",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Complete historical retail-bond inflow sentence: 994 billion rubles, 21 percent higher than H2 2025. Period and units explicit.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p17:s558:beb69d9fb9570d79": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 17,
+      "content_sha256": "beb69d9fb9570d79b5effa1c41857b67ac4673b4cd881ed684310743642a5a46",
+      "char_start": 558,
+      "char_end": 704,
+      "text_sha256": "1befe4e6359b037313c3d2d4830aa84cf0f51dc14fa07fc9d32cc4a89d38066c",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "bcc66500dac784fd2cc85fac041f44346ff27dd090a70348f9f7fc55b2f70a85",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Complete NAV comparison: bond mutual funds +51 percent to 1.2 trillion rubles; money-market exchange-traded mutual funds +15 percent. Both percent change and stock amount confirmed in chart.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p17:s1226:be00d6ab7dd1a805": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 17,
+      "content_sha256": "be00d6ab7dd1a805cc4d9063ca7a278bbe43f07980cc72d3e469fa08e0988080",
+      "char_start": 1226,
+      "char_end": 1439,
+      "text_sha256": "1befe4e6359b037313c3d2d4830aa84cf0f51dc14fa07fc9d32cc4a89d38066c",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "bcc66500dac784fd2cc85fac041f44346ff27dd090a70348f9f7fc55b2f70a85",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Complete corporate-bond ownership comparison: households 9.4 percent / 1.8 trillion nominal, banks and other financial organizations 49 percent / 9.1 trillion. Original grammatical typo retained without semantic change.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p18:s553:def7c50452e17f97": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 18,
+      "content_sha256": "def7c50452e17f97f5c2177588778a772c0ecb3ad68231d9799fc4e1b49df92a",
+      "char_start": 553,
+      "char_end": 651,
+      "text_sha256": "083af545a494fc3990ce4bcb3661634906dec205ae05898a5f600c767abb8e33",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "60d1468faf768cdbaba013d047e47059e455cf91c32ab7675d87607c78972d6c",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Complete June net-sales claim and Q1 net-purchaser comparison. NFO definition verified in page footnote; secondary-market context and exclusion of large affiliated trades retained in provenance.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p18:s932:d80c4f98e99f5323": {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page": 18,
+      "content_sha256": "d80c4f98e99f532304adb831ec9d3b3fa067d4df57a1ddea8f8908b28d632bfc",
+      "char_start": 932,
+      "char_end": 1478,
+      "text_sha256": "083af545a494fc3990ce4bcb3661634906dec205ae05898a5f600c767abb8e33",
+      "extraction_revision": "5c62f45bb800bd696a61e294c9392ae5b08ad8ad0f36b8f1a776c676f1e707dc",
+      "image_sha256": "60d1468faf768cdbaba013d047e47059e455cf91c32ab7675d87607c78972d6c",
+      "pdf_sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "reviewer": "review_b",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "liquidity"
+      ],
+      "reason": "Entire explanatory claim preserves explicit “we make an assumption” qualification. Links weaker large-institution demand to June correction and limited retail absorption; historical assessment, not proved causation.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s127:a561a9dd3cf97b9e": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "a561a9dd3cf97b9e801277ab5444418fd0d4a501adf197ac543b9c776f2a5be3",
+      "char_start": 127,
+      "char_end": 267,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "First left-column bullet reports weekly deflation of 0.01% after inflation of 0.01%. The leading OCR О corresponds only to the square bullet, not prose; numerical signs and comparison are faithful.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s268:cbbc3619cf7c0d17": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "cbbc3619cf7c0d1776fe0e7697d93fd467381fad896853a7cbeedf49ce7597c9",
+      "char_start": 268,
+      "char_end": 366,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Complete sentence reports the exact month-to-date decrease 0.08% and year-to-date increase 4.67%; visually matched to the first left-column bullet.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s367:e3888ca4c686fde5": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "e3888ca4c686fde53ddc713d41203c80231e71506dffbb8057c89a90a6688a3c",
+      "char_start": 367,
+      "char_end": 413,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Complete sentence reports annual inflation 6.32%; matched to the first left-column bullet, with reporting date carried in provenance.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s512:d78b3e82a5cff698": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "d78b3e82a5cff698fdec020b8c97e8696e2ea971fc69bbe1b5c5167528c49892",
+      "char_start": 512,
+      "char_end": 556,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "input_prices"
+      ],
+      "reason": "Complete diesel-price sentence matches the image; only says almost unchanged and does not invent a numerical change.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s557:6308b4ce4f5aee2e": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "6308b4ce4f5aee2e10579c3bcbfd82e6ea0f06e44a5584a35b3c6bde87d7e1cb",
+      "char_start": 557,
+      "char_end": 633,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "input_prices",
+        "inflation"
+      ],
+      "reason": "Fuel-price dynamics being substantially better than bank forecasts is explicitly the bank assessment, not a measured future outcome.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s635:b17eed2cac38f4eb": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "b17eed2cac38f4ebc341bd5bc6993ecaa652b2ad5c750b8c9f888f5aebf9c656",
+      "char_start": 635,
+      "char_end": 897,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "input_prices"
+      ],
+      "reason": "Full left-column sentence includes unchanged volatile-component contribution and both observed declines: fruit/vegetables 1.72% and tourism 1.73%. Leading О represents a square bullet only.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s1317:809480848ffecbc9": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "809480848ffecbc987267ce7de122d49ef9a7c4daeb71fcc04073ad679982dce",
+      "char_start": 1317,
+      "char_end": 1475,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "input_prices"
+      ],
+      "reason": "The entire opening right-column sentence links deflation despite petrol increases to disinflationary tendencies. It is explicitly an interpretation, not forecast accuracy evidence.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s2191:caea4ac880d5c880": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "caea4ac880d5c880dceeeb5bd5d090a598271625190b6a0d02c7df048b203e2b",
+      "char_start": 2191,
+      "char_end": 2284,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Forecast of the yet-to-be-reported August Rosstat result is -0.07%. Target-month end is retained as a conservative historical cutoff, not a claimed release date; this is never a current forecast as of 2026-10-26.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ],
+      "root_adjudication": "Forecast concerns publication of August data; release horizon is unproven. August31 predates the document and cannot be its valid_until."
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s1909:43b06ac37281a615": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "43b06ac37281a615d95cfe7fa8717657d5085ba246e72d5d67626d0359c53957",
+      "char_start": 1909,
+      "char_end": 2119,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "input_prices"
+      ],
+      "reason": "Legacy decision rechecked independently: source preserves the crucial negation не позволяет рассчитывать ... уже исчерпана and concludes fuel remains an inflation risk. Existing classification remains supported.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s2121:ad2ad92effc9f364": {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page": 1,
+      "content_sha256": "ad2ad92effc9f36414527caee54e6ec3925e5f01158cd5b819d1fb0cda6c74b0",
+      "char_start": 2121,
+      "char_end": 2189,
+      "text_sha256": "38176d9e76b50a57b2591c719fc01b4bc2a10bd191080db9d05ae232f2e5bbd2",
+      "extraction_revision": "5c895a5370d92fdaba25d129acf04af5c600befdf981a0d96973966c537bec75",
+      "image_sha256": "b6da092d2d8a4b4827a47602bfc09d4f689a720cdb429b3e0590e7e290c25a3c",
+      "pdf_sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation"
+      ],
+      "reason": "Legacy decision rechecked independently: source clearly forecasts 0.03% week-on-week for 1-7 September. Horizon is expired on review date; keep historical and never use as a current forecast.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s342:9b3aebd71953dbdd": {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 1,
+      "content_sha256": "9b3aebd71953dbdd7ef3a316555e58c6d8f74acb56ac9a8237a9e922bee17f68",
+      "char_start": 342,
+      "char_end": 531,
+      "text_sha256": "2ee184fe8e8ae804cf69b5b0f748811e063d2aaa4179d70d98f38acc9a1ed078",
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "image_sha256": "cdd47c370176768f9f97f9463c8d9ddb5cae6f5e49c759f2ef56b01c2789aae1",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Complete two-sentence fragment states distant OFZ yields peaked at 16.3% and OFZ 26254 ended the week at 16.2%. Numbers and 13.10.2040 maturity match the image.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s632:bc686e2544bd6f58": {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 1,
+      "content_sha256": "bc686e2544bd6f5876efe1178cd1edf0a0d6420adfb732de8a865eee77177553",
+      "char_start": 632,
+      "char_end": 958,
+      "text_sha256": "2ee184fe8e8ae804cf69b5b0f748811e063d2aaa4179d70d98f38acc9a1ed078",
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "image_sha256": "cdd47c370176768f9f97f9463c8d9ddb5cae6f5e49c759f2ef56b01c2789aae1",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "cost_of_debt"
+      ],
+      "reason": "Reports the CBR governor stated a conditional baseline, including the capacity and restrained-demand conditions. Classed as a report of that statement, not as the bank own forecast or realized disinflation.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s1641:573027ccd74ffc4b": {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 1,
+      "content_sha256": "573027ccd74ffc4b562df1d89d7ba03ddeb66343e8d272e7b911bb4501d01c15",
+      "char_start": 1641,
+      "char_end": 1871,
+      "text_sha256": "2ee184fe8e8ae804cf69b5b0f748811e063d2aaa4179d70d98f38acc9a1ed078",
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "image_sha256": "cdd47c370176768f9f97f9463c8d9ddb5cae6f5e49c759f2ef56b01c2789aae1",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "inflation",
+        "cost_of_debt"
+      ],
+      "reason": "Reports the governor request for more data and inflation-risk statement. The unusual эффектов., punctuation is visible in the PDF too and does not change meaning; no claims of realized future imbalance.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s1872:6c27aaa672b1b622": {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 1,
+      "content_sha256": "6c27aaa672b1b622db3de6257bc41b346172b3b9fc636c4c66d3a737e490d37c",
+      "char_start": 1872,
+      "char_end": 2125,
+      "text_sha256": "2ee184fe8e8ae804cf69b5b0f748811e063d2aaa4179d70d98f38acc9a1ed078",
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "image_sha256": "cdd47c370176768f9f97f9463c8d9ddb5cae6f5e49c759f2ef56b01c2789aae1",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Full sentence interprets the debt-market reaction to a conditional budget/monetary-policy comment. The if-clause and zero primary deficit condition are preserved.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s2728:077f327ad43c4ad1": {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 1,
+      "content_sha256": "077f327ad43c4ad1319af18108bbba815df9c8cba44a6b85516c8cafa77a7983",
+      "char_start": 2728,
+      "char_end": 2790,
+      "text_sha256": "2ee184fe8e8ae804cf69b5b0f748811e063d2aaa4179d70d98f38acc9a1ed078",
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "image_sha256": "cdd47c370176768f9f97f9463c8d9ddb5cae6f5e49c759f2ef56b01c2789aae1",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "Standalone sentence names the Finance Ministry auction and its 9 September date, matched to the lower paragraph.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s3136:ccf3c606cbb25064": {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 1,
+      "content_sha256": "ccf3c606cbb25064887cb50fdeb6d27d435ed94f1a2991ffcf7408eead9777fe",
+      "char_start": 3136,
+      "char_end": 3321,
+      "text_sha256": "2ee184fe8e8ae804cf69b5b0f748811e063d2aaa4179d70d98f38acc9a1ed078",
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "image_sha256": "cdd47c370176768f9f97f9463c8d9ddb5cae6f5e49c759f2ef56b01c2789aae1",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "OFZ 26218 nominal volume 51.5 billion rubles, proceeds 42.15 billion, weighted yield 15.45% and 15 bp comparison all match the source; no chart reconstruction.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s3430:2ce3f9b68df53411": {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 1,
+      "content_sha256": "2ce3f9b68df534118d98ec507e1b5a610cbe53ae40ce5a63c3d09a796df3a5ff",
+      "char_start": 3430,
+      "char_end": 3645,
+      "text_sha256": "2ee184fe8e8ae804cf69b5b0f748811e063d2aaa4179d70d98f38acc9a1ed078",
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "image_sha256": "cdd47c370176768f9f97f9463c8d9ddb5cae6f5e49c759f2ef56b01c2789aae1",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "cost_of_debt"
+      ],
+      "reason": "OFZ 26230 complete placement sentence faithfully gives 39.16 billion nominal, 35.2 plus 3.95 components, 24.0 billion proceeds and 15.97% yield. The source itself uses rounded components; no arithmetic correction or invented precision.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    },
+    "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p3:s148:b1db8dee789da58d": {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page": 3,
+      "content_sha256": "b1db8dee789da58d0f8b6ff9e957f3a728479d99039840354a6a210e7715fd5c",
+      "char_start": 148,
+      "char_end": 285,
+      "text_sha256": "c96741c7ad5a28d9661057e19b3c380620fec9588475d819397dae4aefa0cf23",
+      "extraction_revision": "75e93c99f136f35c244cbf7c1baa013394b046669a293875ecc1e33c9328dca4",
+      "image_sha256": "c38f74c7b1c1cd3e5b4aa0684d82d10cd11972bb73eedc0e34d82ba3308d2d23",
+      "pdf_sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "reviewer": "review_c",
+      "reviewed_at": "2026-10-26",
+      "verified_topics": [
+        "counterparty_risk"
+      ],
+      "reason": "Complete sentence names ACRA, PAO RusHydro, 9 September confirmation, AAA(RU) and Stable outlook. All tokens match the visible news paragraph.",
+      "checked_fields": [
+        "standalone_meaning",
+        "actor",
+        "negation",
+        "numbers",
+        "units",
+        "period",
+        "conditionality"
+      ]
+    }
+  }
+}

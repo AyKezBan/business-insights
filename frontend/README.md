@@ -8,7 +8,7 @@
 
 ## Запуск
 
-Из папки d09_d10_mvp: 
+Из папки d09_d10_mvp:
 
 ~~~powershell
 python server.py

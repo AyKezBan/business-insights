@@ -32,6 +32,10 @@ class OpenDocument:
     retrieved_at: datetime
     kind: str  # indicator | press
     topics: list[str] = field(default_factory=list)
+    published_date: date | None = None
+    raw_publication: str | None = None
+    source_utc_offset_seconds: int | None = None
+    timezone_provenance: str | None = None
 
 
 def _decimal(raw: str) -> Decimal:

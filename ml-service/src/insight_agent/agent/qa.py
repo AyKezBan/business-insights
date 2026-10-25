@@ -6,6 +6,7 @@ from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.agent.personalizer import _sources_block
 from insight_agent.agent.prompts import KIND_RULES, ROLE_FOCUS, UNTRUSTED, data_block, schema_hint
 from insight_agent.llm import BudgetExceeded, LLMError
+from insight_agent.materials.runtime import CorpusError
 from insight_agent.schemas import Answer, Claim, ClaimKind
 from insight_agent.tools.base import ToolError
 
@@ -24,8 +25,24 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
     state, insight = deepcopy(record.state), record.insight
     tracer, llm = agent.new_run()
     tracer.agent = "qa"
-    tracer.emit("plan", "question", {"insight_id": insight_id, "parent_run_id": insight.run_id, "question": question})
-    tools = agent.tools_for(state, tracer)
+    context = {"corpus_revision": state.corpus_revision, "event_content_sha256": state.event_content_sha256,
+               "as_of": state.request.as_of}
+    tracer.emit("plan", "question", {"insight_id": insight_id, "parent_run_id": insight.run_id, "question": question,
+                **context, "as_of_mode": "publication_cutoff"})
+    bundle = None
+    try:
+        if state.corpus_revision:
+            if agent.corpus_registry is None:
+                raise CorpusError(f"Исходная версия материалов {state.corpus_revision} недоступна")
+            bundle = agent.corpus_registry.get(state.corpus_revision)
+        elif agent.corpus_registry:
+            raise CorpusError("В сохранённом анализе не указана исходная версия материалов; восстановить его источники нельзя.")
+    except CorpusError as exc:
+        tracer.emit("error", "question_corpus", {"code": exc.code, "message": str(exc), **context})
+        return Answer(insight_id=insight_id, run_id=tracer.run_id, company_id=insight.company_id,
+                      event_id=insight.event_id, status="no_answer", text="Исходная версия материалов недоступна.",
+                      missing_data=[str(exc)], **context)
+    tools = agent.tools_for(state, tracer, bundle)
     for name in ("search_bank_analytics", "search_news"):
         try:
             agent.absorb(state, tools.call(name, {"query": question}, step="question_search"))
@@ -51,7 +68,7 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
         tracer.emit("error", "answer", {"error": str(exc)})
         return Answer(insight_id=insight_id, run_id=tracer.run_id, company_id=insight.company_id, event_id=insight.event_id,
                       status="no_answer",
-                      text="Не удалось подготовить ответ, попробуйте позже.", missing_data=[str(exc)])
+                      text="Не удалось подготовить ответ, попробуйте позже.", missing_data=[str(exc)], **context)
 
     catalog = state.sources()
     issues = check_claims(draft.claims, state, section="claims")
@@ -72,6 +89,7 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
         run_id=tracer.run_id,
         company_id=insight.company_id,
         event_id=insight.event_id,
+        **context,
         status=status,
         text=text,
         claims=claims,

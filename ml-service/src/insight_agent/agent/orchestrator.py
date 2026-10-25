@@ -1,4 +1,5 @@
 import hashlib
+import json
 import re
 import threading
 import time
@@ -11,7 +12,7 @@ from pydantic import BaseModel, Field
 
 from insight_agent.agent.analyst import analyze_event
 from insight_agent.agent.critic import check, check_event_analysis, has_errors
-from insight_agent.agent.evidence import event_fingerprint, pack_sources
+from insight_agent.agent.evidence import pack_sources
 from insight_agent.agent.personalizer import personalize
 from insight_agent.agent.planner import make_plan, matched_channels
 from insight_agent.agent.prompts import injection_markers
@@ -26,7 +27,9 @@ from insight_agent.research.plan import build_plan
 from insight_agent.research.service import OpenResearch, TtlCache
 from insight_agent.materials.models import CorpusSnapshot
 from insight_agent.materials.artifacts import digest
-from insight_agent.materials.policy import bank_policy, restrict_bank_args
+from insight_agent.materials.policy import bank_policy, publication_day, published_by, restrict_bank_args
+from insight_agent.materials.identity import event_content_sha256
+from insight_agent.materials.runtime import CorpusBundle, CorpusError, CorpusRegistry
 from insight_agent.llm import BudgetExceeded, ChatClient, DailyBudget, LLMError, RunBudget, StructuredLLM, error_code
 from insight_agent.schemas import (
     Claim,
@@ -86,12 +89,14 @@ class InsightAgent:
         daily: DailyBudget | None = None,
         corpus_snapshot: CorpusSnapshot | None = None,
         research: OpenResearch | None = None,
+        corpus_registry: CorpusRegistry | None = None,
     ):
         self.client = client
         self.settings = settings
         self.bank = bank
         self.news = news
         self.corpus_snapshot = corpus_snapshot
+        self.corpus_registry = corpus_registry
         self.daily = daily or self._build_daily_budget(settings)
         self.research = research if research is not None else self._build_research(settings)
         self.analysis_cache: dict[str, tuple[EventAnalysis, list[CheckIssue]]] = {}
@@ -125,10 +130,18 @@ class InsightAgent:
 
     @staticmethod
     def _as_news_event(doc: OpenDocument) -> NewsEvent:
-        published = doc.published if isinstance(doc.published, datetime) else datetime.combine(doc.published, datetime.min.time(), UTC)
-        ref = SourceRef(source_id=doc.source_id, kind=SourceKind.news, title=doc.title, date=published.date(), url=doc.url,
-                        content_sha256=digest(doc.text.encode()))
-        return NewsEvent(event_id=doc.source_id, title=doc.title, text=doc.text, published_at=published, source=ref, topics=doc.topics)
+        indicator = doc.kind == "indicator"
+        published = doc.published if not indicator and isinstance(doc.published, datetime) else None
+        day = None if indicator else doc.published_date or (doc.published.date() if published else doc.published)
+        precision = "timestamp" if published else "date" if day else "unknown"
+        ref = SourceRef(source_id=doc.source_id, kind=SourceKind.news, title=doc.title, date=day, url=doc.url,
+                        content_sha256=digest(doc.text.encode()), published_date=day, published_precision=precision,
+                        material_type="indicator" if indicator else "news_article", retrieved_at=doc.retrieved_at,
+                        raw_publication=doc.raw_publication, source_utc_offset_seconds=doc.source_utc_offset_seconds,
+                        timezone_provenance=doc.timezone_provenance,
+                        target_period=doc.published.isoformat() if indicator else None)
+        return NewsEvent(event_id=doc.source_id, title=doc.title, text=doc.text, published_at=published,
+                         published_date=day, published_precision=precision, source=ref, topics=doc.topics)
 
     def new_run(self) -> tuple[Tracer, StructuredLLM]:
         tracer = Tracer(new_run_id(), self.settings.trace_dir)
@@ -137,36 +150,53 @@ class InsightAgent:
         llm = StructuredLLM(self.client, budget, tracer, fallback_model=self.settings.llm_model_fallback)
         return tracer, llm
 
-    def tools_for(self, state: AgentState, tracer: Tracer) -> ToolRegistry:
+    def tools_for(self, state: AgentState, tracer: Tracer, bundle: CorpusBundle | None = None) -> ToolRegistry:
+        if bundle is None and self.corpus_registry:
+            bundle = (self.corpus_registry.get(state.request.corpus_revision) if state.request.corpus_revision
+                      else self.corpus_registry.current())
+        bank, news = (bundle.bank, bundle.news) if bundle else (self.bank, self.news)
         as_of = state.request.as_of
-        bounds = bank_policy(state.event, today=(as_of or datetime.now(UTC)).date(), max_age_days=self.settings.bank_max_age_days)
+        bounds = bank_policy(state.event, today=(as_of or datetime.now(UTC)).date(),
+                             cutoff=as_of.date() if as_of else None, max_age_days=self.settings.bank_max_age_days)
         tracer.emit("plan", "bank_policy", {"not_before": str(bounds[0]), "as_of": str(bounds[1]),
-            "event_date_unknown": state.event.published_at is None,
+            "event_date_unknown": publication_day(state.event) is None,
             "request_as_of": as_of.isoformat() if as_of else None})
 
         def search_bank(args):
             restricted = restrict_bank_args(args, bounds)
-            return [] if restricted is None else self.bank.search(restricted, as_of=bounds[1])
+            return [] if restricted is None else bank.search(restricted, as_of=bounds[1])
 
         def search_news(args):
             if as_of is not None:
-                limit = as_of if args.not_after is None else min(as_of, args.not_after)
+                requested = args.not_after
+                if requested is not None and requested.tzinfo is None:
+                    requested = requested.replace(tzinfo=UTC)
+                limit = as_of if requested is None else min(as_of, requested)
                 args = args.model_copy(update={"not_after": limit})
-            return self.news.search(args)
+            found = news.search(args)
+            for event in found:
+                self.resolve_news(state, event, news=news)
+            return found
 
         def search_open(args: OpenSearchArgs):
             plan = build_plan(state.request.profile, matched_channels(state), args.query)
             if plan.empty:
                 return []
-            event_day = state.event.published_at.date() if state.event.published_at else None
+            event_day = publication_day(state.event)
             when = (as_of.date() if as_of else event_day) or datetime.now(UTC).date()
             tracer.emit("plan", "open_research_plan", {"as_of": when.isoformat(), "reasons": plan.reasons})
             found = self.research.search(plan, as_of=when, top_k=args.top_k)
             for message in found.errors:
                 tracer.emit("error", "open_research", {"error": message})
-            events = [self._as_news_event(d) for d in found.docs]
+            events = []
             for doc in found.docs:
-                self.news.register_source_text(doc.source_id, doc.text)
+                event = self._as_news_event(doc)
+                # Research selects an effective day for indicators; press still has to
+                # satisfy the full publication instant before it becomes run evidence.
+                if as_of is not None and doc.kind != "indicator" and not published_by(event, as_of):
+                    continue
+                events.append(event)
+                state.resolved_news_texts[doc.source_id] = doc.text
             return events
 
         open_tools = [Tool(
@@ -206,11 +236,13 @@ class InsightAgent:
             self.settings.agent_max_tool_calls,
         )
 
-    def resolve_news(self, state: AgentState, event) -> None:
+    def resolve_news(self, state: AgentState, event, *, news=None) -> None:
         if any(not c.resolved for c in event.conflicts):
             state.limited_reasons.append(f"источники события {event.event_id} расходятся; требуется проверка, победитель не выбран")
         for ref in [event.source] + event.related_sources:
-            text = self.news.resolve_source_text(ref.source_id)
+            text = news.resolve_source_text(ref.source_id) if news is not None else state.resolved_news_texts.get(ref.source_id)
+            if text is None and news is None and state.request.corpus_revision is None:
+                text = self.news.resolve_source_text(ref.source_id)
             if ref.source_id == event.source.source_id:
                 # The request may carry a newer version than this process's pinned corpus.
                 text = event.text
@@ -219,6 +251,44 @@ class InsightAgent:
                 state.limited_reasons.append(f"нет подтверждённого текста версии источника: {ref.source_id}")
             else:
                 state.resolved_news_texts[ref.source_id] = text
+            if state.request.as_of and (ref.first_seen_at is None or ref.first_seen_at > state.request.as_of):
+                timing = "получена после выбранной даты" if ref.first_seen_at else "не имеет известного времени первого получения"
+                reason = (f"Эта версия источника «{ref.title}» {timing}; "
+                          "восстановить, что было известно на тот момент, нельзя.")
+                if reason not in state.limited_reasons:
+                    state.limited_reasons.append(reason)
+        if state.request.as_of and event.published_at is None:
+            day = publication_day(event)
+            if day is None or day == state.request.as_of.date():
+                reason = ("Точное время публикации неизвестно, поэтому нельзя подтвердить, "
+                          "что материал был доступен к выбранному времени.")
+                if reason not in state.limited_reasons:
+                    state.limited_reasons.append(reason)
+
+    def _pin_request(self, request: InsightRequest) -> tuple[InsightRequest, CorpusBundle | None]:
+        request = request.model_copy(deep=True)
+        expected = event_content_sha256(request.event)
+        if request.event_content_sha256 and request.event_content_sha256 != expected:
+            raise CorpusError("Event semantic hash does not match request", "corpus_event_mismatch")
+        bundle = None
+        if request.corpus_revision and self.corpus_registry is None:
+            raise CorpusError(f"Исходная версия материалов {request.corpus_revision} недоступна")
+        if self.corpus_registry:
+            bundle = (self.corpus_registry.get(request.corpus_revision) if request.corpus_revision
+                      else self.corpus_registry.current())
+            canonical = next((event for event in bundle.news.events if event.event_id == request.event.event_id), None)
+            if (request.corpus_revision and canonical is None) or (
+                    canonical is not None and event_content_sha256(canonical) != expected):
+                raise CorpusError("Event does not match the requested corpus revision", "corpus_event_mismatch")
+            if canonical is not None:
+                request.event = canonical  # Same semantic body; trusted observation provenance from the snapshot.
+            for ref in [request.event.source, *request.event.related_sources]:
+                text = request.event.text if ref.source_id == request.event.source.source_id else bundle.news.resolve_source_text(ref.source_id)
+                if text is None or (ref.content_sha256 and digest(text.encode()) != ref.content_sha256):
+                    raise CorpusError("Source does not match the requested corpus revision", "corpus_event_mismatch")
+            request.corpus_revision = bundle.revision
+        request.event_content_sha256 = expected
+        return request, bundle
 
     def absorb(self, state: AgentState, result) -> None:
         for item in result if isinstance(result, list) else []:
@@ -269,6 +339,7 @@ class InsightAgent:
             return insight
 
     def _run(self, request: InsightRequest) -> Insight:
+        request, bundle = self._pin_request(request)
         tracer, llm = self.new_run()
         s = self.settings
         state = AgentState(
@@ -277,9 +348,10 @@ class InsightAgent:
             signals=derive_signals(request.profile),
             missing_profile=missing_profile_data(request.profile),
         )
-        self.resolve_news(state, request.event)
-        if request.event.published_at is None:
-            state.limited_reasons.append("дата события неизвестна; окно аналитики рассчитано на текущую дату UTC")
+        self.resolve_news(state, request.event, news=bundle.news if bundle else None)
+        if publication_day(request.event) is None:
+            state.limited_reasons.append("Дата публикации события неизвестна; окно аналитики рассчитано "
+                                         + ("на выбранную дату." if request.as_of else "на текущую дату UTC."))
         tracer.emit(
             "plan",
             "start",
@@ -289,12 +361,14 @@ class InsightAgent:
                 "event_id": request.event.event_id,
                 "signals": [x.feature for x in state.signals],
                 "missing_profile": state.missing_profile,
-                "corpus_revision": self.corpus_snapshot.revision if self.corpus_snapshot else None,
-                "tool_versions": self.corpus_snapshot.tool_versions if self.corpus_snapshot else {},
+                "corpus_revision": request.corpus_revision,
+                "event_content_sha256": request.event_content_sha256,
+                "tool_versions": bundle.snapshot.tool_versions if bundle else {},
                 "source_hashes": {sid: digest(text.encode()) for sid, text in state.source_texts().items()},
                 "budget": self._budget_snapshot(),
                 "request_id": request.request_id,
                 "as_of": request.as_of.isoformat() if request.as_of else None,
+                "as_of_mode": "publication_cutoff",
                 "parent_run_id": request.parent_run_id,
                 "prompt_version": PROMPT_VERSION,
                 "git_sha": git_sha(),
@@ -303,7 +377,7 @@ class InsightAgent:
         )
         scanned: set[str] = set()
         self._scan_injection(state, tracer, scanned)
-        tools = self.tools_for(state, tracer)
+        tools = self.tools_for(state, tracer, bundle)
         issues: list[CheckIssue] = []
         iterations = 0
         try:
@@ -312,7 +386,12 @@ class InsightAgent:
             _, truncated = pack_sources(texts)
             if truncated:
                 state.limited_reasons.append("контекст разбора сокращён; полный текст сохранён в корпусе: " + ", ".join(truncated))
-            key = f"{event_fingerprint(request.event, source_texts=texts)}|{PROMPT_VERSION}|{s.llm_model_light}"
+            effective_day = bank_policy(state.event, today=(request.as_of or datetime.now(UTC)).date(),
+                cutoff=request.as_of.date() if request.as_of else None, max_age_days=s.bank_max_age_days)[1]
+            key = hashlib.sha256(json.dumps({"event": request.event_content_sha256,
+                "sources": {sid: digest(text.encode()) for sid, text in texts.items()},
+                "as_of": request.as_of.astimezone(UTC).isoformat() if request.as_of else effective_day.isoformat(),
+                "policy": PROMPT_VERSION, "model": s.llm_model_light}, sort_keys=True).encode()).hexdigest()
             cached = self.analysis_cache.get(key)
             if cached:
                 state.analysis = cached[0].model_copy(deep=True)
@@ -381,6 +460,7 @@ class InsightAgent:
             "final",
             "insight",
             {"insight_id": insight.insight_id, "status": insight.status.value, "outcome": insight.outcome.value,
+             "corpus_revision": request.corpus_revision, "event_content_sha256": request.event_content_sha256,
              "error_code": insight.error_code, "sources": [x.source_id for x in insight.sources],
              "usage": llm.usage()},
         )
@@ -502,6 +582,9 @@ class InsightAgent:
             outcome=outcome,
             request_id=state.request.request_id,
             parent_run_id=state.request.parent_run_id,
+            corpus_revision=state.request.corpus_revision,
+            event_content_sha256=state.request.event_content_sha256,
+            as_of=state.request.as_of,
             headline=e.title,
             what_happened=facts,
             why_it_matters=draft.why_it_matters,
@@ -545,6 +628,9 @@ class InsightAgent:
             error_code=code,
             request_id=state.request.request_id,
             parent_run_id=state.request.parent_run_id,
+            corpus_revision=state.request.corpus_revision,
+            event_content_sha256=state.request.event_content_sha256,
+            as_of=state.request.as_of,
             headline=e.title,
             what_happened=state.analysis.facts if state.analysis else [],
             why_it_matters=[],
