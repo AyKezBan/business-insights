@@ -13,7 +13,7 @@ from insight_agent.materials.registry import get_source, get_spec
 FIXTURES = Path(__file__).parent / "fixtures" / "materials"
 ARTICLE = "https://www.eia.gov/todayinenergy/detail.php?id=68344"
 SECOND = "https://www.eia.gov/todayinenergy/detail.php?id=68325"
-INDEX = "https://www.eia.gov/todayinenergy/recent.php"
+INDEX = "https://www.eia.gov/todayinenergy/"
 
 
 @pytest.fixture
@@ -37,6 +37,15 @@ def test_eia_refinery_rate_is_not_interest(article_html):
     assert record.material_type == "public_analysis"
     assert "cost_of_debt" not in record.topics
     assert "commodity_prices" in record.topics
+
+
+def test_eia_energy_and_capacity_topics_survive_normalization(article_html):
+    from insight_agent.materials.dedup import merge_news
+    record = eia.parse_eia_article(article_html, ARTICLE)
+    event = merge_news([], [], [record], observed_at=record.retrieved_at).events[0]
+    assert {'commodity_prices', 'input_prices', 'energy', 'production_capacity'} <= set(event.topics)
+    assert 'cost_of_debt' not in event.topics
+    assert '95%' in event.text and '70 USD/barrel' in event.text
 
 
 def test_eia_headline_inline_markup_keeps_word_boundaries(article_html, index_html):
@@ -144,6 +153,7 @@ def test_eia_index_rejects_unsafe_nested_links_and_duplicate_identity(index_html
 
 
 def test_eia_collection_limits_requests_and_uses_fixed_registry(article_html, index_html):
+    assert get_spec("eia_today").discovery_url == INDEX
     calls = []
     def handler(request):
         calls.append(str(request.url))

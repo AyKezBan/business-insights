@@ -54,7 +54,63 @@ python -m insight_agent.materials.cli link --event-id EXISTING_EVENT_ID \
   --source-id ACTIVE_SOURCE_ID --store /absolute/materials
 ```
 
-Коды: **0** — опубликовано/проверено; **2** — нужны review/данные, прежний снимок сохранён; **1** — ошибка источника, OCR или целостности. Публикация атомарна: immutable snapshot + замена `current.json`. CLI сериализует writers файловой блокировкой. Чтение и обслуживание закрепляют одну revision; после импорта нужен restart ML. Функция `publish_snapshot` требует внешней блокировки при конкурентной записи.
+Коды legacy-команд: **0** — опубликовано/проверено; **2** — нужны review/данные, прежний снимок сохранён; **1** — ошибка источника, OCR или целостности. Публикация атомарна: immutable snapshot + замена `current.json`. Все writers используют общую reentrant-блокировку `store.corpus_lock`; `publish_snapshot(root, snapshot) -> str` сам её берёт. Для read/merge/write держите эту же блокировку на протяжении всей транзакции, включая повторное чтение current. `cli.corpus_lock` сохранён как alias. Чтение и обслуживание пока закрепляют одну revision; после импорта нужен restart ML.
+
+## Несколько издателей: sync
+
+```sh
+python -m insight_agent.materials.cli sync \
+  --sources cbr_press,fns_news,eia_today --limit-per-source 5 --store /absolute/materials
+```
+
+Параметр принимает только ID фиксированного реестра, без повторов; лимит — целое число 1–100 на источник. Сбор и парсинг завершаются до writer lock. Под блокировкой команда заново читает последний snapshot, сохраняет банковский корпус и прежние новости, объединяет принятые записи и делает максимум одну публикацию. Ошибка отдельной статьи не отменяет остальные; пустой discovery не считается healthy. Все failed/blocked источники сохраняют прежние данные.
+
+Коды **sync**:
+
+| Код | status | Результат |
+| --- | --- | --- |
+| 0 | complete / unchanged | Успешная публикация либо подтверждённый неизменный корпус |
+| 1 | failed | Все источники недоступны либо ошибка корпуса/публикации/report |
+| 2 | needs_review | Нет пригодных данных; новый snapshot не публикуется |
+| 3 | partial | Часть источников/статей недоступна или пуста; полезные данные опубликованы либо доступны в прежнем корпусе |
+
+Код **3 не означает «ничего не опубликовано»**. JSON stdout содержит `previous_revision`, `published_revision` (null, если новой публикации не было), `current_revision`, `previous_token`, `catalog_token`, `health`, `sources`, `fatal_errors` и `report_path`. В `sources`, по registry ID, находятся publisher ID, status/health, article counters, last-success, item errors, active-record counts, source-version IDs и hashes. Отдельные ошибки источника не записываются в `snapshot.report.errors`; фатальная ошибка целостности по-прежнему блокирует публикацию.
+
+`runs/<run_id>.json` — неизменяемый итоговый отчёт. `last_attempt.json` атомарно указывает на него и содержит SHA-256. Отчёт сериализуется и сохраняется во временный `.pending` файл **до** публикации. Если финальная запись отчёта/last-attempt не удалась уже после замены current, команда возвращает **1**, но сообщает фактически опубликованную revision/token и не откатывает её. Если возможно, создаётся отдельный failed report с `related_run_id`; старый immutable report не меняется. При недоступном диске `report_path` может быть null. Прерванная попытка может оставить staged/orphan-файлы; current всегда указывает на целый проверенный snapshot.
+
+CLI хранит private HTTP representations в `<store>/http-cache`. Повтор посылает `If-None-Match`/`If-Modified-Since` при наличии validators; 304 используется только с проверенным cached body того же URL и parser version. Даже 304 списка приводит к повторной проверке отдельных статей. При полностью неизменных ответах сохраняются исходные retrieved_at, IDs, counts, revision и generation; новые health/check times живут только в отчёте. Свежий 200 с прежним содержимым может обновить observation time и corpus revision/generation, но не event/source-version identity. Ошибки HTTP, 403 и challenge не заменяются stale-cache успехом. Сетевые ограничения/retry остаются в общем ControlledTransport; тела и validators не сохраняются в Git.
+
+Для программного вызова с тем же кешем:
+
+```python
+from datetime import datetime, timezone
+from pathlib import Path
+from insight_agent.materials.collector import collect_sources, sync_sources
+from insight_agent.materials.registry import get_spec
+
+root = Path('/absolute/materials')
+specs = [get_spec(name) for name in ('cbr_press', 'fns_news', 'eia_today')]
+batches = collect_sources(specs, 5, cache_dir=root / 'http-cache')
+result = sync_sources(root, batches, datetime.now(timezone.utc))
+```
+
+Двухаргументный `collect_sources(specs, limit_per_source)` также поддержан: без `cache_dir` representations между вызовами не сохраняются. Для offline tests можно передать keyword `transport=ControlledTransport(...)` с fake HTTP/clock; один transport используется всеми адаптерами. Реальный EIA discovery — ровно `https://www.eia.gov/todayinenergy/`, статьи — `detail.php?id=...`; `recent.php`, archive, RSS и остальные пути под этим prefix запрещены. Исключение discovery не открывает весь subtree.
+
+## Publication token и историческое чтение
+
+`current.json` содержит один `CatalogToken(store_id, generation, revision)`. Writer закрепляет store ID в `store.json` один раз; generation растёт при любой смене опубликованного корпуса, включая bank-only/metadata updates без изменения event hash. Точный replay не меняет pointer bytes/token. Повторная публикация старой revision после другой публикации получает новую generation. `publications/<generation:020d>.json` архивирует только **предыдущий уже committed** token до смены current; неуспешная будущая публикация никогда не попадает в этот журнал.
+
+Read-only APIs:
+
+```python
+from insight_agent.materials.store import load_head, load_snapshot, load_catalog_token
+
+head = load_head(root)                 # StoreHead(snapshot, token), или None без current
+old = load_snapshot(root, revision=known_revision)
+token = load_catalog_token(root, revision=known_revision)
+```
+
+`load_head` читает pointer один раз и возвращает согласованную пару. Историческое чтение не меняет current. `load_catalog_token` возвращает последнюю committed публикацию указанной revision; для валидного, но не опубликованного v2 snapshot — KeyError. `load_snapshot(revision=...)` проверяет immutable bytes, само наличие такого файла не доказывает publication. V1 читается без записи с sentinel `store_id="legacy", generation=0`; первый явный writer publish создаёт v2/token и сохраняет исходные v1 bytes. Sentinel не используется для trusted current-catalog sync. Новая runtime hot-reload/CAS интеграция принадлежит следующему этапу T07.
 
 ## Контейнер
 

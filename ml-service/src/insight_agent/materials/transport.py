@@ -56,7 +56,10 @@ def check_url(url: str, spec: SourceSpec) -> None:
         if ('%' in path or '\\' in path or any(p in {'.', '..'} for p in path.split('/'))
                 or any(ord(c) < 32 for c in path)):
             raise ValueError('ambiguous path')
-        if not any(path.startswith(p) if p.endswith('/') else path == p for p in spec.allowed_paths):
+        # A slash-ending discovery URL admits that one page, not its whole subtree.
+        discovery = urlsplit(spec.discovery_url)
+        exact_discovery = path == (discovery.path or '/') and parts.query == discovery.query
+        if not exact_discovery and not any(path.startswith(p) if p.endswith('/') else path == p for p in spec.allowed_paths):
             raise ValueError('path')
     except (ValueError, TypeError) as exc:
         raise TransportError('URL outside source allowlist', status='blocked') from exc

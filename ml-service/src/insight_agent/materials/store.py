@@ -1,17 +1,56 @@
-"""Validated immutable snapshots and one atomic current pointer (no hot reload)."""
+"""Immutable snapshots and committed publication tokens behind one writer lock."""
 from collections import Counter
+from contextlib import contextmanager
+from dataclasses import dataclass
+import fcntl
 import json
 import os
 from pathlib import Path
 import re
 import shutil
 from tempfile import NamedTemporaryFile, mkdtemp
+import threading
+from uuid import uuid4
 
-from insight_agent.materials.artifacts import digest, safe_path
-from insight_agent.materials.models import CorpusSnapshot, SourceVersion
+from insight_agent.materials.artifacts import digest, safe_path, write_immutable
+from insight_agent.materials.models import CatalogToken, CorpusSnapshot, SourceVersion
 from insight_agent.schemas import BankFragment, NewsEvent
 
 COLLECTIONS = {"bank_fragments": BankFragment, "news": NewsEvent, "source_versions": SourceVersion}
+_locks_guard = threading.Lock()
+_locks = {}
+_held = threading.local()
+
+
+@contextmanager
+def corpus_lock(root: Path):
+    """Serialize processes and threads; nested calls in the owner thread are safe."""
+    root = Path(root).resolve()
+    key = (os.getpid(), str(root))
+    with _locks_guard:
+        lock = _locks.setdefault(key, threading.RLock())
+    with lock:
+        held = getattr(_held, 'roots', None)
+        if held is None:
+            held = _held.roots = set()
+        if key in held:
+            yield
+            return
+        root.mkdir(parents=True, exist_ok=True)
+        with (root / '.writer.lock').open('a') as stream:
+            fcntl.flock(stream, fcntl.LOCK_EX)
+            held.add(key)
+            try:
+                yield
+            finally:
+                held.remove(key)
+                fcntl.flock(stream, fcntl.LOCK_UN)
+
+
+@dataclass(frozen=True)
+class StoreHead:
+    snapshot: CorpusSnapshot
+    token: CatalogToken
 
 
 def validate_snapshot(root: Path, snapshot: CorpusSnapshot) -> None:
@@ -88,12 +127,43 @@ def _write_fsync(path: Path, data: bytes) -> None:
         os.fsync(stream.fileno())
 
 
-def publish_snapshot(root: Path, snapshot: CorpusSnapshot) -> str:
+def snapshot_revision(snapshot: CorpusSnapshot) -> str:
+    """Predict a v2 content address without publishing or mutating the input."""
+    snapshot = snapshot.model_copy(update={"schema_version": 2, "pipeline_version": "materials-v2"})
+    return digest(_json_bytes(snapshot.model_dump(mode="json", exclude={"revision"})))
+
+
+def _fsync_directory(path: Path) -> None:
+    descriptor = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def atomic_json(path: Path, value) -> None:
+    """Replace one complete JSON file; failure after replace may already be committed."""
+    data = _json_bytes(value)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with NamedTemporaryFile(dir=path.parent, prefix='.' + path.stem + '-', delete=False) as stream:
+            temporary = Path(stream.name)
+            stream.write(data)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+        _fsync_directory(path.parent)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
+def _prepare_snapshot(root: Path, snapshot: CorpusSnapshot) -> str:
     snapshot = snapshot.model_copy(update={"schema_version": 2, "pipeline_version": "materials-v2"})
     root.mkdir(parents=True, exist_ok=True)
     validate_snapshot(root, snapshot)
-    payload = snapshot.model_dump(mode="json", exclude={"revision"})
-    revision = digest(_json_bytes(payload))
+    revision = snapshot_revision(snapshot)
     folder = safe_path(root, f"snapshots/{revision}")
     folder.parent.mkdir(parents=True, exist_ok=True)
     if not folder.exists():
@@ -108,8 +178,10 @@ def publish_snapshot(root: Path, snapshot: CorpusSnapshot) -> str:
                 _write_fsync(temporary / name, data)
                 manifest["files"][name] = digest(data)
             _write_fsync(temporary / "manifest.json", _json_bytes(manifest))
+            _fsync_directory(temporary)
             try:
                 os.rename(temporary, folder)
+                _fsync_directory(folder.parent)
             except OSError:
                 if not folder.exists():
                     raise
@@ -118,18 +190,40 @@ def publish_snapshot(root: Path, snapshot: CorpusSnapshot) -> str:
                 shutil.rmtree(temporary)
     # Also checks an existing directory: never switch to a damaged prior revision.
     _load_revision(root, revision)
-    pointer = None
-    try:
-        with NamedTemporaryFile(dir=root, prefix=".current-", delete=False) as stream:
-            pointer = Path(stream.name)
-            stream.write(_json_bytes({"revision": revision}))
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.replace(pointer, root / "current.json")
-    finally:
-        if pointer is not None:
-            pointer.unlink(missing_ok=True)
     return revision
+
+
+def publish_snapshot(root: Path, snapshot: CorpusSnapshot) -> str:
+    """Publish v2 under the shared lock, retaining the legacy revision-string result.
+
+    Read/merge/write callers must hold corpus_lock around the complete transaction.
+    Only already committed old tokens enter publication history.
+    """
+    root = Path(root)
+    with corpus_lock(root):
+        head = load_head(root)
+        revision = _prepare_snapshot(root, snapshot)
+        if head and head.token.generation and head.token.revision == revision:
+            return revision
+        identity = root / 'store.json'
+        if identity.exists():
+            metadata = json.loads(identity.read_text('utf-8'))
+            if set(metadata) != {'store_id'} or not isinstance(metadata['store_id'], str) or not metadata['store_id'] or metadata['store_id'] == 'legacy':
+                raise ValueError('Invalid store identity')
+            store_id = metadata['store_id']
+        else:
+            store_id = head.token.store_id if head and head.token.generation else str(uuid4())
+            atomic_json(identity, {'store_id': store_id})
+        if head and head.token.generation and head.token.store_id != store_id:
+            raise ValueError('Current token belongs to another store')
+        generation = (head.token.generation if head else 0) + 1
+        if head and head.token.generation:
+            write_immutable(root, f'publications/{head.token.generation:020d}.json',
+                            _json_bytes(head.token.model_dump(mode='json')))
+            _fsync_directory(root / 'publications')
+        token = CatalogToken(store_id=store_id, generation=generation, revision=revision)
+        atomic_json(root / 'current.json', token.model_dump(mode='json'))
+        return revision
 
 
 def _load_revision(root: Path, revision: str) -> CorpusSnapshot:
@@ -156,9 +250,60 @@ def _load_revision(root: Path, revision: str) -> CorpusSnapshot:
     return snapshot
 
 
-def load_snapshot(root: Path) -> CorpusSnapshot:
-    pointer = json.loads((root / "current.json").read_text("utf-8"))
-    return _load_revision(root, pointer["revision"])
+def load_head(root: Path) -> StoreHead | None:
+    """Read exactly one pointer; legacy reads return a nonpersistent generation-0 sentinel."""
+    root = Path(root)
+    try:
+        pointer = json.loads((root / 'current.json').read_text('utf-8'))
+    except FileNotFoundError:
+        return None
+    if not isinstance(pointer, dict):
+        raise ValueError('Invalid current pointer')
+    if set(pointer) == {'revision'}:
+        token = CatalogToken(store_id='legacy', generation=0, revision=pointer['revision'])
+    else:
+        token = CatalogToken.model_validate(pointer)
+        if token.generation == 0 or token.store_id == 'legacy':
+            raise ValueError('Invalid committed publication token')
+        identity = json.loads((root / 'store.json').read_text('utf-8'))
+        if identity != {'store_id': token.store_id}:
+            raise ValueError('Current token belongs to another store')
+    return StoreHead(_load_revision(root, token.revision), token)
+
+
+def load_snapshot(root: Path, revision: str | None = None) -> CorpusSnapshot:
+    if revision is not None:
+        return _load_revision(Path(root), revision)
+    head = load_head(root)
+    if head is None:
+        raise FileNotFoundError('No published snapshot')
+    return head.snapshot
+
+
+def load_catalog_token(root: Path, revision: str | None = None) -> CatalogToken:
+    """Return the latest committed publication for a revision, without moving current."""
+    root = Path(root)
+    head = load_head(root)
+    if head is None:
+        raise FileNotFoundError('No published snapshot')
+    if revision is None or revision == head.token.revision:
+        return head.token
+    snapshot = _load_revision(root, revision)
+    for path in sorted((root / 'publications').glob('*.json'), reverse=True):
+        token = CatalogToken.model_validate_json(path.read_bytes())
+        if (path.name != f'{token.generation:020d}.json' or token.generation <= 0
+                or token.store_id != head.token.store_id
+                or (token.generation == head.token.generation and token != head.token)):
+            raise ValueError('Invalid committed publication history')
+        # Another writer may advance after our single head read. Those publications
+        # are outside this read's committed horizon, not evidence of corruption.
+        if token.generation > head.token.generation:
+            continue
+        if token.revision == revision:
+            return token
+    if snapshot.schema_version == 1:
+        return CatalogToken(store_id='legacy', generation=0, revision=revision)
+    raise KeyError('Revision was not published in this store')
 
 
 def resolve_pdf(root: Path, snapshot: CorpusSnapshot, doc_id: str) -> Path:

@@ -33,7 +33,7 @@ def _article_identity(url: str) -> str:
 def _check_index(url: str) -> None:
     check_url(url, get_spec("eia_today"))
     parts = urlsplit(url)
-    if parts.path != "/todayinenergy/recent.php" or parts.query:
+    if parts.path != urlsplit(get_spec("eia_today").discovery_url).path or parts.query:
         raise TransportError("EIA recent index identity changed", status="blocked")
 
 
@@ -128,6 +128,10 @@ def parse_eia_article(html: bytes, url: str) -> RawNews:
         topics.append("commodity_prices")
     if re.search(r"\b(?:refiner\w*|refining|fuel|gasoline|diesel|electricity)\b", topic_text):
         topics.append("input_prices")
+    if re.search(r"\b(?:energy|electricity|refiner\w*|refining|fuel|oil|petroleum|natural gas|coal|crude|gasoline|diesel)\b", topic_text):
+        topics.append("energy")
+    if re.search(r"\b(?:(?:refinery|refining|production|capacity)\s+utilization|(?:production|refinery|refining)\s+capacity)\b", topic_text):
+        topics.append("production_capacity")
     # A page canonical may name the site home or a different article. The fetched
     # article ID is authoritative; metadata never replaces that verified identity.
     article_url = urlsplit(url)._replace(fragment="").geturl()
