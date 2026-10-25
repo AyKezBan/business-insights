@@ -116,9 +116,30 @@ def read_saved_news(path: Path) -> list[RawNews]:
 
 
 def classify_topics(text: str) -> list[str]:
-    rules = {"cost_of_debt": ("ставк", "кредит", "rate"), "fx": ("валют", "курс", "рубл"),
-        "input_prices": ("бензин", "топлив", "цен"), "domestic_demand": ("спрос", "потреблен", "розниц"),
-        "labor_costs": ("зарплат", "труда"), "regulation": ("регулир", "норматив", "тариф"),
-        "counterparty_risk": ("рейтинг", "банкрот"), "commodity_prices": ("нефть", "золот", "сталь")}
-    lowered = text.casefold()
-    return [topic for topic, terms in rules.items() if any(term in lowered for term in terms)]
+    import re
+
+    rules = {
+        # A rate needs a financial qualifier; tax and utilization rates are not debt.
+        "cost_of_debt": (
+            r"\b(?:ключев\w*|процентн\w*)\s+ставк\w*|\bкредит\w*"
+            r"|\b(?:interest|key|policy|lending|loan|credit|borrowing)[ -]+rates?\b"
+            r"|\b(?:borrowing|credit|financing)[ -]+costs?\b"
+        ),
+        "fx": r"валют|курс|рубл",
+        "input_prices": r"бензин|топлив|цен|\b(?:fuel|electricity|input|energy|gas|oil)\s+(?:costs?|prices?)\b",
+        "domestic_demand": r"спрос|потреблен|розниц",
+        "labor_costs": r"зарплат|труда",
+        "regulation": r"регулир|норматив|тариф",
+        "counterparty_risk": r"рейтинг|банкрот",
+        "commodity_prices": r"нефть|золот|сталь",
+        "tax": r"налог|\b(?:ндс|ндфл|tax(?:es|ation)?|vat)\b",
+        "reporting": r"отчетност|декларац|\b(?:reporting|filing|tax returns?)\b",
+        "deadlines": r"срок\w*\s+(?:уплат|подач|представлен|сдач)|\b(?:deadlines?|due dates?)\b",
+        "energy": r"энерг|электр|нефтепереработ|топлив|бензин|\b(?:energy|electricity|refiner(?:y|ies)|fuel|natural gas|oil)\b",
+        "production_capacity": (
+            r"производственн\w*\s+мощност|загрузк\w*\s+(?:производственн\w*\s+)?мощност"
+            r"|\b(?:production capacity|refinery utilization|capacity utilization)\b"
+        ),
+    }
+    lowered = " ".join(text.casefold().replace("ё", "е").split())
+    return [topic for topic, pattern in rules.items() if re.search(pattern, lowered)]

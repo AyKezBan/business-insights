@@ -109,6 +109,22 @@ def test_eia_archive_path_is_not_part_of_reviewed_policy():
     assert seen == []
 
 
+@pytest.mark.parametrize('url', [
+    'https://www.eia.gov/todayinenergy/archive.php',
+    'https://www.eia.gov/todayinenergy/recent.php',
+    'https://www.eia.gov/todayinenergy/other/',
+    'https://www.eia.gov/todayinenergy/?id=68344',
+    'https://www.eia.gov/rss/todayinenergy.xml',
+])
+def test_exact_eia_discovery_exception_does_not_open_its_subtree(url):
+    from insight_agent.materials.transport import TransportError
+    seen = []
+    transport, spec, _ = setup_transport(lambda request: seen.append(str(request.url)) or httpx.Response(200))
+    with pytest.raises(TransportError):
+        transport.get(url, spec=spec)
+    assert seen == []
+
+
 def test_redirect_budget_allows_four_hops_and_stops_fifth():
     from insight_agent.materials.transport import TransportError
     seen=[]
