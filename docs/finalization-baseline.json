@@ -4,11 +4,12 @@
     "origin/develop": "e105b7cda044b9ea69b0e37e3394decc1f59b014",
     "origin/feature/ml-finalize": "416f24fcce459090580fdb9cb4a036c335621b14",
     "origin/feature/d09-d10-clarity": "7c59dd0a7073ee0eb5bdee4f53599eacfe2bf221",
-    "origin/feature/full-stack-compose": "b177c7dcdf3225a99c5e99c034e5758762d28649",
-    "HEAD": "6f85b22186d235eef15c01db32796543568e1161"
+    "origin/feature/full-stack-compose": "b177c7dcdf3225a99c5e99c034e5758762d28649"
   },
   "source_policy": "approved CBR/FNS/EIA; adapters T03/T04 pending",
   "contract_status": "T02/T08 pending; Java currently pinned to7cbd690",
   "corpus_policy": "v1 remains readable; v2 publication/token implemented in following tasks",
-  "owner": "coordinator; user approved all12tasks"
+  "owner": "coordinator; user approved all12tasks",
+  "integrated_code_head": "6f85b22186d235eef15c01db32796543568e1161",
+  "manifest_note": "integrated_code_head records the code merge before the documentation commit; it is not the commit containing this file"
 }
