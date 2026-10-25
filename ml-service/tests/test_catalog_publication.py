@@ -166,3 +166,34 @@ def test_malformed_pointer_is_an_explicit_validation_error(tmp_path, pointer):
     (tmp_path / 'current.json').write_text(json.dumps(pointer))
     with pytest.raises(ValueError, match='pointer'):
         store.load_head(tmp_path)
+
+
+def test_snapshot_parent_fsync_failure_blocks_publication_and_existing_directory_retry(tmp_path, monkeypatch):
+    root = tmp_path.resolve()
+    store.publish_snapshot(root, CorpusSnapshot())
+    before = (root / 'current.json').read_bytes()
+    old_token = store.load_catalog_token(root)
+    candidate = CorpusSnapshot(tool_versions={'review-probe': 'new'})
+    revision = store.snapshot_revision(candidate)
+    fsync = store._fsync_directory
+    failures = []
+    def fail_snapshot_parent(path):
+        if path == root / 'snapshots':
+            failures.append(path)
+            raise OSError('snapshot parent durability barrier failed')
+        return fsync(path)
+    with monkeypatch.context() as patch:
+        patch.setattr(store, '_fsync_directory', fail_snapshot_parent)
+        for _ in range(2):
+            with pytest.raises(OSError, match='durability barrier'):
+                store.publish_snapshot(root, candidate)
+            assert (root / 'snapshots' / revision).is_dir()
+            assert (root / 'current.json').read_bytes() == before
+            assert store.load_catalog_token(root) == old_token
+            with pytest.raises(KeyError, match='published'):
+                store.load_catalog_token(root, revision=revision)
+    assert failures == [root / 'snapshots', root / 'snapshots']
+    assert store.publish_snapshot(root, candidate) == revision
+    token = store.load_catalog_token(root)
+    assert token.generation == old_token.generation + 1
+    assert token.store_id == old_token.store_id

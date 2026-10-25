@@ -161,19 +161,19 @@ def test_cbr_legacy_batch_preserves_blocked_status():
 
 def test_cbr_new_adapter_keeps_final_url_raw_body_and_publication_provenance():
     from insight_agent.materials.registry import get_source
-    rss = b'<rss><channel><item><title>Release</title><link>https://www.cbr.ru/press/old/</link><pubDate>Sat, 24 Oct 2026 12:00:00 GMT</pubDate></item></channel></rss>'
+    rss = b'<rss><channel><item><title>Release</title><link>https://www.cbr.ru/press/old/?file=one</link><pubDate>Sat, 24 Oct 2026 12:00:00 GMT</pubDate></item></channel></rss>'
     body = b'<article><p>Original  text.</p></article>'
     def respond(r):
         if r.url.path == '/rss/RssPress':
             return httpx.Response(200, content=rss)
-        if r.url.path == '/press/old/':
-            return httpx.Response(302, headers={'location':'/press/new/?file=one'})
+        if r.url.host == 'www.cbr.ru' and r.url.path == '/press/old/':
+            return httpx.Response(302, headers={'location':'https://cbr.ru/press/old/?file=one&utm_source=canonical'})
         return httpx.Response(200, content=body)
     transport, _, _ = setup_transport(respond)
     batch = get_source('cbr_press', transport).collect(1)
     record, = batch.records
-    assert record.url == 'https://www.cbr.ru/press/new/?file=one'
-    assert record.discovered_url == 'https://www.cbr.ru/press/old/'
+    assert record.url == 'https://cbr.ru/press/old/?file=one&utm_source=canonical'
+    assert record.discovered_url == 'https://www.cbr.ru/press/old/?file=one'
     assert record.raw_body == body.decode()
     assert record.raw_publication == 'Sat, 24 Oct 2026 12:00:00 GMT'
     assert record.timezone_provenance == 'explicit_offset'

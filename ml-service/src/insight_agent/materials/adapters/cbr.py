@@ -1,10 +1,19 @@
 """CBR collection isolates item failures; the old fetch API remains all-or-error."""
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 
+from insight_agent.materials.dedup import canonicalize_url
 from insight_agent.materials.models import RawNews
 from insight_agent.materials.news import extract_cbr_article, parse_rss
 from insight_agent.materials.sources import FetchBatch, SourceSpec
 from insight_agent.materials.transport import TransportError, check_url
+
+
+def _article_identity(url: str) -> tuple[str, str, str]:
+    # Both CBR host spellings are in the registry. Reuse corpus normalization for
+    # known tracking parameters only; keep the full path and significant query.
+    parts = urlsplit(canonicalize_url(url))
+    return parts.hostname.removeprefix('www.'), parts.path, parts.query
 
 
 class CbrNewsSource:
@@ -40,6 +49,8 @@ class CbrNewsSource:
                 check_url(item['url'], self.spec)
                 response = self.transport.get(item['url'], spec=self.spec)
                 check_url(response.url, self.spec)
+                if _article_identity(response.url) != _article_identity(item['url']):
+                    raise TransportError('CBR article identity changed during redirect', status='blocked')
                 if response.status_code == 304:
                     continue
                 body = response.body.decode('utf-8-sig')
