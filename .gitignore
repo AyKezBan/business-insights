@@ -36,3 +36,6 @@ dist/
 /ml-service/data/
 
 /materials-review/
+
+# Исходные CSV импорта (хранятся локально)
+/data-import/source-data/*.csv
