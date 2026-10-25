@@ -1,0 +1,45 @@
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  application:
+    name: business-insights-backend
+  datasource:
+    url: ${DB_JDBC_URL:jdbc:postgresql://localhost:5432/business_insights}
+    username: ${DB_USER:business_insights}
+    password: ${DB_PASSWORD:}
+    hikari:
+      maximum-pool-size: 8
+      connection-timeout: 5000
+  flyway:
+    default-schema: backend_api
+    schemas: backend_api
+    create-schemas: true
+  jdbc:
+    template:
+      query-timeout: 15s
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+      use-big-decimal-for-floats: true
+  mvc:
+    problemdetails:
+      enabled: false
+  lifecycle:
+    timeout-per-shutdown-phase: 10s
+backend:
+  ml:
+    base-url: ${ML_BASE_URL:http://localhost:8000}
+    connect-timeout: 5s
+    request-timeout: ${ML_REQUEST_TIMEOUT:180s}
+    max-response-bytes: 4194304
+  jobs:
+    workers: 2
+    queue-capacity: 16
+    shutdown-wait: 5s
+  auth:
+    demo-token: ${BACKEND_DEMO_TOKEN:}
+    person-id: ${BACKEND_DEMO_PERSON_ID:F_1}
