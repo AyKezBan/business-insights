@@ -1,4 +1,5 @@
 """Semantic event identity, independent from corpus publication and observation times."""
+from datetime import UTC
 import hashlib
 import json
 
@@ -8,6 +9,8 @@ from insight_agent.schemas import NewsEvent, Sha256
 def event_content_sha256(event: NewsEvent) -> Sha256:
     payload = event.model_dump(mode='json', include={
         'title', 'text', 'published_at', 'published_date', 'published_precision', 'topics', 'conflicts'})
+    if event.published_at:
+        payload['published_at'] = event.published_at.astimezone(UTC).isoformat()
     payload['topics'] = sorted(set(event.topics))
     payload['sources'] = sorted([
         {'source_id': ref.source_id, 'content_sha256': ref.content_sha256, 'url': ref.url}

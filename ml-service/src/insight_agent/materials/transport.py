@@ -117,20 +117,22 @@ class ControlledTransport:
                             continue
                         if response.status_code in (401, 403):
                             raise TransportError(f'Source access denied: {response.status_code}', status='blocked')
+                        # Challenges can return transient HTTP statuses. Inspect bounded decoded
+                        # content before deciding to retry or turn a status into a failure.
+                        chunks, total = [], 0
+                        for chunk in response.iter_bytes(chunk_size=65536):
+                            total += len(chunk)
+                            if total > spec.limits.max_bytes:
+                                raise TransportError('Source decoded size limit exceeded')
+                            chunks.append(chunk)
+                        body = b''.join(chunks)
+                        head = body[:65536].lower()
+                        if any(marker in head for marker in (b'cf-chl-', b'<title>just a moment', b'<title>access denied', b'g-recaptcha', b'hcaptcha.com/1/api')):
+                            raise TransportError('Source challenge denied', status='blocked')
                         if response.status_code in (408, 429, 500, 502, 503, 504) and retries < spec.limits.retries:
                             retry_delay = self._retry_delay(response.headers.get('retry-after'), spec)
                         else:
                             response.raise_for_status()
-                            chunks, total = [], 0
-                            for chunk in response.iter_bytes(chunk_size=65536):
-                                total += len(chunk)
-                                if total > spec.limits.max_bytes:
-                                    raise TransportError('Source decoded size limit exceeded')
-                                chunks.append(chunk)
-                            body = b''.join(chunks)
-                            head = body[:65536].lower()
-                            if any(marker in head for marker in (b'cf-chl-', b'<title>just a moment', b'<title>access denied', b'g-recaptcha', b'hcaptcha.com/1/api')):
-                                raise TransportError('Source challenge denied', status='blocked')
                             return FetchResponse(body, str(response.url), response.status_code, dict(response.headers))
                 except (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError) as exc:
                     if retries >= spec.limits.retries:

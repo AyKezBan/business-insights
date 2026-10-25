@@ -1,11 +1,15 @@
-from datetime import UTC, date as Date, datetime
+from datetime import UTC, date as Date, datetime, timedelta, timezone
 from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 Sha256 = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
+
+UtcOffsetSeconds = Annotated[int, Field(gt=-86400, lt=86400)]
+TimezoneProvenance = Literal["explicit_offset", "source_policy", "unknown"]
 
 PublicationPrecision = Literal["timestamp", "date", "unknown"]
 MaterialType = Literal["news_article", "public_analysis", "publisher_annotation", "indicator"]
@@ -124,6 +128,22 @@ class CompanyProfile(BaseModel):
         return self
 
 
+def source_publication_time(published_at: datetime, *, source_utc_offset_seconds: int | None = None,
+                            source_timezone: str | None = None) -> datetime:
+    """Project an instant onto the source clock using retained evidence, not a UTC day guess."""
+    if source_timezone:
+        try:
+            localized = published_at.astimezone(ZoneInfo(source_timezone))
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("Unknown source timezone") from exc
+        if source_utc_offset_seconds is not None and localized.utcoffset().total_seconds() != source_utc_offset_seconds:
+            raise ValueError("Source offset does not match source timezone at publication")
+        return localized
+    if source_utc_offset_seconds is not None:
+        return published_at.astimezone(timezone(timedelta(seconds=source_utc_offset_seconds)))
+    return published_at
+
+
 class SourceRef(BaseModel):
     source_id: str
     kind: SourceKind
@@ -141,6 +161,10 @@ class SourceRef(BaseModel):
     language: str | None = None
     published_date: Date | None = None
     published_precision: PublicationPrecision | None = None
+    raw_publication: str | None = None
+    source_timezone: str | None = None
+    source_utc_offset_seconds: UtcOffsetSeconds | None = None
+    timezone_provenance: TimezoneProvenance | None = None
     first_seen_at: AwareDatetime | None = None
     retrieved_at: AwareDatetime | None = None
     statement_type: str | None = None
@@ -148,6 +172,12 @@ class SourceRef(BaseModel):
     valid_until: Date | None = None
     rights_url: str | None = None
     translation_attribution: str | None = None
+
+    @model_validator(mode="after")
+    def publication_day_consistency(self):
+        if self.published_date and self.date and self.published_date != self.date:
+            raise ValueError("Source reference publication day declarations disagree")
+        return self
 
 
 class SourceConflict(BaseModel):
@@ -170,12 +200,18 @@ class NewsEvent(BaseModel):
 
     @model_validator(mode="after")
     def external_source_kind(self):
+        if self.published_date and self.source.published_date and self.published_date != self.source.published_date:
+            raise ValueError("Event and primary source publication day declarations disagree")
         if self.published_precision is not None:
             expected = "timestamp" if self.published_at else "date" if self.published_date else "unknown"
             if self.published_precision != expected:
                 raise ValueError("Publication precision does not match event date/time")
-        if self.published_at and self.published_date and self.published_date != self.published_at.date():
-            raise ValueError("Publication day does not match event timestamp")
+        if self.published_at and self.published_date:
+            source_time = source_publication_time(self.published_at,
+                source_utc_offset_seconds=self.source.source_utc_offset_seconds,
+                source_timezone=self.source.source_timezone)
+            if self.published_date != source_time.date():
+                raise ValueError("Publication day does not match event source timestamp")
         if any(ref.kind != SourceKind.news for ref in [self.source] + self.related_sources):
             raise ValueError("NewsEvent references must have kind=news; bank evidence is retrieved separately")
         return self

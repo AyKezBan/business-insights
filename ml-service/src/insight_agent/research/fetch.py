@@ -14,9 +14,9 @@ class OpenSourceError(RuntimeError):
 
 class SafeFetcher:
     def __init__(self, client: httpx.Client, hosts: frozenset[str] = ALLOWED_HOSTS, max_bytes: int = MAX_BYTES,
-                 timeout: float = 10.0):
+                 timeout: float = 10.0, *, transport: ControlledTransport | None = None):
         self.client, self.hosts, self.max_bytes, self.timeout = client, hosts, max_bytes, timeout
-        self.transport = ControlledTransport(client)
+        self.transport = transport or ControlledTransport(client)
         self.spec = SourceSpec(source_id='cbr_research', publisher_id='cbr', hosts=tuple(sorted(hosts)),
             allowed_paths=('/',), discovery_url='https://www.cbr.ru/rss/RssPress',
             parser_version='cbr-research-v1', language='ru', material_type='indicator',

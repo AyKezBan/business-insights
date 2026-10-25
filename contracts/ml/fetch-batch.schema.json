@@ -62,6 +62,20 @@
           "default": null,
           "title": "Source Timezone"
         },
+        "source_utc_offset_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 86400,
+              "exclusiveMinimum": -86400,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Utc Offset Seconds"
+        },
         "timezone_provenance": {
           "default": "unknown",
           "enum": [

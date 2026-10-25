@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
-from insight_agent.schemas import BankFragment, Completeness, MaterialType, NewsEvent, PublicationPrecision, Sha256
+from insight_agent.schemas import BankFragment, Completeness, MaterialType, NewsEvent, PublicationPrecision, Sha256, TimezoneProvenance, UtcOffsetSeconds, source_publication_time
 
 PageStatus = Literal["ready", "empty", "needs_review", "failed"]
 ExtractionMethod = Literal["text", "tesseract"]
@@ -55,7 +55,8 @@ class SourceMetadata(BaseModel):
     published_precision: PublicationPrecision = "unknown"
     raw_publication: str | None = None
     source_timezone: str | None = None
-    timezone_provenance: Literal["explicit_offset", "source_policy", "unknown"] = "unknown"
+    source_utc_offset_seconds: UtcOffsetSeconds | None = None
+    timezone_provenance: TimezoneProvenance = "unknown"
     publisher_id: str | None = None
     adapter_id: str | None = None
     discovered_url: str | None = None
@@ -77,9 +78,15 @@ class SourceMetadata(BaseModel):
         if "published_precision" in self.model_fields_set and self.published_precision != expected:
             raise ValueError("Publication precision does not match source date/time")
         if self.published_at:
-            if self.published_date and self.published_date != self.published_at.date():
+            source_time = source_publication_time(self.published_at,
+                source_utc_offset_seconds=self.source_utc_offset_seconds, source_timezone=self.source_timezone)
+            if self.published_date and self.published_date != source_time.date():
                 raise ValueError("Publication day does not match source timestamp")
-            self.published_date = self.published_at.date()
+            self.published_date = source_time.date()
+            # Retain a known source offset for UTC-normalizing consumers. A legacy UTC
+            # timestamp with unknown provenance does not reveal the original source offset.
+            if self.source_timezone or self.timezone_provenance == "explicit_offset" or source_time.utcoffset().total_seconds() != 0:
+                self.source_utc_offset_seconds = int(source_time.utcoffset().total_seconds())
         self.published_precision = expected
         return self
 

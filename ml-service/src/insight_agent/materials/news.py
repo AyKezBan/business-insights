@@ -30,15 +30,20 @@ def parse_rss(xml: bytes) -> list[dict]:
         if not url or not title:
             continue
         published = None
+        published_date = None
+        source_offset = None
         raw_date = item.findtext("pubDate")
         if raw_date:
             try:
                 candidate = parsedate_to_datetime(raw_date)
                 if candidate.tzinfo is not None:
                     published = candidate.astimezone(timezone.utc)
+                    published_date = candidate.date()
+                    source_offset = int(candidate.utcoffset().total_seconds())
             except (TypeError, ValueError, OverflowError):
                 pass
         result.append({"url": url, "title": title, "published_at": published,
+                       "published_date": published_date, "source_utc_offset_seconds": source_offset,
                        "raw_publication": raw_date,
                        "timezone_provenance": "explicit_offset" if published else "unknown"})
     return result

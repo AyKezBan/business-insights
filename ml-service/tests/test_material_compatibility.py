@@ -24,6 +24,7 @@ def test_v1_hash_and_date_precision():
     assert old.source_versions[0].content_sha256 == 'fcafe7a8737337650938feeae63bc9f29419e8a25db2d4999ad18715dc264fd5'
     assert old.source_versions[0].published_precision == 'timestamp'
     assert old.source_versions[0].published_date == date(2026, 10, 24)
+    assert old.source_versions[0].source_utc_offset_seconds is None
 
 
 def test_old_saved_batch_loads_without_new_fields():
@@ -169,3 +170,73 @@ def test_source_timezone_provenance_requires_named_timezone():
     with pytest.raises(ValidationError, match='timezone'):
         RawNews(url='https://www.cbr.ru/press/a', title='x', text='body', retrieved_at=NOW,
                 published_at=NOW, timezone_provenance='source_policy')
+
+
+def test_cbr_midnight_offset_retains_source_day_through_merge_and_utc_json(tmp_path):
+    from insight_agent.materials.news import parse_rss
+    from insight_agent.schemas import NewsEvent
+    rss = b'<rss><channel><item><title>Release</title><link>https://www.cbr.ru/press/1/</link><pubDate>Mon, 26 Oct 2026 00:30:00 +0300</pubDate></item></channel></rss>'
+    item, = parse_rss(rss)
+    raw = RawNews(**item, text='body', retrieved_at=NOW)
+    assert raw.published_at == datetime(2026, 10, 25, 21, 30, tzinfo=UTC)
+    assert raw.published_date == date(2026, 10, 26)
+    assert raw.source_utc_offset_seconds == 10800
+    merged = merge_news([], [], [raw], observed_at=NOW)
+    event, = merged.events
+    assert event.published_date == event.source.date == date(2026, 10, 26)
+    assert event.source.source_utc_offset_seconds == 10800
+    assert event.source.timezone_provenance == 'explicit_offset'
+    assert event.source.raw_publication == 'Mon, 26 Oct 2026 00:30:00 +0300'
+    # Java Instant changes timestamp representation to UTC, without changing its instant.
+    event_payload = event.model_dump(mode='json')
+    event_payload['published_at'] = '2026-10-25T21:30:00Z'
+    restored = NewsEvent.model_validate_json(json.dumps(event_payload))
+    assert restored.published_date == restored.source.date == date(2026, 10, 26)
+    raw_payload = raw.model_dump(mode='json')
+    raw_payload['published_at'] = '2026-10-25T21:30:00Z'
+    assert RawNews.model_validate_json(json.dumps(raw_payload)).published_date == date(2026, 10, 26)
+    publish_snapshot(tmp_path, CorpusSnapshot(news=[restored], source_versions=merged.versions))
+    assert load_snapshot(tmp_path).news[0].published_date == date(2026, 10, 26)
+    event_payload['published_date'] = '2026-10-24'
+    with pytest.raises(ValidationError, match='day'):
+        NewsEvent.model_validate_json(json.dumps(event_payload))
+    raw_payload['published_date'] = '2026-10-24'
+    with pytest.raises(ValidationError, match='day'):
+        RawNews.model_validate_json(json.dumps(raw_payload))
+
+
+def test_source_policy_zone_applies_at_instant_and_rejects_false_offset():
+    raw = RawNews(url='https://www.cbr.ru/press/1/', title='x', text='body', retrieved_at=NOW,
+        published_at='2026-10-25T21:30:00Z', published_date='2026-10-26',
+        timezone_provenance='source_policy', source_timezone='Europe/Moscow')
+    assert raw.published_date == date(2026,10,26)
+    assert raw.source_utc_offset_seconds == 10800
+    invalid = raw.model_dump()
+    invalid['source_utc_offset_seconds'] = 0
+    with pytest.raises(ValidationError, match='offset'):
+        RawNews.model_validate(invalid)
+
+
+def test_offset_record_utc_serialization_preserves_semantic_identity():
+    from insight_agent.materials.identity import event_content_sha256
+    from insight_agent.schemas import NewsEvent
+    raw = RawNews(url='https://www.cbr.ru/press/1/', title='x', text='body', retrieved_at=NOW,
+                  published_at='2026-10-26T00:30:00+03:00', timezone_provenance='explicit_offset')
+    first = merge_news([], [], [raw], observed_at=NOW)
+    payload = raw.model_dump(mode='json')
+    payload['published_at'] = '2026-10-25T21:30:00Z'
+    normalized = RawNews.model_validate_json(json.dumps(payload))
+    second = merge_news(first.events, first.versions, [normalized], observed_at=NOW)
+    assert len(second.versions) == 1
+    event_payload = first.events[0].model_dump(mode='json')
+    event_payload['published_at'] = '2026-10-25T21:30:00Z'
+    assert event_content_sha256(NewsEvent.model_validate_json(json.dumps(event_payload))) == event_content_sha256(first.events[0])
+
+
+def test_conflicting_source_reference_publication_days_are_rejected():
+    from insight_agent.schemas import NewsEvent, SourceRef
+    with pytest.raises(ValidationError, match='day'):
+        SourceRef(source_id='s', title='x', kind='news', date='2026-10-25', published_date='2026-10-26')
+    source = SourceRef(source_id='s', title='x', kind='news', date='2026-10-25', published_date='2026-10-25')
+    with pytest.raises(ValidationError, match='day'):
+        NewsEvent(event_id='e', title='x', text='body', published_date='2026-10-26', published_precision='date', source=source)

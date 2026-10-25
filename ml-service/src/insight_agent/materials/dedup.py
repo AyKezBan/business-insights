@@ -1,6 +1,6 @@
 """Conservative exact deduplication; revisions never erase prior source texts."""
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 import re
 import unicodedata
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -31,6 +31,7 @@ def source_ref(version: SourceVersion) -> SourceRef:
         **{key: getattr(version, key) for key in (
             "publisher_id", "adapter_id", "material_type", "completeness", "language",
             "published_date", "published_precision", "first_seen_at", "retrieved_at",
+            "raw_publication", "source_timezone", "source_utc_offset_seconds", "timezone_provenance",
             "rights_url", "translation_attribution")})
 
 
@@ -60,9 +61,13 @@ def events_from_versions(versions: list[SourceVersion], previous: list[NewsEvent
 
 def _semantic_metadata(value: SourceMetadata) -> dict:
     # Parser/raw rendering/observation changes alone do not create new source versions.
-    return value.model_dump(mode="json", include={
-        "published_at", "published_date", "published_precision", "publisher_id", "adapter_id",
+    metadata = value.model_dump(mode="json", include={
+        "published_at", "published_date", "published_precision", "source_timezone", "source_utc_offset_seconds",
+        "publisher_id", "adapter_id",
         "language", "material_type", "completeness", "rights_url", "translation_attribution", "topics"})
+    if value.published_at:
+        metadata["published_at"] = value.published_at.astimezone(UTC).isoformat()
+    return metadata
 
 
 def merge_news(existing: list[NewsEvent], versions: list[SourceVersion], incoming: list[RawNews],

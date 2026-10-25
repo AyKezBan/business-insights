@@ -5,14 +5,7 @@ import httpx
 import pytest
 
 from insight_agent.materials import sources
-
-
-class Clock:
-    now = 0.0
-    def __call__(self):
-        return self.now
-    def sleep(self, seconds):
-        self.now += seconds
+from http_fakes import FakeClock as Clock
 
 
 def setup_transport(handler):
@@ -217,3 +210,26 @@ def test_single_transport_serializes_requests_to_same_host():
         finally:
             release_first.set()
         assert first.result().body == second.result().body == b'ok'
+
+
+@pytest.mark.parametrize('status', [429, 500, 503])
+def test_transient_challenge_is_blocked_before_retry(status):
+    from insight_agent.materials.transport import TransportError
+    seen = []
+    transport, spec, clock = setup_transport(lambda r: seen.append(1) or httpx.Response(
+        status, content=b'<html><title>Just a moment...</title><script src="cf-chl-test"></script></html>'))
+    with pytest.raises(TransportError) as exc:
+        transport.get(spec.discovery_url, spec=spec)
+    assert exc.value.status == 'blocked'
+    assert seen == [1] and clock() == 0
+
+
+def test_legacy_research_can_share_transport_and_fake_spacing_with_adapter():
+    from insight_agent.research.fetch import SafeFetcher
+    from insight_agent.materials.registry import get_spec
+    seen = []
+    transport, _, clock = setup_transport(lambda r: seen.append((clock(), r.url.path)) or httpx.Response(200, content=b'ok'))
+    fetcher = SafeFetcher(transport.client, transport=transport)
+    assert fetcher.get('https://www.cbr.ru/hd_base/KeyRate/') == b'ok'
+    transport.get('https://www.cbr.ru/press/item/', spec=get_spec('cbr_press'))
+    assert seen == [(0, '/hd_base/KeyRate/'), (2, '/press/item/')]

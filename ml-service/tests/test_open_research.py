@@ -4,6 +4,8 @@ from decimal import Decimal
 import httpx
 import pytest
 
+from http_fakes import fake_http_transport
+
 from insight_agent.research.fetch import OpenSourceError, SafeFetcher
 from insight_agent.research.indicators import ParseError, fx_document, key_rate_document, parse_fx_daily, parse_key_rate
 from insight_agent.research.plan import build_plan, currencies_for
@@ -57,10 +59,14 @@ class Site:
         return httpx.Response(404)
 
 
+def safe_fetcher(client, **kwargs):
+    return SafeFetcher(client, transport=fake_http_transport(client), **kwargs)
+
+
 def research(site=None, cache=None) -> tuple[OpenResearch, Site]:
     site = site or Site()
     client = httpx.Client(transport=httpx.MockTransport(site))
-    return OpenResearch(SafeFetcher(client), cache or TtlCache(clock=lambda: NOW), clock=lambda: NOW), site
+    return OpenResearch(safe_fetcher(client), cache or TtlCache(clock=lambda: NOW), clock=lambda: NOW), site
 
 
 def test_key_rate_text_has_exact_values_dates_and_change():
@@ -104,7 +110,7 @@ def test_xml_with_entities_is_rejected():
 @pytest.mark.parametrize("url", ["http://www.cbr.ru/rss/RssPress", "https://evil.example/rss", "https://www.cbr.ru:8443/x",
                                  "https://user:pw@www.cbr.ru/x"])
 def test_fetcher_refuses_urls_outside_the_allowlist(url):
-    fetcher = SafeFetcher(httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, content=b"x"))))
+    fetcher = safe_fetcher(httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, content=b"x"))))
     with pytest.raises(OpenSourceError):
         fetcher.get(url)
 
@@ -112,10 +118,10 @@ def test_fetcher_refuses_urls_outside_the_allowlist(url):
 def test_fetcher_refuses_redirect_to_another_host_and_big_bodies():
     redirect = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(302, headers={"location": "https://127.0.0.1/admin"})))
     with pytest.raises(OpenSourceError):
-        SafeFetcher(redirect).get("https://www.cbr.ru/a")
+        safe_fetcher(redirect).get("https://www.cbr.ru/a")
     big = httpx.Client(transport=httpx.MockTransport(lambda r: httpx.Response(200, content=b"x" * 100)))
     with pytest.raises(OpenSourceError):
-        SafeFetcher(big, max_bytes=10).get("https://www.cbr.ru/a")
+        safe_fetcher(big, max_bytes=10).get("https://www.cbr.ru/a")
 
 
 def test_plan_follows_the_clients_profile():
