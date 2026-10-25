@@ -7,6 +7,7 @@ import shutil
 from threading import Event
 
 import httpx
+import pytest
 from fastapi.testclient import TestClient
 
 from fakes import ScriptedClient, analysis_reply, draft_reply
@@ -437,3 +438,105 @@ def test_model_naive_news_cutoff_cannot_break_or_widen_request_cutoff(tmp_path, 
     insight = build_agent(settings, provider).run(runtime_request(request_, snapshot, as_of="2026-10-23T14:00:00Z"))
     assert insight.status != "failed"
     assert retrieved_ids(settings, insight, "search_news") == {"evt_related_alpha"}
+
+
+@pytest.mark.parametrize(("published", "eligible"), [
+    ("Mon, 26 Oct 2026 11:00:00 +0000", True),
+    ("Mon, 26 Oct 2026 12:00:00 +0000", True),
+    ("Mon, 26 Oct 2026 16:00:00 +0000", False),
+    ("Mon, 26 Oct 2026 14:30:00 +0300", True),
+    ("Mon, 26 Oct 2026 16:00:00 +0300", False),
+])
+def test_open_press_respects_full_cutoff_before_retaining_evidence(make_agent, request_, published, eligible):
+    from insight_agent.schemas import Products
+    cutoff = datetime(2026, 10, 26, 12, tzinfo=UTC)
+    acquired = datetime(2026, 10, 26, 18, tzinfo=UTC)
+    article_url = "https://www.cbr.ru/press/pr/cutoff/"
+    article_text = "Кредитные условия: отдельный маркер проверяемого релиза."
+    feed = (f"<rss><channel><item><title>Кредитные условия обновлены</title>"
+            f"<link>{article_url}</link><pubDate>{published}</pubDate></item></channel></rss>").encode()
+    cache = TtlCache(clock=lambda: acquired)
+    cache.set(cache.key(PRESS_FEED_URL, None), feed)
+    cache.set(cache.key(article_url, None), f'<div class="landing-text">{article_text}</div>'.encode())
+    cache.set(cache.key(KEY_RATE_URL, {"UniDbQuery.Posted": "True", "UniDbQuery.From": "29.04.2026",
+                                      "UniDbQuery.To": "26.10.2026"}),
+              b"<table><tr><td>26.10.2026</td><td>14.00</td></tr></table>")
+
+    def deny_network(request):
+        raise AssertionError(f"Unexpected uncached HTTP: {request.url}")
+
+    provider = runtime_client()
+    agent = make_agent(provider)
+    with httpx.Client(transport=httpx.MockTransport(deny_network)) as http:
+        agent.research = OpenResearch(SafeFetcher(http), cache, clock=lambda: acquired)
+        profile = request_.profile.model_copy(update={"products": Products(loans=True),
+                                                      "foreign_trade": False, "okved_name": None})
+        request = request_.model_copy(update={"profile": profile, "as_of": cutoff})
+        tracer, _ = agent.new_run()
+        state = AgentState(run_id=tracer.run_id, request=request,
+                           signals=derive_signals(profile), missing_profile=[])
+        found = agent.tools_for(state, tracer).call("search_open_sources", {"query": "кредит"}, step="cutoff")
+        agent.absorb(state, found)
+
+    assert [event.source.url for event in found if event.source.material_type != "indicator"] == (
+        [article_url] if eligible else [])
+    assert [event.source.url for event in state.news.values() if event.source.material_type != "indicator"] == (
+        [article_url] if eligible else [])
+    assert (article_text in state.resolved_news_texts.values()) is eligible
+    assert (article_text in state.source_texts().values()) is eligible
+    indicators = [event for event in found if event.source.material_type == "indicator"]
+    assert len(indicators) == 1
+    assert indicators[0].published_at is None
+    assert indicators[0].source.target_period == "2026-10-26"
+    assert indicators[0].event_id in state.news
+    if eligible:
+        assert any("восстановить" in reason for reason in state.limited_reasons)
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize("original_cutoff", ["2026-10-24T12:00:00Z", None])
+def test_restarted_qa_rejects_changed_saved_request_cutoff_before_search_or_provider(tmp_path, request_, original_cutoff):
+    import json
+    root = tmp_path / "store"
+    snapshot = make_runtime_snapshot(root, request_, "alpha")
+    later = datetime(2026, 10, 25, 12, tzinfo=UTC)
+    snapshot.news[1].published_at = later
+    snapshot.source_versions[1].published_at = later
+    snapshot.source_versions[1].published_date = later.date()
+    revision = publish_snapshot(root, snapshot)
+    settings = runtime_settings(tmp_path, root)
+    accepted = build_agent(settings, runtime_client()).run(runtime_request(
+        request_, snapshot, corpus_revision=revision, as_of=original_cutoff))
+    if original_cutoff:
+        assert retrieved_ids(settings, accepted, "search_news") == set()
+
+    saved_path = next((settings.trace_dir / "insights").glob("*.json"))
+    saved = json.loads(saved_path.read_text())
+    assert "as_of" in saved["insight"]  # Modern explicit null must also remain frozen.
+    saved["request"]["as_of"] = "2026-10-26T12:00:00Z"
+    saved_path.write_text(json.dumps(saved))
+    traces_before = {path.name: path.read_bytes() for path in settings.trace_dir.glob("run_*.jsonl")}
+    provider = ScriptedClient({"answer": [{"answerable": False, "text": "No answer", "claims": []}]})
+    response = answer_question(build_agent(settings, provider), accepted.insight_id, "Corporate credit funding alpha bulletin")
+
+    assert (response, provider.calls) == (None, [])
+    assert {path.name: path.read_bytes() for path in settings.trace_dir.glob("run_*.jsonl")} == traces_before
+
+
+def test_legacy_saved_insight_without_new_cutoff_field_remains_readable(make_agent, request_, settings):
+    import json
+    request = InsightRequest.model_validate(request_.model_dump(mode="json") | {"as_of": "2026-10-24T12:00:00Z"})
+    accepted = make_agent(runtime_client()).run(request)
+    saved_path = next((settings.trace_dir / "insights").glob("*.json"))
+    saved = json.loads(saved_path.read_text())
+    saved["insight"].pop("as_of")
+    for field in ("corpus_revision", "event_content_sha256"):
+        saved.pop(field)
+        saved["request"].pop(field)
+        saved["insight"].pop(field)
+    saved_path.write_text(json.dumps(saved))
+    provider = ScriptedClient({"answer": [{"answerable": False, "text": "No answer", "claims": []}]})
+    response = answer_question(make_agent(provider), accepted.insight_id, "Corporate credit funding?")
+    assert response is not None
+    assert response.as_of == datetime(2026, 10, 24, 12, tzinfo=UTC)
+    assert provider.steps() == ["answer"]

@@ -27,7 +27,7 @@ from insight_agent.research.plan import build_plan
 from insight_agent.research.service import OpenResearch, TtlCache
 from insight_agent.materials.models import CorpusSnapshot
 from insight_agent.materials.artifacts import digest
-from insight_agent.materials.policy import bank_policy, publication_day, restrict_bank_args
+from insight_agent.materials.policy import bank_policy, publication_day, published_by, restrict_bank_args
 from insight_agent.materials.identity import event_content_sha256
 from insight_agent.materials.runtime import CorpusBundle, CorpusError, CorpusRegistry
 from insight_agent.llm import BudgetExceeded, ChatClient, DailyBudget, LLMError, RunBudget, StructuredLLM, error_code
@@ -188,8 +188,14 @@ class InsightAgent:
             found = self.research.search(plan, as_of=when, top_k=args.top_k)
             for message in found.errors:
                 tracer.emit("error", "open_research", {"error": message})
-            events = [self._as_news_event(d) for d in found.docs]
+            events = []
             for doc in found.docs:
+                event = self._as_news_event(doc)
+                # Research selects an effective day for indicators; press still has to
+                # satisfy the full publication instant before it becomes run evidence.
+                if as_of is not None and doc.kind != "indicator" and not published_by(event, as_of):
+                    continue
+                events.append(event)
                 state.resolved_news_texts[doc.source_id] = doc.text
             return events
 

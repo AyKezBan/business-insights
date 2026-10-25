@@ -53,6 +53,10 @@ class InsightStore:
                 value = getattr(request, field)
                 if data.get(field, value) != value or getattr(insight, field) != value:
                     raise ValueError("Saved insight context does not match its request")
+            # Older results did not store as_of; modern results also freeze an
+            # explicit null. Compare parsed instants, not their offset spelling.
+            if "as_of" in data["insight"] and insight.as_of != request.as_of:
+                raise ValueError("Saved insight cutoff does not match its request")
         except (OSError, ValueError, KeyError):
             return None
         state = AgentState(
