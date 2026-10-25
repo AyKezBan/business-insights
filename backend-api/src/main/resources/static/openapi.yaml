@@ -64,6 +64,28 @@ paths:
               schema: {$ref: '#/components/schemas/Profile'}
         '422': {$ref: '#/components/responses/Error'}
         default: {$ref: '#/components/responses/Error'}
+  /api/v1/materials/events:
+    get:
+      operationId: materialCatalog
+      description: >-
+        Reads and validates the complete trusted ML current catalog before atomic local publication.
+        Returns available materials separately from prepared insights. No generation or provider call is started.
+        Later UI pages pass the first revision; a changed publication returns 409 rather than mixing versions.
+        Historical catalog reads are not exposed by this synchronization route.
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {name: offset, in: query, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: revision, in: query, schema: {type: string, pattern: '^[a-f0-9]{64}$'}}
+      responses:
+        '200':
+          description: One validated catalog publication, paged after synchronization
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MaterialCatalog'}
+        '409': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
   /api/v1/events:
     post:
       operationId: registerExternalEvent
@@ -87,7 +109,10 @@ paths:
   /api/v1/analyses:
     post:
       operationId: createAnalysis
-      description: Explicit company, role and registered event; no role inference from links.
+      description: >-
+        Explicit company, role and registered event; no role inference from links.
+        For catalog selections supply corpusRevision and eventContentSha256 from that displayed item.
+        A changed selection receives 409; it is never silently replaced with the latest material.
       parameters:
         - {$ref: '#/components/parameters/Idempotency'}
       requestBody:
@@ -391,6 +416,38 @@ components:
         source: {$ref: '#/components/schemas/SourceInput'}
         relatedSources: {type: array, maxItems: 30, items: {$ref: '#/components/schemas/SourceInput'}}
         topics: {type: array, maxItems: 30, items: {type: string, minLength: 1, maxLength: 100}}
+    CatalogToken:
+      type: object
+      required: [storeId, generation, revision]
+      properties:
+        storeId: {type: string, minLength: 1}
+        generation: {type: integer, format: int64, minimum: 1}
+        revision: {type: string, pattern: '^[a-f0-9]{64}$'}
+    MaterialEvent:
+      type: object
+      required: [eventId, title, text, source, relatedSources, topics, conflicts, eventContentSha256, corpusRevision]
+      properties:
+        eventId: {type: string}
+        title: {type: string}
+        text: {type: string}
+        publishedAt: {type: string, format: date-time, nullable: true}
+        publishedDate: {type: string, format: date, nullable: true}
+        publishedPrecision: {type: string, nullable: true}
+        source: {$ref: '#/components/schemas/Source'}
+        relatedSources: {type: array, items: {$ref: '#/components/schemas/Source'}}
+        topics: {$ref: '#/components/schemas/StringList'}
+        conflicts: {type: array, items: {$ref: '#/components/schemas/SourceConflict'}}
+        eventContentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        corpusRevision: {type: string, pattern: '^[a-f0-9]{64}$'}
+    MaterialCatalog:
+      type: object
+      required: [catalogToken, items, limit, offset, total]
+      properties:
+        catalogToken: {$ref: '#/components/schemas/CatalogToken'}
+        items: {type: array, items: {$ref: '#/components/schemas/MaterialEvent'}}
+        limit: {type: integer}
+        offset: {type: integer}
+        total: {type: integer}
     AnalysisInput:
       type: object
       required: [companyId, role, eventId]

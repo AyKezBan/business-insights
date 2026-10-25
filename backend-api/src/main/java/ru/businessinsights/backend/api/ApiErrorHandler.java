@@ -20,6 +20,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import ru.businessinsights.backend.api.ApiModels.ProblemView;
 import ru.businessinsights.backend.auth.DemoAuthFilter;
 import ru.businessinsights.backend.data.ProfileDataException;
+import ru.businessinsights.backend.ml.MlException;
 
 @RestControllerAdvice
 public class ApiErrorHandler {
@@ -28,6 +29,19 @@ public class ApiErrorHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ProblemView> api(ApiException e, HttpServletRequest req) {
         return problem(e.status(), e.code(), e.getMessage(), e.retryable(), req);
+    }
+
+    @ExceptionHandler(MlException.class)
+    public ResponseEntity<ProblemView> ml(MlException e, HttpServletRequest req) {
+        HttpStatus status = switch (e.code()) {
+            case INVALID_RESPONSE -> HttpStatus.BAD_GATEWAY;
+            case TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
+            case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
+            case REQUEST_REJECTED -> HttpStatus.CONFLICT;
+            case CONTEXT_EXPIRED, TRACE_NOT_FOUND -> HttpStatus.NOT_FOUND;
+            default -> HttpStatus.SERVICE_UNAVAILABLE;
+        };
+        return problem(status, "ML_" + e.code().name(), e.getMessage(), e.retryable(), req);
     }
 
     @ExceptionHandler(ProfileDataException.class)

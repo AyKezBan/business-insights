@@ -142,6 +142,16 @@ public final class ApiModels {
     public record FeedView(List<InsightView> items, int limit, int offset, String order, String emptyReason) {
     }
 
+    public record CatalogTokenView(String storeId, long generation, String revision) {}
+
+    public record MaterialEventView(String eventId, String title, String text, Instant publishedAt,
+                                    LocalDate publishedDate, String publishedPrecision, SourceView source,
+                                    List<SourceView> relatedSources, List<String> topics, List<ConflictView> conflicts,
+                                    String eventContentSha256, String corpusRevision) {}
+
+    public record MaterialCatalogView(CatalogTokenView catalogToken, List<MaterialEventView> items,
+                                      int limit, int offset, int total) {}
+
     public record ActionView(UUID actionId, UUID insightId, String action, String status, String delivery) {
     }
 }

@@ -24,6 +24,19 @@ public class InsightMapper {
         this.mapper = mapper;
     }
 
+    public MaterialEventView material(ru.businessinsights.backend.data.MaterialCatalogRepository.MaterialEvent material, String revision) {
+        var event = material.event();
+        var refs = new ArrayList<ru.businessinsights.backend.ml.MlContracts.SourceRef>();
+        refs.add(event.source()); refs.addAll(event.relatedSources());
+        var wrapper = mapper.createObjectNode();
+        wrapper.set("sources", mapper.valueToTree(refs));
+        var sources = sources(wrapper);
+        return new MaterialEventView(event.eventId(), event.title(), event.text(), event.publishedAt(), event.publishedDate(),
+                event.publishedPrecision(), sources.getFirst(), List.copyOf(sources.subList(1, sources.size())),
+                event.topics(), event.conflicts().stream().map(c -> new ConflictView(c.reason(), c.sourceIds(), c.resolved())).toList(),
+                material.eventContentSha256(), revision);
+    }
+
     public OperationView operation(Operation op) {
         FailureView error = op.errorCode() == null ? null : new FailureView(op.errorCode(), op.errorMessage(), op.retryable());
         if (error == null && "FAILED".equals(op.status())) {
