@@ -35,7 +35,7 @@ function setup(source, base, storage = new Map(), hash = '#/home', fetchOverride
     querySelectorAll: selector => selector === '[data-nav]' ? walk(root).filter(n => n.dataset.nav) : []};
   const location = {hash}; const requests = [];
   const sandbox = {document:doc, location, history:{replaceState: (_s,_t,url) => {location.hash=url;}},
-    window:{addEventListener(){}}, localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v)},
+    window:{addEventListener(){}}, localStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},
     URL, URLSearchParams, AbortController, crypto:webcrypto, setTimeout, clearTimeout,
     fetch: (url, options) => {requests.push({url,options}); return fetchOverride ? fetchOverride(url,options,base) : fetch(base+url,options);}};
   vm.createContext(sandbox); vm.runInContext(source.slice(0, source.lastIndexOf('init();')), sandbox);

@@ -93,8 +93,9 @@
           companies.push(...page); if(page.length<100) break;
         }
         if (!session?.personId || !companies.length) throw new Error('В текущей сессии нет доступных компаний.');
-        return {profile:{name:session.personId,company_id:companies[0].companyId,role:'cfo'},
-          companies:companies.map(c=>({id:c.companyId,name:'Компания '+c.companyId,sector:c.okvedName || 'Не указана'})),roles,views,
+        return {person_id:session.personId,profile:{name:session.personId,company_id:companies[0].companyId,role:'cfo'},
+          companies:companies.map(c=>({id:c.companyId,name:'Компания '+c.companyId,sector:c.okvedName || 'Не указана',
+            ...(Array.isArray(c.roles) ? {roles:c.roles.filter(role=>Object.hasOwn(roles,role))} : {})})),roles,views,
           notice:'Демонстрационный доступ по связям ФЛ–ЮЛ. Роль выбирается явно и не подтверждает полномочия. Показаны сохранённые результаты анализа; открытие ленты не запускает генерацию.'};
       },
       async materialCatalog(ctx, options) {

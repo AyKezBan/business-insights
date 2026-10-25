@@ -32,7 +32,7 @@ async function main(){
   const card={context,insight_id:'v1',title:'Событие',blocks:[],sources:[],missing_data:[],disclaimer:'Не является инвестрекомендацией',outcome:'LIMITED'};
   let saved=[],opened=0, failSave=false, deny=false;
   const bindings={
-    bootstrap:async()=>({profile,companies:[{id:'c',name:'Компания',roles:['ceo']}],roles:{ceo:'Директор'},views:{overview:'Обзор'},notice:'Тест адаптера'}),
+    bootstrap:async()=>({person_id:'person-1',profile,companies:[{id:'c',name:'Компания',roles:['ceo']}],roles:{ceo:'Директор'},views:{overview:'Обзор'},notice:'Тест адаптера'}),
     preferences:async()=>({}),feed:async()=>({context:{company_id:'c',role:'ceo'},items:[],empty_reason:'Нет подходящих событий'}),
     insight:async()=>{if(deny){let e=new Error('Нет доступа');e.status=403;throw e;}return card;},clarify:async()=>{},
     savePreference:async input=>{if(failSave)throw new Error('offline');saved.push(input);},opened:async()=>{opened++;}

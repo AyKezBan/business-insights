@@ -140,7 +140,7 @@ async function main(){
   let releaseLate;
   const lateResult=new Promise(resolve=>{releaseLate=resolve;});
   const late=setup(appSource,'',new Map(),'#/materials');late.run('location.origin="https://test.local"');
-  const lateBindings={bootstrap:async()=>({profile:{name:'User',company_id:'U_1',role:'cfo'},companies:[{id:'U_1',name:'Компания'}],roles:{cfo:'CFO',ceo:'CEO'},views:{overview:'Обзор'}}),
+  const lateBindings={bootstrap:async()=>({person_id:'person-1',profile:{name:'User',company_id:'U_1',role:'cfo'},companies:[{id:'U_1',name:'Компания'}],roles:{cfo:'CFO',ceo:'CEO'},views:{overview:'Обзор'}}),
     preferences:async()=>({}),feed:async input=>({context:{company_id:input.company_id,role:input.role},items:[]}),insight:async()=>{},clarify:async()=>{},savePreference:async()=>{},opened:async()=>{},
     materialCatalog:async input=>({...catalog,context:{company_id:input.company_id,role:input.role},items:[catalog.items[0]]}),analyze:async()=>lateResult};
   late.run('window.INSIGHTS_CONFIG={mode:"server",bindings:{}}');late.run('window.INSIGHTS_CONFIG').bindings=lateBindings;

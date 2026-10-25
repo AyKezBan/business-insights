@@ -12,8 +12,40 @@ const pendingOperations = new Map();
 const materialAnalyses = new Map();
 const PROFILE_KEY = 'd09-d10-profile-v1';
 const PREFERENCES_KEY = 'd09-d10-preferences-v1';
+const SERVER_PROFILE_PREFIX = 'insights-server-context-v1:';
+let activeServerProfileKey = null;
+let selectionNotice = '';
+let bootstrapController = null, bootstrapGeneration = 0;
 function readStored(key, fallback) { try { return JSON.parse(localStorage.getItem(key)) || fallback; } catch { return fallback; } }
 function saveStored(key, value) { try { localStorage.setItem(key, JSON.stringify(value)); return true; } catch { return false; } }
+function allowedSelection(value, data) {
+  if (!value || typeof value !== 'object' || Array.isArray(value) || typeof value.company_id !== 'string' || typeof value.role !== 'string') return false;
+  const company = data.companies.find(item => item.id === value.company_id);
+  return !!company && Object.hasOwn(data.roles, value.role) && (!Array.isArray(company.roles) || company.roles.includes(value.role));
+}
+function serverProfile(data) {
+  if (typeof data.person_id !== 'string' || !data.person_id) throw new Error('Сервис не подтвердил пользователя текущей сессии.');
+  activeServerProfileKey = SERVER_PROFILE_PREFIX + encodeURIComponent(data.person_id);
+  let selected = data.profile;
+  if (!allowedSelection(selected, data)) {
+    selected = data.companies.flatMap(company => Object.keys(data.roles).map(role => ({company_id:company.id,role}))).find(value => allowedSelection(value,data));
+    if (!selected) throw new Error('В сессии нет доступного контекста анализа.');
+  }
+  try {
+    const raw = localStorage.getItem(activeServerProfileKey);
+    if (raw !== null) {
+      let saved;
+      try { saved = JSON.parse(raw); } catch { /* Invalid saved selection is discarded below. */ }
+      if (allowedSelection(saved, data)) selected = saved;
+      else {
+        selectionNotice = 'Сохранённый выбор недоступен. Проверьте компанию и аналитическую роль в профиле.';
+        try { localStorage.removeItem(activeServerProfileKey); } catch { selectionNotice += ' Не удалось удалить его из браузера.'; }
+      }
+    }
+  } catch { selectionNotice = 'Не удалось прочитать сохранённый выбор. Проверьте компанию и аналитическую роль в профиле.'; }
+  return {...data.profile,company_id:selected.company_id,role:selected.role};
+}
+function updateNotice() { $('notice').textContent = [state.data?.notice,selectionNotice].filter(Boolean).join(' '); }
 function normalizePreferences(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
   const validFeedback = new Set(['useful', 'not_useful']);
@@ -135,7 +167,15 @@ function claimEvidence(part, sources) {
 }
 function guardAccess(error) {
   if (![401, 403].includes(error.status)) return;
+  bootstrapGeneration++; bootstrapController?.abort(); bootstrapController = null;
+  selectionNotice = '';
+  if (activeServerProfileKey) {
+    try { localStorage.removeItem(activeServerProfileKey); }
+    catch { selectionNotice = 'Не удалось удалить сохранённый выбор из браузера. После входа доступ будет проверен заново.'; }
+  }
+  activeServerProfileKey = null;
   cancel(); pendingOperations.clear(); materialAnalyses.clear(); state.data = null; state.profile = null; state.ctx = null; state.preferences = {};
+  updateNotice();
   $('page').replaceChildren(); $('profile-link').textContent = 'Доступ не подтверждён';
 }
 async function service(name, input, controller, requestId) {
@@ -184,7 +224,7 @@ function renderProfile() {
   const companyInfo = node('p', '', 'muted'); companyInfo.id = 'profile-company-info';
   const describeCompany = () => { const company = state.data.companies.find(c => c.id === companySelect.value); companyInfo.textContent = 'Отрасль: ' + (company.sector || 'не указана') + (api.mode === 'demo' ? '. Данные компании — демонстрационные.' : ''); };
   describeCompany();
-  const roleLabel = node('label', 'Должность'); roleLabel.htmlFor = 'profile-role';
+  const roleLabel = node('label', api.mode === 'server' ? 'Аналитическая роль' : 'Должность'); roleLabel.htmlFor = 'profile-role';
   const roleSelect = node('select'); roleSelect.id = 'profile-role';
   for (const [value, text] of Object.entries(state.data.roles)) { const option = node('option', text); option.value = value; roleSelect.append(option); }
   roleSelect.value = state.profile.role;
@@ -195,13 +235,19 @@ function renderProfile() {
   };
   companySelect.onchange = () => { describeCompany(); restrictRoles(); }; restrictRoles();
   const save = node('button', 'Сохранить профиль', 'primary'); save.type = 'submit';
-  form.append(nameLabel, nameInput, companyLabel, companySelect, companyInfo, roleLabel, roleSelect, node('p', api.mode === 'demo' ? 'Настройки сохраняются в этом браузере и используются в ленте и карточках.' : 'Компания и доступные роли получены из серверной сессии.', 'muted'), save);
+  form.append(nameLabel, nameInput, companyLabel, companySelect, companyInfo, roleLabel, roleSelect, node('p', api.mode === 'demo' ? 'Настройки сохраняются в этом браузере и используются в ленте и карточках.' : 'Доступные компании получены из серверной сессии. Аналитическая роль задаёт взгляд на событие и не подтверждает полномочия. Выбор сохраняется в этом браузере для текущего пользователя.', 'muted'), save);
   form.onsubmit = async event => {
-    event.preventDefault(); const name = nameInput.value.trim(); if (!name) {nameInput.setCustomValidity('Введите имя.'); nameInput.reportValidity(); return;}
+    event.preventDefault(); const name = api.mode === 'server' ? state.data.profile.name : nameInput.value.trim(); if (!name) {nameInput.setCustomValidity('Введите имя.'); nameInput.reportValidity(); return;}
     if (!roleSelect.value) { showError('Для выбранной компании нет доступной роли.'); return; }
     const profile = {name, company_id: companySelect.value, role: roleSelect.value};
+    if (!allowedSelection(profile,state.data)) { showError('Компания или аналитическая роль недоступна. Выберите доступный контекст.'); return; }
     if (api.mode === 'demo' && !saveStored(PROFILE_KEY, profile)) { showError('Не удалось сохранить профиль в этом браузере.'); return; }
-    state.profile = profile; await renderRoute(); status('Профиль сохранён. Аналитика использует данные из профиля.');
+    if (api.mode === 'server') {
+      selectionNotice = activeServerProfileKey && saveStored(activeServerProfileKey,{company_id:profile.company_id,role:profile.role}) ? ''
+        : 'Компания и роль выбраны только для текущего сеанса: не удалось сохранить выбор в браузере. После перезагрузки проверьте профиль.';
+      updateNotice();
+    }
+    state.profile = profile; await renderRoute(); status(selectionNotice || 'Профиль сохранён. Аналитика использует данные из профиля.');
   };
   nameInput.oninput = () => nameInput.setCustomValidity('');
   details.append(form);
@@ -556,22 +602,33 @@ async function renderRoute() {
   } finally { if (epoch === state.epoch) $('page').setAttribute('aria-busy', 'false'); }
 }
 async function init() {
+  const generation = ++bootstrapGeneration;
+  bootstrapController?.abort();
+  const controller = new AbortController(); bootstrapController = controller;
+  cancel(); pendingOperations.clear(); materialAnalyses.clear(); state.data = null; state.profile = null; state.ctx = null; state.preferences = {};
+  selectionNotice = '';
+  $('page').replaceChildren(); $('profile-link').textContent = 'Подтверждаем доступ…';
   try {
     api = InsightsIntegration.createClient(window.INSIGHTS_CONFIG || {});
-    const controller = new AbortController(); const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
     let result;
     try { if (api.mode === 'server') result = await service('bootstrap', {}, controller); else { const response = await fetch('/api/bootstrap', {signal: controller.signal}); if (!response.ok) throw new Error('Сервис недоступен.'); result = await response.json(); } }
     finally { clearTimeout(timeout); }
+    if (generation !== bootstrapGeneration) return;
+    if (controller.signal.aborted) throw new Error('Сервис не ответил за 15 секунд. Повторите подключение.');
     if (!result.companies?.length || !result.profile || !result.roles) throw new Error('В сессии нет доступного профиля компании.');
-    state.data = result;
     const badge=document.querySelector('.demo-pill'); if (badge) badge.textContent=api.mode==='demo' ? 'Учебные данные' : 'Серверный режим';
-    const stored = api.mode === 'demo' ? readStored(PROFILE_KEY, result.profile) : result.profile;
+    const stored = api.mode === 'demo' ? readStored(PROFILE_KEY, result.profile) : serverProfile(result);
     const valid = stored && typeof stored.name === 'string' && stored.name.trim().length > 0 && stored.name.length <= 100 && result.companies.some(c => c.id === stored.company_id) && Object.hasOwn(result.roles, stored.role);
+    state.data = result;
     state.profile = valid ? {name: stored.name, company_id: stored.company_id, role: stored.role} : {...result.profile};
     state.preferences = api.mode === 'demo' ? normalizePreferences(readStored(PREFERENCES_KEY, {})) : {};
-    $('notice').textContent = result.notice;
+    updateNotice();
     await renderRoute();
-  } catch (e) { showError('Не удалось подключить сервис. ' + e.message, init); status('Ошибка подключения'); $('page').setAttribute('aria-busy', 'false'); }
+  } catch (e) {
+    if (generation !== bootstrapGeneration && ![401,403].includes(e.status)) return;
+    showError('Не удалось подключить сервис. ' + e.message, init); status('Ошибка подключения'); $('page').setAttribute('aria-busy', 'false');
+  } finally { if (bootstrapController === controller) bootstrapController = null; }
 }
 window.addEventListener('hashchange', () => { if (state.data) renderRoute(); });
 document.querySelector('.skip').addEventListener('click', event => { event.preventDefault(); $('main').focus(); });
