@@ -168,6 +168,11 @@ public final class HttpMlClient implements MlClient {
             // Keep this independent deadline as well as HttpRequest's transport timeout.
             HttpResponse<byte[]> response = pending.get(Math.max(1, requestTimeout.toMillis()), TimeUnit.MILLISECONDS);
             int status = response.statusCode();
+            String contentType = response.headers().firstValue("Content-Type").orElse("").split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
+            if (status == 409 || status == 503) {
+                var corpusFailure = corpusFailure(status, contentType, response.body());
+                if (corpusFailure != null) throw corpusFailure;
+            }
             if (status == 404 && notFound != null) {
                 throw new MlException(notFound, notFound == CONTEXT_EXPIRED
                         ? "ML insight context is missing or expired" : "ML trace is not available", false);
@@ -187,7 +192,6 @@ public final class HttpMlClient implements MlClient {
             if (status < 200 || status >= 300) {
                 throw invalid("Unexpected ML HTTP status " + status);
             }
-            String contentType = response.headers().firstValue("Content-Type").orElse("").split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
             if (!("application/json".equals(contentType) || contentType.endsWith("+json"))) {
                 throw invalid("ML response must use a JSON content type");
             }
@@ -215,6 +219,29 @@ public final class HttpMlClient implements MlClient {
             throw transportFailure(ex.getCause());
         } catch (IOException ex) {
             throw transportFailure(ex);
+        }
+    }
+
+    private MlException corpusFailure(int status, String contentType, byte[] body) {
+        if (!("application/json".equals(contentType) || contentType.endsWith("+json"))) return null;
+        try {
+            JsonNode root = mapper.readTree(body);
+            JsonNode code = root == null ? null : root.path("detail").path("code");
+            if (code == null || !code.isTextual()) return null;
+            // The body is already size-bounded. Read only the allowlisted code, never the upstream message.
+            return switch (code.textValue()) {
+                case "corpus_event_mismatch" -> status == 409
+                        ? new MlException(CORPUS_EVENT_MISMATCH, "Событие не соответствует выбранной версии материалов.", false, status) : null;
+                case "corpus_unavailable" -> new MlException(CORPUS_UNAVAILABLE,
+                        status == 409 ? "Исходная версия материалов недоступна." : "Материалы временно недоступны.", status == 503, status);
+                case "catalog_uninitialized" -> status == 503
+                        ? new MlException(CATALOG_UNINITIALIZED, "Каталог материалов ещё не опубликован.", true, status) : null;
+                case "catalog_cursor_mismatch" -> status == 409
+                        ? new MlException(CATALOG_CURSOR_MISMATCH, "Страница каталога относится к другой публикации. Обновите список материалов.", false, status) : null;
+                default -> null;
+            };
+        } catch (IOException malformed) {
+            return null;
         }
     }
 

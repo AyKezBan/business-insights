@@ -38,6 +38,10 @@ public class ApiErrorHandler {
             case TIMEOUT -> HttpStatus.GATEWAY_TIMEOUT;
             case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
             case REQUEST_REJECTED -> HttpStatus.CONFLICT;
+            case CORPUS_EVENT_MISMATCH, CATALOG_CURSOR_MISMATCH -> HttpStatus.CONFLICT;
+            case CORPUS_UNAVAILABLE -> Integer.valueOf(409).equals(e.upstreamStatus())
+                    ? HttpStatus.CONFLICT : HttpStatus.SERVICE_UNAVAILABLE;
+            case CATALOG_UNINITIALIZED -> HttpStatus.SERVICE_UNAVAILABLE;
             case CONTEXT_EXPIRED, TRACE_NOT_FOUND -> HttpStatus.NOT_FOUND;
             default -> HttpStatus.SERVICE_UNAVAILABLE;
         };
