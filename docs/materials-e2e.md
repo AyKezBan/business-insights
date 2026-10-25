@@ -20,6 +20,7 @@ mvn -B -ntp -f backend-api/pom.xml test
 node frontend/tests/test_frontend.cjs
 node frontend/tests/test_integration.cjs
 node frontend/tests/test_backend_bindings.cjs
+node frontend/tests/test_material_catalog.cjs
 
 # Из frontend.
 python -m unittest discover -s tests -p 'test_*.py'
