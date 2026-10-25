@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "frozen_before_paid_calls": true,
   "date": "2026-10-26",
   "plan": "docs/superpowers/plans/2026-10-26-domains-03-04-finalization.md#task-12",
@@ -90,11 +90,18 @@
     "currency": "RUB",
     "shared_daily_limit": 500,
     "reset": "03:00 Europe/Moscow",
-    "session_cap": 100,
-    "require_actual_pricing_before_paid_calls": true,
+    "session_cap": null,
+    "require_actual_pricing_before_paid_calls": false,
     "require_current_shared_remaining_budget": true,
-    "stop_on_exhaustion_or_unknown_cost": true,
-    "ingestion_and_ordinary_ci_paid_calls": 0
+    "stop_on_exhaustion_or_unknown_cost": false,
+    "ingestion_and_ordinary_ci_paid_calls": 0,
+    "stop_on_gateway_budget_exhaustion": true,
+    "actual_spend_observation": "Read gateway key spend before/after bounded live stages; preserve raw cost metadata and its declared or unknown currency.",
+    "user_override": {
+      "date": "2026-10-26",
+      "instruction": "продолжай, ограничений нет",
+      "effect": "Proceed without waiting for a tariff table; earlier local 100 RUB session cap is waived. Existing per-run/token guards and gateway-enforced shared key limit remain."
+    }
   },
   "result_metadata": [
     "integrated_git_sha",
