@@ -3,6 +3,8 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from insight_agent.schemas import NewsEvent
+from insight_agent.materials.models import SourceVersion
+from insight_agent.materials.artifacts import digest
 from insight_agent.tools.search import BM25
 
 
@@ -14,9 +16,19 @@ class NewsSearchArgs(BaseModel):
 
 
 class NewsStore:
-    def __init__(self, events: list[NewsEvent]):
+    def __init__(self, events: list[NewsEvent], source_versions: list[SourceVersion] | None = None):
         self.events = events
+        self._source_texts = {}
+        for version in source_versions or []:
+            if digest(version.text.encode()) != version.content_sha256:
+                raise ValueError("Source version hash mismatch")
+            self._source_texts[version.source_id] = version.text
+        for event in events:
+            self._source_texts.setdefault(event.source.source_id, event.text)
         self._bm25 = BM25([f"{e.title} {e.text}" for e in events])
+
+    def resolve_source_text(self, source_id: str) -> str | None:
+        return self._source_texts.get(source_id)
 
     @classmethod
     def from_jsonl(cls, path: Path) -> "NewsStore":

@@ -3,8 +3,12 @@ import sys
 from pathlib import Path
 
 from insight_agent.schemas import Answer, InsightRequest, Insight, QuestionRequest, TraceEvent
+from insight_agent.schemas import BankFragment
+from insight_agent.materials.models import CorpusSnapshot
 
 CONTRACTS = {
+    "bank-fragment": BankFragment,
+    "materials": CorpusSnapshot,
     "insight-request": InsightRequest,
     "insight": Insight,
     "question-request": QuestionRequest,

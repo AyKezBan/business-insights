@@ -1,0 +1,345 @@
+{
+  "date": "2026-10-24",
+  "corpus_revision": "169bef4e77e6219fa145de73cb3fc4b79144babca7f009ac1dfa3d38dd39316c",
+  "A10_accepted": false,
+  "news_holdout_checks": {
+    "records": 10,
+    "events": 10,
+    "versions": 10,
+    "url_preserved": true,
+    "dated": 10,
+    "nonempty_bodies": 10
+  },
+  "phases": [
+    {
+      "phase": "initial_qwen_glm",
+      "requested": 6,
+      "status_counts": {
+        "failed": 6
+      },
+      "calls": 5,
+      "reported_usage_cost_raw": 0.7663974186141,
+      "results": [
+        {
+          "event_id": "evt-d4a69c639e60857a011640c6",
+          "company_id": "EVAL_INDUSTRY",
+          "run_id": "run_c9cc7b927a814823",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 189.76,
+          "calls": 5
+        },
+        {
+          "event_id": "evt-d4a69c639e60857a011640c6",
+          "company_id": "EVAL_TRANSPORT",
+          "run_id": "run_4f9fd17eaad6483e",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 0.01,
+          "calls": 0
+        },
+        {
+          "event_id": "evt-d4a69c639e60857a011640c6",
+          "company_id": "EVAL_SERVICES",
+          "run_id": "run_b341f2c4cc77424c",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 0.01,
+          "calls": 0
+        },
+        {
+          "event_id": "evt-da2c281bc4f4dd4a941bd33c",
+          "company_id": "EVAL_INDUSTRY",
+          "run_id": "run_bf6b61ad0a784b46",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 0.0,
+          "calls": 0
+        },
+        {
+          "event_id": "evt-da2c281bc4f4dd4a941bd33c",
+          "company_id": "EVAL_TRANSPORT",
+          "run_id": "run_6be66de4cb174a42",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 0.0,
+          "calls": 0
+        },
+        {
+          "event_id": "evt-da2c281bc4f4dd4a941bd33c",
+          "company_id": "EVAL_SERVICES",
+          "run_id": "run_33d321dc39c849eb",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 0.0,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "phase": "gemma_before_final_fixes",
+      "requested": 6,
+      "status_counts": {
+        "limited": 4,
+        "failed": 2
+      },
+      "calls": 18,
+      "reported_usage_cost_raw": 1.0133287996801452,
+      "results": [
+        {
+          "event_id": "evt-dc9c04e1f2631b26eaa3da27",
+          "company_id": "EVAL_INDUSTRY",
+          "run_id": "run_beee0e386ae4458c",
+          "status": "limited",
+          "self_check_passed": true,
+          "issue_codes": [
+            "retelling"
+          ],
+          "bank_assessments": 1,
+          "sources": 3,
+          "features": [
+            "products.leasing",
+            "products.loans"
+          ],
+          "seconds": 75.66,
+          "calls": 5
+        },
+        {
+          "event_id": "evt-dc9c04e1f2631b26eaa3da27",
+          "company_id": "EVAL_TRANSPORT",
+          "run_id": "run_a4c3516249d74336",
+          "status": "limited",
+          "self_check_passed": false,
+          "issue_codes": [
+            "bank_view_without_bank_source",
+            "unknown_feature",
+            "unknown_source"
+          ],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 29.8,
+          "calls": 3
+        },
+        {
+          "event_id": "evt-dc9c04e1f2631b26eaa3da27",
+          "company_id": "EVAL_SERVICES",
+          "run_id": "run_9d70c9b13ae4431d",
+          "status": "limited",
+          "self_check_passed": false,
+          "issue_codes": [
+            "retelling",
+            "single_factor",
+            "unverified_bank_assessment"
+          ],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [
+            "okved_code"
+          ],
+          "seconds": 29.98,
+          "calls": 4
+        },
+        {
+          "event_id": "evt-bf9fde9557f87eb6be0b9044",
+          "company_id": "EVAL_INDUSTRY",
+          "run_id": "run_73daa9a450184af9",
+          "status": "limited",
+          "self_check_passed": false,
+          "issue_codes": [
+            "retelling",
+            "unknown_feature"
+          ],
+          "bank_assessments": 1,
+          "sources": 4,
+          "features": [
+            "products.leasing",
+            "products.loans"
+          ],
+          "seconds": 106.92,
+          "calls": 5
+        },
+        {
+          "event_id": "evt-bf9fde9557f87eb6be0b9044",
+          "company_id": "EVAL_TRANSPORT",
+          "run_id": "run_10ea926f285d4623",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 7.37,
+          "calls": 1
+        },
+        {
+          "event_id": "evt-bf9fde9557f87eb6be0b9044",
+          "company_id": "EVAL_SERVICES",
+          "run_id": "run_d44ce947cc8e449d",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 0.01,
+          "calls": 0
+        }
+      ]
+    },
+    {
+      "phase": "gemma_final",
+      "requested": 6,
+      "status_counts": {
+        "limited": 5,
+        "failed": 1
+      },
+      "calls": 22,
+      "reported_usage_cost_raw": 1.291440800125255,
+      "results": [
+        {
+          "event_id": "evt-1c494c811aa09767809b4871",
+          "company_id": "EVAL_INDUSTRY",
+          "run_id": "run_88331ecd958e4047",
+          "status": "limited",
+          "self_check_passed": true,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 2,
+          "features": [
+            "products.leasing",
+            "products.loans"
+          ],
+          "seconds": 68.06,
+          "calls": 4
+        },
+        {
+          "event_id": "evt-1c494c811aa09767809b4871",
+          "company_id": "EVAL_TRANSPORT",
+          "run_id": "run_1c6e40ef77a242d5",
+          "status": "limited",
+          "self_check_passed": false,
+          "issue_codes": [
+            "generic_action",
+            "no_basis",
+            "retelling",
+            "single_factor",
+            "unanchored_scenario"
+          ],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [
+            "products.leasing"
+          ],
+          "seconds": 51.53,
+          "calls": 3
+        },
+        {
+          "event_id": "evt-1c494c811aa09767809b4871",
+          "company_id": "EVAL_SERVICES",
+          "run_id": "run_8a3629f86fdb48d1",
+          "status": "failed",
+          "self_check_passed": false,
+          "issue_codes": [],
+          "bank_assessments": 0,
+          "sources": 1,
+          "features": [],
+          "seconds": 45.49,
+          "calls": 3
+        },
+        {
+          "event_id": "evt-835a3d0308febca58f449aed",
+          "company_id": "EVAL_INDUSTRY",
+          "run_id": "run_13faa25934ef4b46",
+          "status": "limited",
+          "self_check_passed": true,
+          "issue_codes": [],
+          "bank_assessments": 1,
+          "sources": 3,
+          "features": [
+            "products.leasing",
+            "products.loans"
+          ],
+          "seconds": 114.28,
+          "calls": 5
+        },
+        {
+          "event_id": "evt-835a3d0308febca58f449aed",
+          "company_id": "EVAL_TRANSPORT",
+          "run_id": "run_4dc972c44ec94e25",
+          "status": "limited",
+          "self_check_passed": false,
+          "issue_codes": [
+            "bank_view_without_bank_source",
+            "generic_action",
+            "no_basis",
+            "unsupported_number"
+          ],
+          "bank_assessments": 2,
+          "sources": 3,
+          "features": [
+            "okved_code",
+            "products.leasing"
+          ],
+          "seconds": 73.15,
+          "calls": 4
+        },
+        {
+          "event_id": "evt-835a3d0308febca58f449aed",
+          "company_id": "EVAL_SERVICES",
+          "run_id": "run_bae6ebcca10747b7",
+          "status": "limited",
+          "self_check_passed": false,
+          "issue_codes": [
+            "generic_action",
+            "no_basis",
+            "not_personalized",
+            "unknown_feature",
+            "unsupported_number"
+          ],
+          "bank_assessments": 1,
+          "sources": 2,
+          "features": [],
+          "seconds": 80.68,
+          "calls": 3
+        }
+      ]
+    }
+  ],
+  "limits": {
+    "max_response_tokens": 4500,
+    "final_max_calls": 28,
+    "final_raw_cost_cap": 2.0
+  },
+  "notes": [
+    "usage.cost currency and shared budget balance not confirmed; timed-out requests may not report usage.",
+    "Qwen55s timeout; GLM consumed4500 reasoning tokens without JSON. Local evaluation caps caused some later pre-final failures.",
+    "Before final fixes bank retrieval admitted generic risk/year matches. Regression now excludes those cases; gold remains10/10.",
+    "Final manual assessment found an inference confusing bond issuers with alleged manipulators; rules do not prove semantic entailment.",
+    "Final six:5 limited,1 failed. These are not six accepted insights. Public JSON omits full source and generated text."
+  ]
+}

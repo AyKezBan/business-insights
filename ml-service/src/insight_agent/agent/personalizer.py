@@ -1,4 +1,5 @@
 from insight_agent.agent.planner import matched_channels
+from insight_agent.agent.evidence import pack_sources
 from insight_agent.agent.prompts import (
     KIND_RULES,
     LEVEL_DEFINITIONS,
@@ -16,11 +17,15 @@ MAX_SOURCE_CHARS = 2500
 
 
 def _sources_block(state: AgentState) -> str:
-    parts = []
-    for sid, text in state.source_texts().items():
+    parts = [data_block("source_conflicts", c.model_dump_json()) for c in state.source_conflicts()]
+    texts, truncated = pack_sources(state.source_texts(), limit=12000)
+    if truncated:
+        state.limited_reasons.append("контекст персонализации сокращён; полный текст сохранён: " + ", ".join(truncated))
+    for sid, text in texts.items():
         ref = state.sources()[sid]
+        quality = state.bank[sid].model_dump_json(include={"review_status", "statement_type", "target_period", "valid_until"}) if sid in state.bank else ""
         parts.append(
-            data_block(ref.kind.value, f"source_id: {sid}\nназвание: {ref.title}\nдата: {ref.date}\n{text[:MAX_SOURCE_CHARS]}")
+            data_block(ref.kind.value, f"source_id: {sid}\nназвание: {ref.title}\nдата: {ref.date}\nстраница: {ref.page}\n{quality}\n{text}")
         )
     return "\n".join(parts)
 
@@ -40,7 +45,7 @@ def personalize(
         f"{KIND_RULES}\n"
         + (
             "bank_view - что говорит аналитика банка по теме, kind=assessment, ссылки только на фрагменты банка. "
-            "Если твой вывод расходится с позицией банка, опиши это в model_vs_bank.\n"
+            "Не смешивай прогноз, оценку банка и опубликованный факт. model_vs_bank оставь пустым.\n"
             if has_bank
             else "Материалов банка по теме нет: bank_view - одно утверждение kind=unavailable без источников.\n"
         )

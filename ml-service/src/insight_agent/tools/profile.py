@@ -63,7 +63,7 @@ def _okved_channels(code: str | None) -> list[str]:
 
 
 def _known_revenue(value: float | None) -> float | None:
-    return value if value is not None and value > REVENUE_PLACEHOLDER_RUB else None
+    return value if value is not None and value >= 0 and value != REVENUE_PLACEHOLDER_RUB else None
 
 
 def _format_rub(value: float) -> str:
@@ -86,11 +86,12 @@ def derive_signals(p: CompanyProfile) -> list[Signal]:
             )
         )
     group_revenue, revenue = _known_revenue(p.group_revenue_rub), _known_revenue(p.revenue_rub)
-    if group_revenue or revenue:
-        feature = "group_revenue_rub" if group_revenue else "revenue_rub"
-        value = group_revenue or revenue
-        scale = "крупный бизнес" if value > LARGE_BUSINESS_RUB else "ниже порога крупного бизнеса"
-        signals.append(Signal(feature=feature, value=_format_rub(value), channels=[], note=f"масштаб: {scale}"))
+    if group_revenue is not None or revenue is not None:
+        feature = "group_revenue_rub" if group_revenue is not None else "revenue_rub"
+        value = group_revenue if group_revenue is not None else revenue
+        scope = "группа" if group_revenue is not None else (p.revenue_scope or "unknown")
+        note = f"выручка; год: {p.revenue_year or 'неизвестен'}; scope: {scope}; сегмент не установлен"
+        signals.append(Signal(feature=feature, value=_format_rub(value), channels=[], note=note))
     product_channels = {
         "loans": (["cost_of_debt", "liquidity"], "кредиты в банке: чувствительность к ставкам"),
         "leasing": (["cost_of_debt"], "лизинг: стоимость фондирования основных средств"),
@@ -117,7 +118,7 @@ def derive_signals(p: CompanyProfile) -> list[Signal]:
     for i, cp in enumerate(sorted(p.counterparties, key=lambda c: c.share_of_flow or 0, reverse=True)[:5]):
         share = cp.share_of_flow
         channels = ["counterparty_risk"] + (_okved_channels(cp.okved_code)[:2] if cp.direction == "outgoing" else [])
-        role = "покупатель" if cp.direction == "incoming" else "поставщик"
+        role = "входящий платёжный контрагент" if cp.direction == "incoming" else "исходящий платёжный контрагент"
         signals.append(
             Signal(
                 feature=f"counterparties[{i}]",

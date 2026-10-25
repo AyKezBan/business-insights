@@ -1,0 +1,1 @@
+Fixtures are synthetic unless explicitly labelled. cbr-rss.xml preserves only title/URL/date from a primary CBR feed observed on 2026-10-24. Full articles, bank PDFs, OCR, credentials and company data are never committed.

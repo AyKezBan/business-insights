@@ -62,3 +62,7 @@ docker run --rm -p 8000:8000 --env-file ml-service/.env -v "$PWD/ml-service/data
 ## Зависимости
 
 FastAPI, Uvicorn, Pydantic, pydantic-settings, HTTPX, pytest. Версии в `requirements.lock`. Модели только из приложения 3 (список в `llm.py`), имена задаются в `.env`.
+
+## Реальные материалы D03/D04
+
+Загрузка PDF/OCR, ручная проверка, версионирование новостей и запуск корпуса описаны в [material-ingestion.md](docs/material-ingestion.md). Подготовка: `insight-materials`; снимок подключается через `MATERIALS_DIR`. Исходные PDF, полные статьи, OCR и ключи не входят в Git. Локальные fixtures остаются синтетическими тестовыми данными.
