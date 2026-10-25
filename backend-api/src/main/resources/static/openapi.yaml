@@ -456,7 +456,7 @@ components:
         companyId: {type: string, pattern: '^U_[0-9]+$'}
         role: {$ref: '#/components/schemas/Role'}
         eventId: {type: string, minLength: 1, maxLength: 200}
-        asOf: {type: string, format: date-time, nullable: true, description: Publication cutoff; this is not point-in-time market replay}
+        asOf: {type: string, format: date-time, nullable: true, description: Publication cutoff truncated to microseconds when frozen; this is not point-in-time market replay}
         corpusRevision: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
         eventContentSha256: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
         requestId: {type: string, minLength: 1, maxLength: 128, nullable: true}

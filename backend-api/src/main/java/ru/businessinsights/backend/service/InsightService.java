@@ -132,7 +132,9 @@ public class InsightService {
         if ((input.corpusRevision() != null && !input.corpusRevision().equals(revision))
                 || (input.eventContentSha256() != null && !input.eventContentSha256().equals(eventHash)))
             throw new ApiException(HttpStatus.CONFLICT, "CORPUS_CONTEXT_MISMATCH", "Запрошенная версия материала отличается от принятого каталога");
-        var asOf = input.asOf() == null ? java.time.Instant.now() : input.asOf();
+        // Python datetime preserves microseconds; freeze that shared precision before persisting or sending.
+        var asOf = (input.asOf() == null ? java.time.Instant.now() : input.asOf())
+                .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
         if (event.publishedAt() != null && event.publishedAt().isAfter(asOf))
             throw new ApiException(HttpStatus.BAD_REQUEST, "EVENT_AFTER_CUTOFF", "Дата события позже выбранной границы публикаций");
         String requestId = input.requestId() == null ? "request_" + UUID.randomUUID().toString().replace("-", "") : input.requestId();
