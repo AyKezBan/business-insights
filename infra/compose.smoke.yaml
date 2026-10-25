@@ -1,0 +1,14 @@
+# TEST ONLY. Uses real ML orchestration with an explicitly scripted, offline client.
+services:
+  ml:
+    command: [uvicorn, smoke_app:app, --host, 0.0.0.0, --port, '8000']
+    environment:
+      PYTHONPATH: /app/smoke:/app/test-support
+      LLM_BASE_URL: http://127.0.0.1:9/never-live
+      LLM_API_KEY: ''
+    volumes:
+      - ./infra/smoke:/app/smoke:ro
+      - ./ml-service/tests:/app/test-support:ro
+  frontend:
+    ports: !override
+      - '127.0.0.1::80'

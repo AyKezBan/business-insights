@@ -41,7 +41,7 @@
             ...(body && !polling ? {body:JSON.stringify(body)} : {})});
           if (response.status === 401 || response.status === 403) { const e = new Error(response.status === 401 ? 'Сессия завершена. Войдите в интернет-банк заново.' : 'Нет доступа к данным выбранной компании.'); e.status=response.status; throw e; }
           data = response.status === 204 ? null : await response.json();
-          if (!response.ok) { const e=new Error(data?.error?.message || 'Сервис временно недоступен. Изменение не подтверждено.'); e.status=response.status; throw e; }
+          if (!response.ok) { const e=new Error(data?.error?.message || data?.message || 'Сервис временно недоступен. Изменение не подтверждено.'); e.status=response.status; throw e; }
         } catch (e) { if (controller.signal.reason === 'timeout') throw new Error('Сервис не ответил за 15 секунд. Результат операции неизвестен.'); throw e; }
         finally { clearTimeout(timer); signal?.removeEventListener('abort',abort); }
         const pending = response.status === 202 || ['QUEUED','PENDING','RUNNING'].includes(data?.status);
@@ -58,9 +58,9 @@
       }
     };
   }
-  async function mapOperation(operation, mapper) {
-    try { return mapper(await operation()); }
-    catch (e) { if (e.resume) { const resume=e.resume; e.resume=signal=>mapOperation(()=>resume(signal),mapper); } throw e; }
+  async function mapOperation(operation, mapper, signal) {
+    try { return mapper(await operation(),signal); }
+    catch (e) { if (e.resume) { const resume=e.resume; e.resume=nextSignal=>mapOperation(()=>resume(nextSignal),mapper,nextSignal); } throw e; }
   }
   function createClient(config = {}) {
     if (!config.mode || config.mode === 'demo') return {mode:'demo'};
