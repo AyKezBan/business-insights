@@ -32,3 +32,14 @@ def test_contract_money_fields_accept_number_or_decimal_string():
     for field in ("revenue_rub", "group_revenue_rub"):
         kinds = {branch.get("type") for branch in props[field]["anyOf"]}
         assert {"number", "string"} <= kinds
+
+
+def test_profile_accepts_revenue_status_vocabulary_of_data_import():
+    from decimal import Decimal
+
+    observed = CompanyProfile.model_validate(
+        {"company_id": "U_1", "revenue_rub": "2400000000", "revenue_status": "observed", "cl_type": "CLOSE_CLIENT"}
+    )
+    assert observed.revenue_status == "known" and observed.revenue_rub == Decimal("2400000000")
+    for status in ("placeholder", "missing", "invalid"):
+        assert CompanyProfile.model_validate({"company_id": "U_1", "revenue_status": status}).revenue_rub is None

@@ -3,7 +3,7 @@ from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 Sha256 = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
@@ -101,6 +101,12 @@ class CompanyProfile(BaseModel):
     self_transfer_share: float | None = None
     user_provided: dict[str, str] = Field(default_factory=dict)
     missing_fields: list[str] = Field(default_factory=list)
+
+    @field_validator("revenue_status", mode="before")
+    @classmethod
+    def accept_import_vocabulary(cls, value):
+        # data-import (Backend) называет известную выручку observed, в ML контракте это known.
+        return "known" if isinstance(value, str) and value.strip().lower() == "observed" else value
 
     @model_validator(mode="after")
     def preserve_unknowns(self):
