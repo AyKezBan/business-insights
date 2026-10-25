@@ -20,6 +20,8 @@ class InsightStore:
 
     def save(self, state: AgentState, insight: Insight) -> None:
         payload = {
+            "corpus_revision": state.corpus_revision,
+            "event_content_sha256": state.event_content_sha256,
             "insight": insight.model_dump(mode="json"),
             "request": state.request.model_dump(mode="json"),
             "analysis": state.analysis.model_dump(mode="json") if state.analysis else None,
@@ -47,6 +49,10 @@ class InsightStore:
             data = json.loads(path.read_text("utf-8"))
             insight = Insight.model_validate(data["insight"])
             request = InsightRequest.model_validate(data["request"])
+            for field in ("corpus_revision", "event_content_sha256"):
+                value = getattr(request, field)
+                if data.get(field, value) != value or getattr(insight, field) != value:
+                    raise ValueError("Saved insight context does not match its request")
         except (OSError, ValueError, KeyError):
             return None
         state = AgentState(

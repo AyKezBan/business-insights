@@ -218,6 +218,8 @@ def test_indicator_effective_day_is_not_invented_as_publication_midnight(tmp_pat
     assert indicator.source.retrieved_at == now
     assert "23.10.2026" in indicator.text  # The effective day is retained as effective evidence.
     assert "14,00%" in indicator.text
+    assert state.resolved_news_texts[indicator.source.source_id] == indicator.text
+    assert agent.news.resolve_source_text(indicator.source.source_id) is None
 
 
 def test_historical_pdf_is_available_after_restart_and_removal_from_current(tmp_path, request_):
@@ -286,3 +288,152 @@ def test_legacy_no_materials_request_still_runs(make_agent, request_):
     assert insight.status != "failed"
     assert insight.model_dump().get("corpus_revision") is None
     assert provider.steps().count("personalize") == 1
+
+
+def test_publication_cutoff_warns_about_later_observed_correction(tmp_path, request_):
+    data = request_.model_dump(mode="json")
+    data["event"].update(published_at="2026-10-20T12:00:00Z", published_date="2026-10-20")
+    data["event"]["source"]["date"] = "2026-10-20"
+    request = InsightRequest.model_validate(data | {"as_of": "2026-10-21T12:00:00Z"})
+    root = tmp_path / "store"
+    snapshot = make_runtime_snapshot(root, request, "alpha", bank_day=date(2026, 10, 19))
+    observed = datetime(2026, 10, 26, 12, tzinfo=UTC)
+    snapshot.news[0].source.first_seen_at = observed
+    snapshot.news[0].source.retrieved_at = observed
+    snapshot.source_versions[0].first_seen_at = observed
+    snapshot.source_versions[0].retrieved_at = observed
+    revision = publish_snapshot(root, snapshot)
+    settings = runtime_settings(tmp_path, root)
+    insight = build_agent(settings, runtime_client()).run(runtime_request(request, snapshot))
+    assert insight.status == "limited"
+    assert any("после выбранной даты" in reason and "восстановить" in reason for reason in insight.missing_data)
+    assert insight.model_dump()["corpus_revision"] == revision
+    assert next(ref for ref in insight.sources if ref.source_id == "news_demo_rate").first_seen_at == observed
+
+
+def test_semantic_analysis_cache_ignores_fresh_retrieval_time(make_agent, request_):
+    provider = runtime_client()
+    agent = make_agent(provider)
+    agent.run(request_)
+    data = request_.model_dump(mode="json")
+    data["event"]["source"]["retrieved_at"] = "2026-10-26T12:00:00Z"
+    agent.run(InsightRequest.model_validate(data))
+    assert provider.steps().count("analyze_event") == 1
+    assert provider.steps().count("personalize") == 2
+
+
+def test_analysis_cache_separates_effective_cutoffs(make_agent, request_):
+    provider = runtime_client()
+    agent = make_agent(provider)
+    for cutoff in ("2026-10-24T12:00:00Z", "2026-10-26T12:00:00Z"):
+        agent.run(InsightRequest.model_validate(request_.model_dump(mode="json") | {"as_of": cutoff}))
+    assert provider.steps().count("analyze_event") == 2
+
+
+def test_evicted_revision_reloads_exactly_and_bundle_results_cannot_be_mutated(tmp_path, request_):
+    from insight_agent.materials.runtime import CorpusRegistry
+    from insight_agent.tools.bank import BankSearchArgs
+    root = tmp_path / "store"
+    old = make_runtime_snapshot(root, request_, "alpha")
+    r1 = publish_snapshot(root, old)
+    registry = CorpusRegistry(root, "https://materials.example.test", max_cached_bundles=1)
+    first = registry.current()
+    returned = first.snapshot
+    returned.news[0].text = "Caller mutation"
+    hits = first.bank.search(BankSearchArgs(query="credit financing", min_score=0), as_of=date(2026, 10, 23))
+    hits[0].fragment.text = "Caller mutation"
+    r2 = publish_snapshot(root, make_runtime_snapshot(root, request_, "beta"))
+    assert registry.current().snapshot.revision == r2
+    restored = registry.get(r1)
+    assert restored.snapshot.news[0].text == old.news[0].text
+    assert restored.bank.search(BankSearchArgs(query="credit financing", min_score=0),
+                                as_of=date(2026, 10, 23))[0].fragment.text == BANK_TEXT["alpha"]
+    assert registry.current().snapshot.revision == r2
+    assert first.snapshot.news[0].text == old.news[0].text
+
+
+def test_historical_revision_without_token_still_supports_pdf_and_analysis(tmp_path, request_):
+    import json
+    root = tmp_path / "store"
+    old = make_runtime_snapshot(root, request_, "alpha")
+    r1 = publish_snapshot(root, old)
+    # Existing v2 corpus from before catalog tokens: only its old pointer is present.
+    (root / "current.json").write_text(json.dumps({"revision": r1}))
+    (root / "store.json").unlink()
+    publish_snapshot(root, make_runtime_snapshot(root, request_, "beta"))
+    provider = runtime_client()
+    with TestClient(create_app(build_agent(runtime_settings(tmp_path, root), provider))) as http:
+        route = f"/v1/materials/documents/{old.documents[0].doc_id}/file"
+        response = http.get(route, params={"revision": r1})
+        assert response.status_code == 200
+        response = http.post("/v1/insights", json=runtime_request(request_, old).model_dump(mode="json")
+                             | {"corpus_revision": r1})
+        assert response.status_code == 200
+        assert response.json()["corpus_revision"] == r1
+        assert response.json()["bank_view"][0]["text"] == BANK_TEXT["alpha"]
+        assert http.get("/v1/materials/events", params={"revision": r1}).status_code == 503
+
+
+def test_runtime_research_keeps_near_midnight_source_day_and_offset(make_agent, request_):
+    from http_fakes import fake_http_transport
+    from insight_agent.schemas import Products
+    raw_date = "Mon, 26 Oct 2026 00:30:00 +0300"
+    rss = (f'<rss><channel><item><title>Кредитные условия</title>'
+           f'<link>https://www.cbr.ru/press/pr/midnight/</link><pubDate>{raw_date}</pubDate>'
+           f'</item></channel></rss>').encode()
+
+    def respond(request):
+        if request.url.path == "/rss/RssPress":
+            return httpx.Response(200, content=rss)
+        assert request.url.path == "/press/pr/midnight/"
+        return httpx.Response(200, content='<div class="landing-text">Кредитные условия обновлены.</div>'.encode())
+
+    now = datetime(2026, 10, 26, 12, tzinfo=UTC)
+    agent = make_agent(runtime_client())
+    with httpx.Client(transport=httpx.MockTransport(respond)) as http:
+        agent.research = OpenResearch(SafeFetcher(http, transport=fake_http_transport(http)),
+                                     TtlCache(clock=lambda: now), clock=lambda: now)
+        profile = request_.profile.model_copy(update={"products": Products(loans=False, leasing=False,
+            deposits=False, factoring=False), "foreign_trade": False, "okved_name": None})
+        request = request_.model_copy(update={"profile": profile, "as_of": now})
+        tracer, _ = agent.new_run()
+        state = AgentState(run_id=tracer.run_id, request=request, signals=derive_signals(profile), missing_profile=[])
+        found = agent.tools_for(state, tracer).call("search_open_sources", {"query": "кредит"}, step="source_day")
+    assert len(found) == 1
+    event = NewsEvent.model_validate(found[0].model_dump(mode="json"))
+    assert event.published_at == datetime(2026, 10, 25, 21, 30, tzinfo=UTC)
+    assert event.published_date == event.source.date == date(2026, 10, 26)
+    assert event.source.source_utc_offset_seconds == 10800
+    assert event.source.raw_publication == raw_date
+    assert event.source.timezone_provenance == "explicit_offset"
+    assert event.source.retrieved_at == now
+
+
+def test_analyst_receives_known_day_without_an_invented_time(make_agent, request_):
+    data = request_.model_dump(mode="json")
+    data["event"].update(published_at=None, published_date="2026-10-23", published_precision="date")
+    seen = []
+
+    def analyze(messages):
+        seen.append(messages[-1]["content"])
+        return analysis_reply()
+
+    provider = runtime_client()
+    provider.script["analyze_event"] = [analyze]
+    make_agent(provider).run(InsightRequest.model_validate(data))
+    assert "2026-10-23" in seen[0]
+    assert "время неизвестно" in seen[0]
+    assert "дата неизвестна" not in seen[0]
+    assert "T00:00:00" not in seen[0]
+
+
+def test_model_naive_news_cutoff_cannot_break_or_widen_request_cutoff(tmp_path, request_):
+    root = tmp_path / "store"
+    snapshot = make_runtime_snapshot(root, request_, "alpha")
+    publish_snapshot(root, snapshot)
+    provider = runtime_client()
+    provider.script["plan"][0]["steps"][1]["args"]["not_after"] = "2030-01-01T00:00:00"
+    settings = runtime_settings(tmp_path, root)
+    insight = build_agent(settings, provider).run(runtime_request(request_, snapshot, as_of="2026-10-23T14:00:00Z"))
+    assert insight.status != "failed"
+    assert retrieved_ids(settings, insight, "search_news") == {"evt_related_alpha"}

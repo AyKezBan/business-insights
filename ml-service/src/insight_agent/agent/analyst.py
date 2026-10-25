@@ -20,7 +20,8 @@ def analyze_event(llm: StructuredLLM, model: str, event: NewsEvent, *, source_te
         "Не объединяй противоречащие сообщения в один подтверждённый факт.\n"
         f"Ответ - один JSON-объект по схеме: {schema_hint(EventAnalysis)}"
     )
-    published = event.published_at.isoformat() if event.published_at else "дата неизвестна"
+    published = (event.published_at.isoformat() if event.published_at else
+                 f"{event.published_date.isoformat()} (время неизвестно)" if event.published_date else "дата неизвестна")
     texts, _ = pack_sources({src: event.text} if source_texts is None else source_texts, MAX_EVENT_CHARS)
     blocks = "\n\n".join(f"source_id: {sid}\n{text}" for sid, text in texts.items())
     user = data_block(

@@ -244,6 +244,8 @@ class InsightRequest(BaseModel):
     request_id: str | None = Field(default=None, min_length=1, max_length=128)
     parent_run_id: str | None = Field(default=None, min_length=1, max_length=128)
     as_of: datetime | None = None
+    corpus_revision: Sha256 | None = None
+    event_content_sha256: Sha256 | None = None
 
     @model_validator(mode="after")
     def fixed_time_slice(self):
@@ -255,6 +257,8 @@ class InsightRequest(BaseModel):
                 published = published if published.tzinfo else published.replace(tzinfo=UTC)
                 if published > self.as_of:
                     raise ValueError("event.published_at is later than as_of")
+            elif self.event.published_date and self.event.published_date > self.as_of.date():
+                raise ValueError("event.published_date is later than as_of")
         return self
 
 
@@ -341,6 +345,9 @@ class Insight(BaseModel):
     request_id: str | None = None
     parent_run_id: str | None = None
     cache_hit: bool = False
+    corpus_revision: Sha256 | None = None
+    event_content_sha256: Sha256 | None = None
+    as_of: datetime | None = None
     headline: str
     what_happened: list[Claim]
     why_it_matters: list[Claim]
@@ -367,6 +374,9 @@ class Answer(BaseModel):
     run_id: str
     company_id: str | None = None
     event_id: str | None = None
+    corpus_revision: Sha256 | None = None
+    event_content_sha256: Sha256 | None = None
+    as_of: datetime | None = None
     status: str
     text: str
     claims: list[Claim] = Field(default_factory=list)

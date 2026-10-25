@@ -6,11 +6,14 @@ from insight_agent.schemas import Answer, InsightRequest, Insight, QuestionReque
 from insight_agent.schemas import BankFragment
 from insight_agent.materials.models import CatalogToken, CorpusSnapshot
 from insight_agent.materials.sources import FetchBatch, SourceSpec
+from insight_agent.materials.api import CatalogResponse, MaterialEvent
 
 CONTRACTS = {
     "bank-fragment": BankFragment,
     "materials": CorpusSnapshot,
     "catalog-token": CatalogToken,
+    "material-event": MaterialEvent,
+    "catalog-response": CatalogResponse,
     "source-spec": SourceSpec,
     "fetch-batch": FetchBatch,
     "insight-request": InsightRequest,

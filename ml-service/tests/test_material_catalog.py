@@ -177,3 +177,90 @@ def test_generated_bank_pdf_link_pins_revision_and_public_origin(tmp_path, reque
         f"https://materials.example.test/v1/materials/documents/{snapshot.documents[0].doc_id}"
         f"/file?revision={revision}#page=1"
     )
+
+
+def test_corrupt_refresh_retains_serving_bundle_and_blocks_new_current_run(tmp_path, request_):
+    root, old, r1, provider, http = catalog_app(tmp_path, request_)
+    r2 = publish_snapshot(root, make_runtime_snapshot(root, request_, "beta"))
+    (root / "snapshots" / r2 / "news.jsonl").write_text("corrupt collection")
+    refreshed = http.post("/v1/materials/refresh")
+    assert refreshed.status_code == 503
+    health = http.get("/health").json()
+    assert health["status"] == "degraded"
+    assert health["serving_revision"] == r1
+    assert health["current_revision"] is None
+    assert health["last_refresh_error"]
+    response = http.post("/v1/insights", json=runtime_request(request_, old).model_dump(mode="json"))
+    assert (response.status_code, len(provider.calls)) == (409, 0)
+    # A bad current pointer cannot invalidate independently addressed historical evidence.
+    historical = http.post("/v1/insights", json=runtime_request(request_, old).model_dump(mode="json")
+                           | {"corpus_revision": r1})
+    assert historical.status_code == 200
+    assert historical.json()["corpus_revision"] == r1
+
+
+def test_republished_same_revision_does_not_rebind_an_old_cursor(tmp_path, request_):
+    root, old, r1, provider, http = catalog_app(tmp_path, request_)
+    first = http.get("/v1/materials/events", params={"limit": 1}).json()
+    publish_snapshot(root, make_runtime_snapshot(root, request_, "beta"))
+    assert publish_snapshot(root, old) == r1
+    current = http.get("/v1/materials/events").json()
+    assert current["catalog_token"]["revision"] == r1
+    assert current["catalog_token"]["generation"] > first["catalog_token"]["generation"]
+    response = http.get("/v1/materials/events", params={"revision": r1, "cursor": first["next_cursor"]})
+    assert response.status_code == 409
+    assert provider.calls == []
+
+
+def test_result_saved_context_and_qa_trace_keep_revision_hash_and_cutoff(tmp_path, request_):
+    root, snapshot, revision, provider, http = catalog_app(tmp_path, request_)
+    request = runtime_request(request_, snapshot, corpus_revision=revision, as_of="2026-10-26T12:00:00Z",
+                              event_content_sha256=event_content_sha256(snapshot.news[0]))
+    response = http.post("/v1/insights", json=request.model_dump(mode="json"))
+    assert response.status_code == 200
+    insight = response.json()
+    assert insight["corpus_revision"] == revision
+    assert insight["event_content_sha256"] == request.event_content_sha256
+    assert insight["as_of"] == "2026-10-26T12:00:00Z"
+    provider.script["answer"] = [{"answerable": False, "text": "No answer", "claims": []}]
+    restarted = TestClient(create_app(build_agent(runtime_settings(tmp_path, root), provider)))
+    answer = restarted.post(f'/v1/insights/{insight["insight_id"]}/questions', json={"question": "credit financing?"})
+    assert answer.status_code == 200
+    for field in ("corpus_revision", "event_content_sha256", "as_of"):
+        assert answer.json()[field] == insight[field]
+    trace = restarted.get(f'/v1/runs/{answer.json()["run_id"]}/trace').json()
+    assert trace[0]["data"]["corpus_revision"] == revision
+    assert trace[0]["data"]["event_content_sha256"] == request.event_content_sha256
+
+
+def test_day_only_news_is_eligible_before_but_not_within_its_day(request_):
+    from datetime import UTC, datetime
+    from insight_agent.schemas import NewsEvent
+    from insight_agent.tools.news import NewsSearchArgs, NewsStore
+    data = request_.event.model_dump(mode="json")
+    data.update(published_at=None, published_date="2026-10-23", published_precision="date")
+    news = NewsStore([NewsEvent.model_validate(data)])
+    earlier = NewsSearchArgs(query="ключевая ставка", min_score=0, not_after=datetime(2026, 10, 23, 23, tzinfo=UTC))
+    later = earlier.model_copy(update={"not_after": datetime(2026, 10, 24, tzinfo=UTC)})
+    assert news.search(earlier) == []
+    assert [event.event_id for event in news.search(later)] == ["evt_demo_rate"]
+
+
+def test_health_reports_corrupt_run_report_separately_from_usable_corpus(tmp_path, request_):
+    root, snapshot, revision, provider, http = catalog_app(tmp_path, request_)
+    (root / "last_attempt.json").write_text('{"run_id":"missing","report_path":"runs/missing.json","sha256":"bad"}')
+    health = http.get("/health").json()
+    assert health["corpus_revision"] == revision
+    assert health["source_health"] == "failed"
+    assert health["status"] == "degraded"
+    assert health["report_error"]
+    assert provider.calls == []
+
+
+@pytest.mark.parametrize("revision", ["", "../current", "A" * 64, "0" * 63])
+def test_invalid_revision_never_falls_back_to_current(tmp_path, request_, revision):
+    root, snapshot, valid, provider, http = catalog_app(tmp_path, request_)
+    for route in ("/v1/materials/events", "/v1/materials/events/evt_demo_rate",
+                  f"/v1/materials/documents/{snapshot.documents[0].doc_id}/file"):
+        assert http.get(route, params={"revision": revision}).status_code == 422
+    assert provider.calls == []

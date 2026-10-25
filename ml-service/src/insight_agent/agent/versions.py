@@ -4,7 +4,8 @@ import os
 from pathlib import Path
 
 _HERE = Path(__file__).parent
-_FILES = ("prompts.py", "analyst.py", "planner.py", "personalizer.py", "qa.py", "critic.py", "evidence.py")
+_FILES = ("prompts.py", "analyst.py", "planner.py", "personalizer.py", "qa.py", "critic.py", "evidence.py",
+          "orchestrator.py", "../materials/policy.py", "../materials/identity.py", "../tools/news.py", "../tools/bank.py")
 
 
 def compute_version(paths: list[Path]) -> str:

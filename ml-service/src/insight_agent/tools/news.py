@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 from insight_agent.schemas import NewsEvent
 from insight_agent.materials.models import SourceVersion
 from insight_agent.materials.artifacts import digest
+from insight_agent.materials.policy import published_by
 from insight_agent.tools.search import BM25
 
 
@@ -55,7 +56,7 @@ class NewsStore:
         return [
             e for e, s in ranked
             if s >= args.min_score and e.event_id != args.exclude_event_id
-            and (limit is None or (e.published_at is not None and _aware(e.published_at) <= limit))
+            and (limit is None or published_by(e, limit))
         ][: args.top_k]
 
 
