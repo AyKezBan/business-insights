@@ -41,7 +41,12 @@ public final class ApiModels {
 
     public record AnalysisInput(@NotBlank @Pattern(regexp = "U_\\d+") String companyId,
                                 @NotNull Role role, @NotBlank @Size(max = 200) String eventId,
-                                @Size(max = 20) Map<@NotBlank @Size(max = 80) String, @NotBlank @Size(max = 1000) String> userProvided) {
+                                @Size(max = 20) Map<@NotBlank @Size(max = 80) String, @NotBlank @Size(max = 1000) String> userProvided,
+                                Instant asOf, @Pattern(regexp = "[a-f0-9]{64}") String corpusRevision,
+                                @Pattern(regexp = "[a-f0-9]{64}") String eventContentSha256, @Size(min = 1, max = 128) String requestId) {
+        public AnalysisInput(String companyId, Role role, String eventId, Map<String, String> userProvided) {
+            this(companyId, role, eventId, userProvided, null, null, null, null);
+        }
     }
 
     public record QuestionInput(@NotBlank @Size(max = 1000) String question) {
@@ -67,7 +72,9 @@ public final class ApiModels {
                                String registrationCity, String registrationRegion, BigDecimal revenueRub,
                                int revenueYear, String currency, BigDecimal consolidatedGroupRevenueRub,
                                String clientType, String employeesResolved, Boolean ftsInformationObserved,
-                               List<String> ftsCountries, BigDecimal selfTransferShareOfObservedEligiblePayments) {
+                               List<String> ftsCountries, BigDecimal selfTransferShareOfObservedEligiblePayments,
+                               String revenueStatus, String revenueScope, Boolean foreignTradeDataAvailable,
+                               String paymentPeriod, List<String> profileQualityNotes) {
     }
 
     public record ProfileView(String companyId, CompanyFacts facts, JsonNode provenance,
@@ -76,6 +83,8 @@ public final class ApiModels {
 
     public record ProblemView(int status, String code, String message, boolean retryable, String requestId) {
     }
+
+    public record FeedbackView(String rating, String comment) {}
 
     public record FailureView(String code, String message, boolean retryable) {
     }
@@ -115,7 +124,7 @@ public final class ApiModels {
                               SelfCheckView selfCheck, List<String> models, Instant generatedAt, String disclaimer,
                               List<String> warnings, boolean hidden, String mlInsightId, String runId, Integer version,
                               String outcome, String errorCode, String requestId, String parentRunId, boolean cacheHit,
-                              Instant asOf, String corpusRevision, String eventContentSha256, List<ConflictView> conflicts) {
+                              Instant asOf, String corpusRevision, String eventContentSha256, List<ConflictView> conflicts, Instant openedAt, FeedbackView feedback) {
     }
 
     public record AnswerView(UUID operationId, UUID insightId, String status, String mlStatus, String text,

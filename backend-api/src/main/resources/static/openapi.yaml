@@ -364,6 +364,11 @@ components:
         ftsInformationObserved: {type: boolean, nullable: true, description: Evidence of FTS information only; never inferred false from absence}
         ftsCountries: {$ref: '#/components/schemas/StringList'}
         selfTransferShareOfObservedEligiblePayments: {type: number, minimum: 0, maximum: 1, nullable: true, description: Eligible self amount / all eligible incident amount; self counted once, unknown or zero denominator yields null}
+        revenueStatus: {type: string, enum: [known, placeholder, missing, invalid], nullable: true}
+        revenueScope: {type: string, enum: [company, group, unknown], nullable: true}
+        foreignTradeDataAvailable: {type: boolean, nullable: true}
+        paymentPeriod: {type: string, nullable: true}
+        profileQualityNotes: {$ref: '#/components/schemas/StringList'}
     SourceInput:
       type: object
       required: [sourceId, title]
@@ -394,6 +399,10 @@ components:
         companyId: {type: string, pattern: '^U_[0-9]+$'}
         role: {$ref: '#/components/schemas/Role'}
         eventId: {type: string, minLength: 1, maxLength: 200}
+        asOf: {type: string, format: date-time, nullable: true, description: Publication cutoff; this is not point-in-time market replay}
+        corpusRevision: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
+        eventContentSha256: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
+        requestId: {type: string, minLength: 1, maxLength: 128, nullable: true}
         userProvided:
           type: object
           maxProperties: 20
@@ -523,6 +532,13 @@ components:
         disclaimer: {type: string}
         warnings: {$ref: '#/components/schemas/StringList'}
         hidden: {type: boolean}
+        openedAt: {type: string, format: date-time, nullable: true}
+        feedback:
+          type: object
+          nullable: true
+          properties:
+            rating: {type: string, enum: [USEFUL, IRRELEVANT, UNSUPPORTED, OTHER]}
+            comment: {type: string, nullable: true}
         mlInsightId: {type: string}
         runId: {type: string}
         version: {type: integer}

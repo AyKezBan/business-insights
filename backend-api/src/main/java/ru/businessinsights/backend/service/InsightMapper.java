@@ -32,11 +32,10 @@ public class InsightMapper {
         boolean published = "SUCCEEDED".equals(op.status()) || "LIMITED".equals(op.status());
         return new OperationView(op.id(), op.kind(), op.status(), op.createdAt(), op.updatedAt(), error, op.warnings(),
                 "ANALYSIS".equals(op.kind()) && published && op.result() != null ? op.id() : null, op.parentId(),
-                op.result() == null ? null : text(op.result(), "outcome"), op.result() == null ? null : text(op.result(), "request_id"),
-                op.result() == null ? null : text(op.result(), "corpus_revision"));
+                op.result() == null ? null : text(op.result(), "outcome"), context(op, "request_id"), context(op, "corpus_revision"));
     }
 
-    public InsightView insight(Operation op, boolean hidden) {
+    public InsightView insight(Operation op, ru.businessinsights.backend.store.OperationStore.Interaction interaction) {
         JsonNode r = op.result();
         Map<String, String> sources = sourceKinds(r);
         return new InsightView(op.id(), op.companyId(), Role.valueOf(op.role()), op.eventId(), op.status(), text(r, "status"), text(r, "headline"),
@@ -46,11 +45,11 @@ public class InsightMapper {
                 strings(r.path("profile_features_used")), sources(r), strings(r.path("missing_data")),
                 new SelfCheckView(r.path("self_check").path("passed").asBoolean(), r.path("self_check").path("issues"),
                         r.path("self_check").path("iterations").asInt(1), strings(r.path("self_check").path("adaptations"))),
-                strings(r.path("models")), mapper.convertValue(r.get("generated_at"), java.time.Instant.class), DISCLAIMER, op.warnings(), hidden,
+                strings(r.path("models")), mapper.convertValue(r.get("generated_at"), java.time.Instant.class), DISCLAIMER, op.warnings(), interaction.hidden(),
                 text(r, "insight_id"), text(r, "run_id"), r.path("version").asInt(1), text(r, "outcome"),
                 text(r, "error_code"), text(r, "request_id"), text(r, "parent_run_id"), r.path("cache_hit").asBoolean(),
                 mapper.convertValue(r.get("as_of"), java.time.Instant.class), text(r, "corpus_revision"), text(r, "event_content_sha256"),
-                conflicts(r));
+                conflicts(r), interaction.openedAt(), interaction.feedback());
     }
 
     public AnswerView answer(Operation op) {
@@ -127,6 +126,11 @@ public class InsightMapper {
         } catch (IllegalArgumentException e) {
             return null;
         }
+    }
+
+    private static String context(Operation op, String field) {
+        String result = op.result() == null ? null : text(op.result(), field);
+        return result == null && op.payload() != null ? text(op.payload().path("request"), field) : result;
     }
 
     private static String text(JsonNode node, String field) {

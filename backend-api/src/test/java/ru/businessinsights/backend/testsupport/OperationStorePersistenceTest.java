@@ -85,7 +85,7 @@ class OperationStorePersistenceTest {
         assertEquals("revision-one", saved.trace().get(0).path("data").path("corpus_revision").asText());
         assertEquals("2026-10-20T12:00:00Z", saved.payload().path("asOf").asText());
 
-        var view = new InsightMapper(mapper).insight(saved, restarted.hidden(id, "F_1"));
+        var view = new InsightMapper(mapper).insight(saved, restarted.interaction(id, "F_1"));
         assertEquals(id, view.insightId());
         assertEquals(2, view.whatHappened().size());
         assertEquals(List.of("First independent assertion", "Second independent assertion"),

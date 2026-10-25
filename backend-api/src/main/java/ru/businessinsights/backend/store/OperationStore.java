@@ -27,6 +27,8 @@ public class OperationStore {
                             String errorMessage, boolean retryable, Instant createdAt, Instant updatedAt) {
     }
 
+    public record Interaction(boolean hidden, Instant openedAt, ru.businessinsights.backend.api.ApiModels.FeedbackView feedback) {}
+
     public record Submission(Operation operation, boolean created) {
     }
 
@@ -57,11 +59,17 @@ public class OperationStore {
     @Transactional
     public Submission create(String owner, String company, String role, String kind, UUID parent, String eventId,
                              String key, String hash, Object payload) {
+        return createFrozen(owner, company, role, kind, parent, eventId, key, hash, payload, null);
+    }
+
+    @Transactional
+    public Submission createFrozen(String owner, String company, String role, String kind, UUID parent, String eventId,
+                                   String key, String hash, Object payload, Object profileSnapshot) {
         UUID id = UUID.randomUUID();
         int inserted = jdbc.update("""
-                INSERT INTO backend_api.operation(id,owner_id,company_id,role,kind,parent_id,event_id,request_key,request_hash,status,payload)
-                VALUES(?,?,?,?,?,?,?,?,?,'QUEUED',?::jsonb) ON CONFLICT(owner_id,kind,request_key) DO NOTHING
-                """, id, owner, company, role, kind, parent, eventId, key, hash, json(payload));
+                INSERT INTO backend_api.operation(id,owner_id,company_id,role,kind,parent_id,event_id,request_key,request_hash,status,payload,profile_snapshot)
+                VALUES(?,?,?,?,?,?,?,?,?,'QUEUED',?::jsonb,?::jsonb) ON CONFLICT(owner_id,kind,request_key) DO NOTHING
+                """, id, owner, company, role, kind, parent, eventId, key, hash, json(payload), profileSnapshot == null ? null : json(profileSnapshot));
         if (inserted == 1) {
             return new Submission(find(id).orElseThrow(), true);
         }
@@ -71,6 +79,16 @@ public class OperationStore {
             throw new ApiException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT", "Idempotency-Key уже использован для другого запроса");
         }
         return new Submission(existing, false);
+    }
+
+    public Optional<Operation> replay(String owner, String kind, String key, String hash) {
+        if (key == null) return Optional.empty();
+        var rows = jdbc.query("SELECT * FROM backend_api.operation WHERE owner_id=? AND kind=? AND request_key=?", this::map, owner, kind, key);
+        if (rows.isEmpty()) return Optional.empty();
+        var existing = rows.getFirst();
+        String previous = jdbc.queryForObject("SELECT request_hash FROM backend_api.operation WHERE id=?", String.class, existing.id());
+        if (!hash.equals(previous)) throw new ApiException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT", "Idempotency-Key уже использован для другого запроса");
+        return Optional.of(existing);
     }
 
     public Optional<Operation> find(UUID id) {
@@ -117,6 +135,19 @@ public class OperationStore {
                 ORDER BY CASE o.result->>'impact_level' WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
                   o.created_at DESC,o.id DESC LIMIT ? OFFSET ?
                 """, this::map, owner, company, role, includeHidden, limit, offset);
+    }
+
+    public Interaction interaction(UUID id, String owner) {
+        return jdbc.query("""
+                SELECT COALESCE(s.hidden,false) AS hidden,s.opened_at,f.rating,f.comment
+                FROM backend_api.operation o
+                LEFT JOIN backend_api.insight_state s ON s.operation_id=o.id AND s.owner_id=o.owner_id
+                LEFT JOIN backend_api.feedback f ON f.operation_id=o.id AND f.owner_id=o.owner_id
+                WHERE o.id=? AND o.owner_id=?
+                """, (rs, row) -> new Interaction(rs.getBoolean("hidden"),
+                    rs.getTimestamp("opened_at") == null ? null : rs.getTimestamp("opened_at").toInstant(),
+                    rs.getString("rating") == null ? null : new ru.businessinsights.backend.api.ApiModels.FeedbackView(rs.getString("rating"), rs.getString("comment"))), id, owner)
+                .stream().findFirst().orElse(new Interaction(false, null, null));
     }
 
     public boolean hidden(UUID id, String owner) {

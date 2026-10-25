@@ -52,12 +52,13 @@ class QueuedInputSnapshotTest {
     private DisposablePostgres database;
     private OperationStore store;
     private InsightService service;
+    private CompanyProfileService profiles;
 
     @BeforeEach
     void initializeRealQueueAndStore() throws Exception {
         database = DisposablePostgres.openOrSkip();
         store = new OperationStore(database.jdbc(), mapper);
-        CompanyProfileService profiles = mock(CompanyProfileService.class);
+        profiles = mock(CompanyProfileService.class);
         currentProfile.set(profile("P1", "10001.25"));
         when(profiles.hasAccess("F_1", "U_1")).thenReturn(true);
         when(profiles.loadProfile(eq("U_1"), anyMap())).thenAnswer(ignored -> currentProfile.get());
@@ -80,7 +81,7 @@ class QueuedInputSnapshotTest {
                 new BackendProperties.Ml(URI.create("http://127.0.0.1:1"), Duration.ofSeconds(1), Duration.ofSeconds(2), 4096),
                 new BackendProperties.Jobs(1, 4, Duration.ofSeconds(3)),
                 new BackendProperties.Auth("synthetic-unused-test-token", "F_1"));
-        service = new InsightService(profiles, ml, store, new InsightMapper(mapper), mapper, properties);
+        service = new InsightService(profiles, ml, store, new InsightMapper(mapper), mapper, properties, new ru.businessinsights.backend.data.MaterialCatalogRepository(database.jdbc(), mapper));
         service.ready();
         service.event(event("blocker", "Blocker text", "blocker-source"));
         service.event(event("queued", "R1 original text", "source-R1"));
@@ -108,6 +109,8 @@ class QueuedInputSnapshotTest {
 
         assertEquals("QUEUED", accepted.status());
         assertEquals(1, generateCalls.get(), "Only the blocker may enter ML before the latch is released");
+        assertNotNull(queued.requestId(), "Queued response must expose the frozen ML request ID");
+        assertEquals(accepted.payload().path("request").path("request_id").asText(), queued.requestId());
         assertNotNull(accepted.profileSnapshot(), "Profile/event snapshot must be persisted at submission, before the queued worker can run");
         assertEquals("P1", accepted.profileSnapshot().path("profile").path("region").asText());
         assertEquals("R1 original text", accepted.profileSnapshot().path("event").path("text").asText());
@@ -157,6 +160,93 @@ class QueuedInputSnapshotTest {
                 "SELECT count(*) FROM backend_api.operation WHERE owner_id='F_1' AND request_key='queued-key'", Integer.class));
     }
 
+    @Test
+    void catalogMismatchIsRejectedBeforeAnyProviderCall() throws Exception {
+        var repo = new ru.businessinsights.backend.data.MaterialCatalogRepository(database.jdbc(), mapper);
+        var tx = new org.springframework.transaction.support.TransactionTemplate(new org.springframework.jdbc.datasource.DataSourceTransactionManager(database.jdbc().getDataSource()));
+        var r1 = new ru.businessinsights.backend.data.MaterialCatalogRepository.CatalogToken("store-one", 1, "a".repeat(64));
+        var event = new MlContracts.NewsEvent("catalog", "Catalog", "R1 catalog text", Instant.parse("2026-10-20T09:00:00Z"),
+                new MlContracts.SourceRef("source:catalog", MlContracts.SourceKind.news, "Source", null, null, null), List.of(), List.of());
+        tx.execute(status -> repo.synchronize(null, r1, List.of(new ru.businessinsights.backend.data.MaterialCatalogRepository.MaterialEvent(event, "1".repeat(64)))));
+        var wrong = new AnalysisInput("U_1", Role.cfo, "catalog", Map.of(), Instant.parse("2026-10-21T09:00:00Z"), "b".repeat(64), "1".repeat(64), "request-wrong");
+        var error = assertThrows(ApiException.class, () -> service.analyze("F_1", wrong, "wrong-version"));
+        assertEquals("CORPUS_CONTEXT_MISMATCH", error.code());
+        assertEquals(0, generateCalls.get());
+        assertEquals(0, database.jdbc().queryForObject("SELECT count(*) FROM backend_api.operation", Integer.class));
+    }
+
+    @Test
+    void bankOnlyRefreshPinsOldQueueAndNewRequestToTheirOwnRevisions() throws Exception {
+        var repo = new ru.businessinsights.backend.data.MaterialCatalogRepository(database.jdbc(), mapper);
+        var tx = new org.springframework.transaction.support.TransactionTemplate(new org.springframework.jdbc.datasource.DataSourceTransactionManager(database.jdbc().getDataSource()));
+        var r1 = new ru.businessinsights.backend.data.MaterialCatalogRepository.CatalogToken("store-one", 1, "a".repeat(64));
+        var r2 = new ru.businessinsights.backend.data.MaterialCatalogRepository.CatalogToken("store-one", 2, "b".repeat(64));
+        var event = new MlContracts.NewsEvent("catalog", "Catalog", "R1 catalog text", Instant.parse("2026-10-20T09:00:00Z"),
+                new MlContracts.SourceRef("source:catalog", MlContracts.SourceKind.news, "Source", null, null, null), List.of(), List.of());
+        var material = new ru.businessinsights.backend.data.MaterialCatalogRepository.MaterialEvent(event, "1".repeat(64));
+        tx.execute(status -> repo.synchronize(null, r1, List.of(material)));
+        occupyOnlyWorker();
+        var original = new AnalysisInput("U_1", Role.cfo, "catalog", Map.of(), Instant.parse("2026-10-21T09:00:00Z"), r1.revision(), "1".repeat(64), "request-r1");
+        var old = service.analyze("F_1", original, "catalog-old");
+        tx.execute(status -> repo.synchronize(r1, r2, List.of(material)));
+        currentProfile.set(profile("P2", "20002.50"));
+        assertEquals(old.operationId(), service.analyze("F_1", original, "catalog-old").operationId());
+        var newer = new AnalysisInput("U_1", Role.cfo, "catalog", Map.of(), Instant.parse("2026-10-22T09:00:00Z"), r2.revision(), "1".repeat(64), "request-r2");
+        assertThrows(ApiException.class, () -> service.analyze("F_1", newer, "catalog-old"));
+        releaseFirst.countDown();
+        assertTrue(secondEntered.await(5, TimeUnit.SECONDS));
+        assertEquals(r1.revision(), queuedMlRequest.get().corpusRevision());
+        assertEquals("P1", queuedMlRequest.get().profile().region());
+        assertEquals(original.asOf(), queuedMlRequest.get().asOf());
+        assertEquals("request-r1", queuedMlRequest.get().requestId());
+        var next = service.analyze("F_1", newer, "catalog-new");
+        service.close(); service = null;
+        assertEquals(3, generateCalls.get());
+        assertEquals(r2.revision(), queuedMlRequest.get().corpusRevision());
+        var restarted = new OperationStore(database.jdbc(), mapper); restarted.interruptUnfinished();
+        assertEquals(r1.revision(), restarted.find(old.operationId()).orElseThrow().result().path("corpus_revision").asText());
+        assertEquals(r2.revision(), restarted.find(next.operationId()).orElseThrow().result().path("corpus_revision").asText());
+        assertEquals("P1", restarted.find(old.operationId()).orElseThrow().profileSnapshot().path("profile").path("region").asText());
+    }
+
+    @Test
+    void workerStartsOnlyAfterAcceptedTransactionCommits() throws Exception {
+        var tx = new org.springframework.transaction.support.TransactionTemplate(new org.springframework.jdbc.datasource.DataSourceTransactionManager(database.jdbc().getDataSource()));
+        var accepted = tx.execute(status -> {
+            var operation = service.analyze("F_1", new AnalysisInput("U_1", Role.cfo, "blocker", Map.of()), "transaction-key");
+            assertEquals("QUEUED", store.find(operation.operationId()).orElseThrow().status());
+            assertEquals(0, generateCalls.get());
+            return operation;
+        });
+        assertNotNull(accepted);
+        assertTrue(firstEntered.await(5, TimeUnit.SECONDS), "Worker must be enqueued after commit and observe the accepted row");
+    }
+
+    @Test
+    void concurrentIdenticalSubmissionsReturnOneCommittedOperation() throws Exception {
+        var barrier = new java.util.concurrent.CyclicBarrier(2);
+        when(profiles.loadProfile(eq("U_1"), anyMap())).thenAnswer(ignored -> {
+            barrier.await(5, TimeUnit.SECONDS);
+            return currentProfile.get();
+        });
+        var factory = new org.springframework.aop.framework.ProxyFactory(service);
+        factory.setProxyTargetClass(true);
+        factory.addAdvice(new org.springframework.transaction.interceptor.TransactionInterceptor(
+                new org.springframework.jdbc.datasource.DataSourceTransactionManager(database.jdbc().getDataSource()),
+                new org.springframework.transaction.annotation.AnnotationTransactionAttributeSource()));
+        service = (InsightService) factory.getProxy();
+        try (var callers = java.util.concurrent.Executors.newFixedThreadPool(2)) {
+            var first = callers.submit(() -> service.analyze("F_1", new AnalysisInput("U_1", Role.cfo, "blocker", Map.of()), "concurrent-key"));
+            var second = callers.submit(() -> service.analyze("F_1", new AnalysisInput("U_1", Role.cfo, "blocker", Map.of()), "concurrent-key"));
+            var one = first.get(8, TimeUnit.SECONDS);
+            var two = second.get(8, TimeUnit.SECONDS);
+            assertEquals(one.operationId(), two.operationId());
+            assertTrue(firstEntered.await(5, TimeUnit.SECONDS));
+            assertEquals(1, generateCalls.get());
+            assertEquals(1, database.jdbc().queryForObject("SELECT count(*) FROM backend_api.operation WHERE request_key='concurrent-key'", Integer.class));
+        }
+    }
+
     private void occupyOnlyWorker() throws Exception {
         service.analyze("F_1", new AnalysisInput("U_1", Role.cfo, "blocker", Map.of()), "blocker-key");
         assertTrue(firstEntered.await(5, TimeUnit.SECONDS), "Blocking request did not occupy the worker");
@@ -200,6 +290,8 @@ class QueuedInputSnapshotTest {
                 """);
         json.put("event_id", request.event().eventId()).put("company_id", request.profile().companyId())
                 .put("role", request.role().name());
+        json.put("corpus_revision", request.corpusRevision()).put("event_content_sha256", request.eventContentSha256()).put("request_id", request.requestId());
+        if (request.asOf() != null) json.put("as_of", request.asOf().toString());
         return mapper.treeToValue(json, MlContracts.Insight.class);
     }
 }

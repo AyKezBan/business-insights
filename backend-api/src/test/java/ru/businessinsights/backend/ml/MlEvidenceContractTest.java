@@ -35,7 +35,7 @@ class MlEvidenceContractTest {
         assertEquals(2, stored.path("what_happened").size());
     }
     @Test void apiMappingPreservesClaimsSourceVersionsAndContext() throws Exception {
-        var view = JSON.valueToTree(new InsightMapper(JSON).insight(operation(fixture()), false));
+        var view = JSON.valueToTree(new InsightMapper(JSON).insight(operation(fixture()), new ru.businessinsights.backend.store.OperationStore.Interaction(false, null, null)));
         assertEquals("claim:one", view.at("/whatHappened/0/claimId").asText());
         assertEquals("doc:opaque:1", view.at("/sources/0/docId").asText());
         assertEquals("a".repeat(64), view.at("/sources/0/contentSha256").asText());

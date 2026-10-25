@@ -86,6 +86,12 @@ public final class HttpMlClient implements MlClient {
                 || !request.role().name().equals(response.path("role").asText())) {
             throw invalid("ML insight identity differs from the request");
         }
+        for (String field : List.of("corpus_revision", "event_content_sha256", "request_id", "parent_run_id")) {
+            if (body.hasNonNull(field) && !body.get(field).equals(response.get(field)))
+                throw invalid("ML insight " + field + " differs from the pinned request");
+        }
+        if (request.asOf() != null && !request.asOf().equals(mapper.convertValue(response.get("as_of"), java.time.Instant.class)))
+            throw invalid("ML insight cutoff differs from the pinned request");
         requireText(response, "insight_id");
         requireText(response, "run_id");
         requireText(response, "headline");
