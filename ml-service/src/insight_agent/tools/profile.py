@@ -123,8 +123,10 @@ def derive_signals(p: CompanyProfile) -> list[Signal]:
                 note="компания есть в данных ФТС; страны не означают импорт или экспорт, направление и объём не установлены",
             )
         )
-    external = [cp for cp in p.counterparties if cp.company_id != p.company_id]  # переводы себе - не контрагент
-    for i, cp in enumerate(sorted(external, key=lambda c: c.share_of_flow or 0, reverse=True)[:5]):
+    # переводы себе - не контрагент; индекс в признаке остаётся исходным (Backend сверяет counterparties[i] с отправленным снимком)
+    external = [(i, cp) for i, cp in enumerate(p.counterparties) if cp.company_id != p.company_id]
+    self_note = f"; доля переводов между своими счетами {p.self_transfer_share:.0%}, зависимостью не считается" if p.self_transfer_share is not None else ""
+    for i, cp in sorted(external, key=lambda item: item[1].share_of_flow or 0, reverse=True)[:5]:
         share = cp.share_of_flow
         channels = ["counterparty_risk"] + (_okved_channels(cp.okved_code)[:2] if cp.direction == "outgoing" else [])
         role = "входящий платёжный контрагент" if cp.direction == "incoming" else "исходящий платёжный контрагент"
@@ -135,7 +137,7 @@ def derive_signals(p: CompanyProfile) -> list[Signal]:
                 + (f", {share:.0%} потока" if share is not None else "")
                 + ")",
                 channels=channels,
-                note="крупный контрагент по платежам; характер отношений не подтверждён",
+                note="крупный контрагент по платежам; характер отношений не подтверждён" + self_note,
             )
         )
     if p.group_member_okveds:
@@ -148,9 +150,6 @@ def derive_signals(p: CompanyProfile) -> list[Signal]:
                 note="виды деятельности других компаний группы; роль каждой компании и связь с этой не установлены, вывод по группе не переносится на компанию без проверки",
             )
         )
-    if p.self_transfer_share is not None:
-        signals.append(Signal(feature="self_transfer_share", value=f"{p.self_transfer_share:.0%}", channels=[],
-                              note="доля переводов между своими счетами; зависимостью от контрагентов не считается"))
     if p.region:
         signals.append(Signal(feature="region", value=p.region, channels=[], note="регион регистрации"))
     for key, value in p.user_provided.items():

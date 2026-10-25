@@ -29,9 +29,10 @@ def test_transfers_to_self_are_not_a_counterparty_dependency():
     own = Counterparty(company_id="U_X", direction="outgoing", share_of_flow=0.8)
     other = Counterparty(company_id="U_Y", direction="outgoing", share_of_flow=0.1)
     signals = _signals(counterparties=[own, other], self_transfer_share=0.8)
-    assert [k for k in signals if k.startswith("counterparties")] == ["counterparties[0]"]
-    assert "U_Y" in signals["counterparties[0]"].value
-    assert "не считается" in signals["self_transfer_share"].note and signals["self_transfer_share"].value == "80%"
+    # индекс исходный: Backend сверяет counterparties[i] с отправленным списком
+    assert [k for k in signals if k.startswith("counterparties")] == ["counterparties[1]"]
+    assert "U_Y" in signals["counterparties[1]"].value
+    assert "self_transfer_share" not in signals and "80%" in signals["counterparties[1]"].note
 
 
 def test_counterparty_with_unknown_industry_is_not_guessed():

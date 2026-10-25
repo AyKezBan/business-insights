@@ -22,7 +22,7 @@ Backend собирает `profile` из `company_profile`, `payment_snapshot` и
 | `city`, `region` | `city`, `region` | регистрация юрлица, не место обслуживания |
 | `quality_issues` | `profile_quality_notes` | |
 | `payment_period_description` | `payment_period` | известно только «с 1 января» |
-| `payment_snapshot` с `ml_eligible=true` | `counterparties`, `self_transfer_share` | агрегирует Backend: направление `incoming/outgoing`, `amount_rub`, `share_of_flow`; переводы себе (`payer = beneficiary`) считаются в `self_transfer_share`, как контрагент ML их не использует |
+| `payment_snapshot` с `ml_eligible=true` | `counterparties`, `self_transfer_share` | агрегирует Backend: направление `incoming/outgoing`, `amount_rub`, `share_of_flow`; переводы себе (`payer = beneficiary`) считаются в `self_transfer_share`; как контрагент и как признак для модели ML их не использует (долю он показывает в примечании к контрагентам) |
 
 Не используются: `negativemark` (это не флаг риска), связи физлиц (должность и роль пользователя из них не следуют), `org_type`.
 
@@ -48,3 +48,12 @@ Backend собирает `profile` из `company_profile`, `payment_snapshot` и
 - Роли интерфейса: только `cfo` и `ceo`, ML понимает ещё `owner`, `chief_accountant`, `treasurer`, `other_c_level`, `other`.
 - Оценки и скрытие карточек интерфейс пока хранит локально; серверное хранение, `401/403`, `429` и очередь для долгих запусков (в контракте названа job API) - Backend.
 - Контракт интерфейса требует таймаут 15 с на клиенте, а анализ одной пары в ML может идти дольше (лимит `AGENT_MAX_SECONDS`, по умолчанию 120 с). Нужен асинхронный запуск или предварительный расчёт: решение за Backend.
+
+## Приёмка ответа ML в backend-api
+
+`HttpMlClient` проверяет ответ по закреплённым схемам и отклоняет **весь** ответ как недопустимый, если:
+- модель сослалась на признак вне перечня `okved_code`, `revenue_rub`, `group_revenue_rub`, `foreign_trade`, `group_member_okveds`, `region`, `products.*` (только если значение `true`), `user_provided.*`, `counterparties[i]` (индекс должен быть меньше длины отправленного списка), либо признак пустой или `false`;
+- в ответе пустые или повторяющиеся `source_id`, ссылка на источник отсутствует в `sources`, `fact` или `assessment` без источника, позиция банка ссылается не на банковский источник;
+- `company_id`, `event_id` или `role` в ответе не совпадают с запросом.
+
+ML этому соответствует: перечень признаков, которые видит модель, совпадает с перечнем backend (тест `tests/test_backend_contract.py`), индексы контрагентов исходные, новые поля ответа (`outcome`, `error_code`, `claim_id`, `cache_hit`, `version`, `request_id`, `parent_run_id`) backend игнорирует (`ignoreUnknown`), а схемы ответа не запрещают лишние поля. Лишние поля в запросе backend не отправляет (`request_id`, `as_of` необязательны); для повторов без новых платных вызовов ему стоит передавать `request_id`.
