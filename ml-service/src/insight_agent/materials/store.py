@@ -181,7 +181,6 @@ def _prepare_snapshot(root: Path, snapshot: CorpusSnapshot) -> str:
             _fsync_directory(temporary)
             try:
                 os.rename(temporary, folder)
-                _fsync_directory(folder.parent)
             except OSError:
                 if not folder.exists():
                     raise
@@ -190,6 +189,9 @@ def _prepare_snapshot(root: Path, snapshot: CorpusSnapshot) -> str:
                 shutil.rmtree(temporary)
     # Also checks an existing directory: never switch to a damaged prior revision.
     _load_revision(root, revision)
+    # A prior attempt may have renamed this directory but failed its durability
+    # barrier. Re-establish it even when reusing an existing candidate snapshot.
+    _fsync_directory(folder.parent)
     return revision
 
 

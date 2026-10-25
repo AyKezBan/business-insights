@@ -650,3 +650,32 @@ def test_postcommit_legacy_token_initialization_reports_publication_even_at_same
     assert result.current_revision == result.previous_revision == revision
     assert result.catalog_token.generation == 1 and result.previous_token.generation == 0
     assert result.published_revision == revision
+
+
+def test_snapshot_parent_fsync_failure_keeps_sync_head_on_repeated_attempts(
+    sync_api, seeded_store, monkeypatch, record, batch,
+):
+    from insight_agent.materials import store
+    before = pointer_bytes(seeded_store)
+    old_token = store.load_catalog_token(seeded_store)
+    fsync = store._fsync_directory
+    failures = []
+    def fail_snapshot_parent(path):
+        if path == seeded_store.resolve() / 'snapshots':
+            failures.append(path)
+            raise OSError('snapshot parent fsync failed')
+        return fsync(path)
+    incoming = [batch('cbr_press', [record('cbr_press', '102', text='The key rate changed to 16 percent.')])]
+    with monkeypatch.context() as patch:
+        patch.setattr(store, '_fsync_directory', fail_snapshot_parent)
+        for _ in range(2):
+            result = sync_api.sync_sources(seeded_store, incoming, T + timedelta(hours=1))
+            assert (result.status, result.exit_code) == ('failed', 1)
+            assert result.published_revision is None
+            assert result.catalog_token == old_token
+            assert pointer_bytes(seeded_store) == before
+            assert result.fatal_errors == ['publish_corpus: OSError']
+    assert len(failures) == 2
+    result = sync_api.sync_sources(seeded_store, incoming, T + timedelta(hours=1))
+    assert (result.status, result.exit_code) == ('complete', 0)
+    assert result.catalog_token.generation == old_token.generation + 1
