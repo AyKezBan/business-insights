@@ -89,6 +89,7 @@ def _write_fsync(path: Path, data: bytes) -> None:
 
 
 def publish_snapshot(root: Path, snapshot: CorpusSnapshot) -> str:
+    snapshot = snapshot.model_copy(update={"schema_version": 2, "pipeline_version": "materials-v2"})
     root.mkdir(parents=True, exist_ok=True)
     validate_snapshot(root, snapshot)
     payload = snapshot.model_dump(mode="json", exclude={"revision"})
@@ -139,15 +140,18 @@ def _load_revision(root: Path, revision: str) -> CorpusSnapshot:
     files = manifest.pop("files")
     if set(files) != {k + ".jsonl" for k in COLLECTIONS}:
         raise ValueError("Invalid snapshot file registry")
-    for key, model in COLLECTIONS.items():
+    for key in COLLECTIONS:
         name = key + ".jsonl"
         data = (folder / name).read_bytes()
         if digest(data) != files[name]:
             raise ValueError(f"Collection hash mismatch: {name}")
-        manifest[key] = [model.model_validate_json(line) for line in data.decode().splitlines() if line.strip()]
-    snapshot = CorpusSnapshot.model_validate(manifest)
-    if snapshot.revision != revision or digest(_json_bytes(snapshot.model_dump(mode="json", exclude={"revision"}))) != revision:
+        manifest[key] = [json.loads(line) for line in data.decode().splitlines() if line.strip()]
+    # Verify the stored representation before Pydantic adds v2 defaults to v1.
+    payload = {key: value for key, value in manifest.items() if key != "revision"}
+    if manifest.get("revision") != revision or digest(_json_bytes(payload)) != revision:
         raise ValueError("Snapshot manifest hash mismatch")
+    from insight_agent.materials.legacy import migrate_snapshot
+    snapshot = CorpusSnapshot.model_validate(migrate_snapshot(manifest))
     validate_snapshot(root, snapshot)
     return snapshot
 

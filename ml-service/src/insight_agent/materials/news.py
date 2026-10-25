@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 import json
 from pathlib import Path
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urlsplit
 import xml.etree.ElementTree as ET
 
 from bs4 import BeautifulSoup
@@ -30,14 +30,22 @@ def parse_rss(xml: bytes) -> list[dict]:
         if not url or not title:
             continue
         published = None
-        if raw_date := item.findtext("pubDate"):
+        published_date = None
+        source_offset = None
+        raw_date = item.findtext("pubDate")
+        if raw_date:
             try:
                 candidate = parsedate_to_datetime(raw_date)
                 if candidate.tzinfo is not None:
                     published = candidate.astimezone(timezone.utc)
+                    published_date = candidate.date()
+                    source_offset = int(candidate.utcoffset().total_seconds())
             except (TypeError, ValueError, OverflowError):
                 pass
-        result.append({"url": url, "title": title, "published_at": published})
+        result.append({"url": url, "title": title, "published_at": published,
+                       "published_date": published_date, "source_utc_offset_seconds": source_offset,
+                       "raw_publication": raw_date,
+                       "timezone_provenance": "explicit_offset" if published else "unknown"})
     return result
 
 
@@ -63,27 +71,25 @@ def _validate_source_url(url: str) -> None:
 
 
 class CbrRssSource:
-    def __init__(self, client: httpx.Client, feed_url: str = FEED_URL):
+    def __init__(self, client: httpx.Client, feed_url: str = FEED_URL, *, transport=None):
         _validate_source_url(feed_url)
         self.client, self.feed_url = client, feed_url
+        from insight_agent.materials.transport import ControlledTransport
+        from insight_agent.materials.registry import get_spec
+        self.transport = transport or ControlledTransport(client)
+        self.spec = get_spec('cbr_press')
+
+    def _request(self, url: str):
+        from insight_agent.materials.transport import TransportError
+        try:
+            return self.transport.get(url, spec=self.spec)
+        except TransportError as exc:
+            if isinstance(exc.__cause__, httpx.HTTPError):
+                raise exc.__cause__
+            raise ValueError(str(exc)) from exc
 
     def _read(self, url: str) -> bytes:
-        for _ in range(5):
-            _validate_source_url(url)
-            with self.client.stream("GET", url, timeout=10, follow_redirects=False) as response:
-                if response.is_redirect:
-                    url = urljoin(url, response.headers.get("location", ""))
-                    _validate_source_url(url)
-                    continue
-                response.raise_for_status()
-                chunks, total = [], 0
-                for chunk in response.iter_bytes():
-                    total += len(chunk)
-                    if total > MAX_BYTES:
-                        raise ValueError("Source size limit exceeded")
-                    chunks.append(chunk)
-                return b"".join(chunks)
-        raise ValueError("Too many source redirects")
+        return self._request(url).body
 
     def fetch(self, limit: int) -> list[RawNews]:
         if not 1 <= limit <= 100:
@@ -94,8 +100,10 @@ class CbrRssSource:
             if item["url"] in seen:
                 continue
             seen.add(item["url"])
-            body = self._read(item["url"])
-            result.append(RawNews(**item, text=extract_cbr_article(body.decode("utf-8-sig")), retrieved_at=fetched_at))
+            response = self._request(item["url"])
+            body = response.body.decode("utf-8-sig")
+            result.append(RawNews(**{**item, "url": response.url}, discovered_url=item["url"],
+                                  text=extract_cbr_article(body), raw_body=body, retrieved_at=fetched_at))
             if len(result) == limit:
                 break
         return result

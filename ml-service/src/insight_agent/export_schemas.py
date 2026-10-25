@@ -4,11 +4,15 @@ from pathlib import Path
 
 from insight_agent.schemas import Answer, InsightRequest, Insight, QuestionRequest, TraceEvent
 from insight_agent.schemas import BankFragment
-from insight_agent.materials.models import CorpusSnapshot
+from insight_agent.materials.models import CatalogToken, CorpusSnapshot
+from insight_agent.materials.sources import FetchBatch, SourceSpec
 
 CONTRACTS = {
     "bank-fragment": BankFragment,
     "materials": CorpusSnapshot,
+    "catalog-token": CatalogToken,
+    "source-spec": SourceSpec,
+    "fetch-batch": FetchBatch,
     "insight-request": InsightRequest,
     "insight": Insight,
     "question-request": QuestionRequest,

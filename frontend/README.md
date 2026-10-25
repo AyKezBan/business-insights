@@ -68,4 +68,4 @@ API_CONTRACT.md содержит текущую схему 2.0; WEBINAR_ALIGNMEN
 
 ## Подготовка FE-08–FE-13
 
-Слой будущей интеграции и текущие ограничения описаны в [FE_08_13_PREPARATION.md](FE_08_13_PREPARATION.md). По умолчанию работает прежний деморежим. Java API не подключён. Дополнительная проверка: `node tests/test_integration.cjs`.
+Слой будущей интеграции и текущие ограничения описаны в [FE_08_13_PREPARATION.md](FE_08_13_PREPARATION.md). Самостоятельный `server.py` остаётся явным деморежимом. Общий `./stack` использует Java API через `web/backend-bindings.js` и same-origin gateway из DevOps PR #7. Новые material metadata и versioned catalog дорабатываются в финализации; это не обещание уже принятого live качества. Проверки: `node tests/test_integration.cjs` и `node tests/test_backend_bindings.cjs`.

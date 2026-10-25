@@ -1,6 +1,6 @@
 # Общий локальный стек
 
-Root `compose.yaml` объединяет актуальный `develop` (e105b7c) и frontend из PR #6 (7c59dd0). PR #2–5 уже merged на 26.10.2026. Frontend добавлен локальным merge в ветку DevOps; shared branches/PR не менялись. Ветка `feature/ml-finalize` не включена: её разработка продолжается отдельно. Ранее существовавший `compose.ml-materials.yml` оставлен для самостоятельного ML-сценария.
+Root `compose.yaml` объединяет актуальный `develop` (e105b7c) и frontend из PR #6 (7c59dd0). PR #2–5 уже merged на 26.10.2026. Frontend добавлен локальным merge в ветку DevOps; shared branches/PR не менялись. В финализации D03/D04 дополнительно объединена `feature/ml-finalize` (416f24f). Исторический smoke DevOps PR #7 использовал прежний ML baseline; полный объединённый выпуск проверяется отдельно по финальному manifest. Ранее существовавший `compose.ml-materials.yml` оставлен для самостоятельного ML-сценария.
 
 ## Запуск и данные
 
