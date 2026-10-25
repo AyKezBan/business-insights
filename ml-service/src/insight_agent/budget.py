@@ -6,7 +6,7 @@ import re
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from decimal import ROUND_UP, Decimal
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -76,7 +76,7 @@ class Reservation:
 
 
 class RubleLedger:
-    """Потрачено за сутки (по часовому поясу провайдера). Состояние хранится в файле и переживает рестарт."""
+    """Суточный расход со сбросом в 03:00 (по умолчанию МСК), сохранённый между рестартами."""
 
     def __init__(
         self,
@@ -98,7 +98,7 @@ class RubleLedger:
             self._path.parent.mkdir(parents=True, exist_ok=True)
 
     def _today(self) -> str:
-        return self._clock().astimezone(self._tz).date().isoformat()
+        return (self._clock().astimezone(self._tz) - timedelta(hours=3)).date().isoformat()
 
     def _read(self) -> dict:
         if self._path and self._path.exists():
@@ -118,8 +118,14 @@ class RubleLedger:
 
     def _state(self) -> dict:
         state = self._read()
-        if state.get("day") != self._today():
-            state = {"day": self._today(), "spent": "0", "calls": 0}
+        today = self._today()
+        if state and "window_version" not in state:
+            # Legacy calendar-day counters have no intraday evidence. Carry all
+            # spend into this window once, then expire at the next 03:00 reset.
+            state = {**state, "day": today, "window_version": 1}
+            self._write(state)
+        if state.get("day") != today:
+            state = {"day": today, "spent": "0", "calls": 0, "window_version": 1}
         return state
 
     class _Locked:
