@@ -1,7 +1,7 @@
 /* FE-08–FE-12: transport and UI boundary. Java DTO bindings await BE-12/13. */
 'use strict';
 (function (root) {
-  const outcomes = {LIMITED: 'Анализ ограничен доступными данными', INSUFFICIENT_DATA: 'Недостаточно данных для обоснованного вывода', NO_RESULT: 'Подготовленного результата нет', FAILED: 'Не удалось подготовить анализ'};
+  const outcomes = {REFUSED: 'Недостаточно проверенных оснований для анализа', LIMITED: 'Анализ ограничен доступными данными', INSUFFICIENT_DATA: 'Недостаточно данных для обоснованного вывода', NO_RESULT: 'Подготовленного результата нет', FAILED: 'Не удалось подготовить анализ'};
   function safeURL(value, base = 'http://localhost') {
     if (typeof value !== 'string' || !value.trim() || /[\\\x00-\x20]/.test(value)) return null;
     try { const u = new URL(value, base); if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password) return null; return u.href; } catch { return null; }

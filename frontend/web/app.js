@@ -87,16 +87,41 @@ async function request(path, ctx, controller, payload) {
     throw e;
   } finally { clearTimeout(timeout); }
 }
+function sourceDetails(source) {
+  const details = [];
+  const publishers = {cbr:'Банк России',fns:'ФНС России',eia:'EIA, США'};
+  const publisher = publishers[String(source.publisher_id || '').toLowerCase()];
+  if (publisher) details.push(publisher);
+  const precision = source.published_precision;
+  const date = source.published_date || source.date;
+  if (precision === 'unknown') details.push('Дата публикации неизвестна');
+  else if (date) {
+    details.push('Опубликовано: ' + String(date).slice(0,10) + (precision === 'date' ? ' · время не указано' : ''));
+  }
+  if (source.material_type === 'publisher_annotation') details.push('Доступна только аннотация');
+  else if (source.completeness === 'partial') details.push('Материал доступен не полностью');
+  if (source.statement_type === 'forecast') details.push('Прогноз');
+  else if (source.statement_type === 'bank_assessment') details.push('Оценка банка');
+  if (source.target_period) details.push('Горизонт: ' + source.target_period);
+  if (source.valid_until) details.push('Действует до: ' + source.valid_until);
+  if (source.first_seen_at) details.push('Впервые получено: ' + String(source.first_seen_at).slice(0,10));
+  if (source.retrieved_at) details.push('Получена эта версия: ' + String(source.retrieved_at).slice(0,10));
+  if (source.translation_attribution) details.push(source.translation_attribution);
+  return details;
+}
 function sourceLinks(sources = []) {
   const container = node('div');
   for (const source of sources) {
     const href = InsightsIntegration.sourceURL(source, api.mode === 'demo', location.origin);
     const label = source.title || 'Первоисточник';
-    if (!href) { container.append(node('p', label + ' · ссылка недоступна', 'muted')); continue; }
-    const a = node('a', label, 'source-link');
-    a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
-    a.append(node('small', [source.date, Number.isInteger(source.page) && source.page > 0 ? 'стр. ' + source.page : null, 'новая вкладка'].filter(Boolean).join(' · ')));
-    container.append(a);
+    if (href) {
+      const a = node('a', label, 'source-link');
+      a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.append(node('small', [!source.published_precision && !source.published_date ? source.date : null, Number.isInteger(source.page) && source.page > 0 ? 'стр. ' + source.page : null, 'новая вкладка'].filter(Boolean).join(' · ')));
+      container.append(a);
+    } else container.append(node('p', label + ' · ссылка недоступна', 'muted'));
+    const details = sourceDetails(source);
+    if (details.length) container.append(node('p',details.join(' · '),'muted'));
     if (source.excerpt) container.append(node('blockquote', source.excerpt));
   }
   return container;
@@ -242,6 +267,7 @@ function serverFeedbackPanel(card) {
   }
   panel.append(reason,message); return panel;
 }
+function canShowContent(result) { return !result.outcome || ['COMPLETE','LIMITED'].includes(result.outcome); }
 function renderFeed(result) {
   heading('Бизнес-события', 'События и разборы для компании из профиля. Изменить компанию или должность можно в разделе «Профиль».');
   if (!result.items.length) {
@@ -272,13 +298,15 @@ function renderFeed(result) {
   const grid = node('div', '', 'grid');
   for (const event of visible) {
     const card = node('article', '', 'event-card'); const meta = node('div', '', 'meta');
-    meta.append(node('span', event.category), node('span', event.date));
+    const publishable = canShowContent(event);
+    const title = publishable ? event.title : InsightsIntegration.outcomes[event.outcome] || 'Подготовленного результата нет';
+    meta.append(node('span', publishable ? event.category : 'Анализ события'), node('span', event.date));
     const actions = node('div', '', 'event-actions');
-    const hide = node('button', 'Скрыть'); hide.setAttribute('aria-label', 'Скрыть событие «' + event.title + '»');
+    const hide = node('button', 'Скрыть'); hide.setAttribute('aria-label', 'Скрыть событие «' + title + '»');
     const hideKey = preferenceKey(event.id), hideContext = `${state.profile.company_id}:${state.profile.role}`;
     hide.onclick = async () => { if (`${state.profile.company_id}:${state.profile.role}` !== hideContext) return; if (api.mode === 'server') { const message=node('p','','muted'); card.append(message); if (await persistServer(hideKey,{hidden:true},hide,message,{context:{...state.ctx,event_id:event.id},insight_id:event.insight_id})) await renderRoute(); return; } const updated = {...state.preferences, [hideKey]: {...state.preferences[hideKey], hidden: true}}; if (!saveStored(PREFERENCES_KEY, updated)) { showError('Не удалось сохранить скрытие в этом браузере.'); return; } state.preferences = updated; renderRoute(); };
     actions.append(link('Разобраться в событии →', 'insight/' + event.id), hide);
-    card.append(meta, node('h2', event.title), node('span', 'Требует проверки данных', 'badge'), node('p', event.why), actions); grid.append(card);
+    card.append(meta, node('h2', title), node('span', 'Требует проверки данных', 'badge'), node('p', publishable ? event.why : (event.missing_data || []).join(' ')), actions); grid.append(card);
   }
   if (!visible.length) grid.append(node('p', 'Все события скрыты. Их можно вернуть кнопкой «Показать скрытые».', 'muted'));
   $('page').append(grid); status('Показано событий: ' + visible.length + ' · дата анализа ' + result.as_of);
@@ -289,12 +317,19 @@ function renderCard(card) {
   if (card.outcome && card.outcome !== 'COMPLETE') {
     const warning=node('section','','limitations'); warning.setAttribute('role','status');
     warning.append(node('h2', InsightsIntegration.outcomes[card.outcome] || 'Статус результата не распознан'), node('p',card.outcome_message || 'Учитывайте ограничения результата.'));
+    for (const reason of card.missing_data || []) warning.append(node('p',reason));
     $('page').append(warning);
     if (!['LIMITED'].includes(card.outcome)) { $('page').append(link('Вернуться к событиям','feed')); status(warning.textContent); return; }
   }
   $('page').append(link('← Все бизнес-события', 'feed', {}, 'breadcrumb'));
   const company = state.data.companies.find(c => c.id === state.ctx.company_id);
   heading(card.title, `Разбор для ${company?.name || 'компании'} · ${state.data.roles[state.ctx.role]}. Изменить контекст можно в Профиле.`);
+  for (const conflict of (card.conflicts || []).filter(item=>!item.resolved)) {
+    const notice=node('section','','limitations');
+    notice.append(node('strong','Источники расходятся'),node('p','Материалы содержат несовпадающие сведения. Сопоставьте первоисточники перед решением.'),sourceLinks(card.sources.filter(source=>(conflict.source_ids || []).includes(source.id))));
+    $('page').append(notice);
+  }
+
   const toolbar = node('div', '', 'toolbar'); toolbar.setAttribute('role', 'group'); toolbar.setAttribute('aria-label', 'Разрез анализа');
   for (const [key, name] of Object.entries(state.data.views)) {
     const b = node('button', name); b.setAttribute('aria-pressed', String(key === state.ctx.view));
@@ -376,8 +411,9 @@ async function ask(question, requestId = crypto.randomUUID()) {
     if (epoch !== state.epoch || seq !== state.questionSeq) return;
     if (result.request_id !== payload.request_id || result.insight_id !== payload.insight_id) throw new Error('Ответ не соответствует запросу или версии карточки.');
     target.replaceChildren(); target.className = 'reply';
-    target.append(node('strong', InsightsIntegration.outcomes[result.outcome] || (result.status === 'no_answer' ? 'Достоверный ответ недоступен' : 'Уточнение · есть ограничения')), node('p', question, 'muted'), node('p', result.text), sourceLinks(result.sources));
-    if (result.claims?.length) {
+    target.append(node('strong', result.outcome === 'COMPLETE' ? 'Ответ на уточнение' : InsightsIntegration.outcomes[result.outcome] || (result.status === 'no_answer' ? 'Достоверный ответ недоступен' : 'Уточнение · есть ограничения')), node('p', question, 'muted'));
+    if (canShowContent(result)) target.append(node('p',result.text),sourceLinks(result.sources));
+    if (canShowContent(result) && result.claims?.length) {
       const evidence=node('details'); evidence.append(node('summary','Основания ответа'));
       for (const claim of result.claims) evidence.append(node('p',claim.text),node('span',certaintyLabels[claim.certainty] || 'Тип утверждения не указан','tag'),claimEvidence(claim,result.sources));
       target.append(evidence);

@@ -4,17 +4,30 @@
   const roles = {owner:'Собственник', ceo:'Генеральный директор', cfo:'Финансовый директор', chief_accountant:'Главный бухгалтер', treasurer:'Казначей', other_c_level:'Другой руководитель', other:'Другая роль'};
   const views = {overview:'Общий обзор', consequences:'Последствия', risks:'Риски', recommendations:'Рекомендации'};
   const list = value => Array.isArray(value) ? value : [];
-  const outcome = status => status === 'SUCCEEDED' ? 'COMPLETE' : status;
+  function outcome(status, value) {
+    if (status === 'FAILED') return 'FAILED';
+    const outcomes = {full:'COMPLETE', limited:'LIMITED', refused:'REFUSED', none:'NO_RESULT'};
+    if (value != null) {
+      if (!Object.hasOwn(outcomes,value)) throw new Error('Сервис вернул неизвестный исход анализа.');
+      return outcomes[value];
+    }
+    return status === 'SUCCEEDED' ? 'COMPLETE' : status;
+  }
   const preferenceKey = (ctx, id) => `${ctx.company_id}:${ctx.role}:${id}`;
   const pathId = id => encodeURIComponent(id);
   function checkContext(dto, ctx, id) {
     if (!dto || dto.companyId !== ctx.company_id || dto.role !== ctx.role || (id && dto.insightId !== id)) throw new Error('Ответ API содержит другой контекст компании или карточки.');
   }
   function source(dto) {
-    return {id:dto.sourceId, title:dto.title, url:dto.url, date:dto.date, page:dto.page, kind:dto.kind};
+    return {id:dto.sourceId, title:dto.title, url:dto.url, date:dto.date, page:dto.page, kind:dto.kind,
+      doc_id:dto.docId, content_sha256:dto.contentSha256, excerpt:dto.excerpt, publisher_id:dto.publisherId,
+      adapter_id:dto.adapterId, material_type:dto.materialType, completeness:dto.completeness, language:dto.language,
+      published_date:dto.publishedDate, published_precision:dto.publishedPrecision, first_seen_at:dto.firstSeenAt,
+      retrieved_at:dto.retrievedAt, statement_type:dto.statementType, target_period:dto.targetPeriod,
+      valid_until:dto.validUntil, rights_url:dto.rightsUrl, translation_attribution:dto.translationAttribution};
   }
   function part(claim, kind, label) {
-    return {kind, text:claim.text, certainty:claim.kind, source_ids:list(claim.sourceIds), feature_refs:list(claim.profileFeatures), origin:claim.origin, ...(label ? {label} : {})};
+    return {kind, claim_id:claim.claimId, text:claim.text, certainty:claim.kind, source_ids:list(claim.sourceIds), feature_refs:list(claim.profileFeatures), origin:claim.origin, level:claim.level, horizon:claim.horizon, ...(label ? {label} : {})};
   }
   function cardView(dto, ctx) {
     checkContext(dto, ctx, ctx.event_id);
@@ -35,7 +48,11 @@
       text:[scenario.trigger,scenario.implication,scenario.plausibility].filter(Boolean).join(' · '),certainty:'hypothesis',source_ids:list(scenario.sourceIds)});
     for (const text of list(dto.modelVsBank)) blocks.find(b=>b.kind==='ai').sections.push({kind:'consequences',label:'Сопоставление модели и банка',text,certainty:'inference',source_ids:[]});
     return {context:{...ctx},insight_id:dto.insightId,event_id:dto.eventId,title:dto.headline,status:dto.mlStatus,
-      outcome:outcome(dto.status),outcome_message:list(dto.warnings).join(' '),blocks,sources:dto.sources.map(source),
+      outcome:outcome(dto.status,dto.outcome),ml_outcome:dto.outcome,operation_status:dto.status,error_code:dto.errorCode,
+      ml_insight_id:dto.mlInsightId,run_id:dto.runId,version:dto.version,request_id:dto.requestId,parent_run_id:dto.parentRunId,
+      cache_hit:dto.cacheHit,as_of:dto.asOf,corpus_revision:dto.corpusRevision,event_content_sha256:dto.eventContentSha256,
+      conflicts:list(dto.conflicts).map(c=>({reason:c.reason,source_ids:list(c.sourceIds),resolved:c.resolved})),
+      outcome_message:list(dto.warnings).join(' '),blocks,sources:dto.sources.map(source),
       missing_data:[...dto.missingData,...list(dto.warnings)],disclaimer:dto.disclaimer || '',generated_at:dto.generatedAt};
   }
   function createBindings() {
@@ -68,7 +85,7 @@
         const items=await loadFeed(ctx,options);
         return {context:{company_id:ctx.company_id,role:ctx.role},items:items.map(dto=>({id:dto.insightId,insight_id:dto.insightId,
           title:dto.headline,category:dto.impactLevel ? 'Влияние: '+dto.impactLevel : 'Анализ события',date:(dto.generatedAt || '').slice(0,10),
-          why:list(dto.whyItMatters).map(c=>c.text).join(' '),status:dto.mlStatus})),
+          why:list(dto.whyItMatters).map(c=>c.text).join(' '),status:dto.mlStatus,outcome:outcome(dto.status,dto.outcome),ml_outcome:dto.outcome,missing_data:[...list(dto.missingData),...list(dto.warnings)]})),
           as_of:items.map(i=>(i.generatedAt || '').slice(0,10)).sort().at(-1) || 'нет результатов',empty_reason:'Для этой компании и роли пока нет сохранённых результатов анализа.'};
       },
       async insight(ctx, options) {
@@ -111,8 +128,17 @@
             if(!['SUCCEEDED','LIMITED','NO_RESULT'].includes(operation.status)) throw new Error(operation.error?.message || 'Уточнение не завершено: '+operation.status);
             const answer=await options.transport(`/api/v1/answers/${pathId(operation.operationId)}`,{...options,signal,method:'GET'});
             if(answer.insightId!==input.insight_id || answer.operationId!==operation.operationId) throw new Error('Ответ относится к другой карточке.');
+            if (answer.companyId != null && answer.companyId !== input.company_id) throw new Error('Ответ содержит другой контекст компании.');
+            if (dto && ((answer.eventId != null && answer.eventId !== dto.eventId)
+                || (answer.mlInsightId != null && dto.mlInsightId != null && answer.mlInsightId !== dto.mlInsightId))) throw new Error('Ответ относится к другой карточке.');
+            if (dto?.corpusRevision != null && [operation.corpusRevision,answer.corpusRevision].some(revision=>revision != null && revision !== dto.corpusRevision)) throw new Error('Ответ использует другую версию материалов.');
+            const mlOutcome=operation.outcome ?? answer.outcome;
             return {context:ctx,insight_id:input.insight_id,request_id:input.request_id,answer_id:answer.operationId,
-              status:answer.mlStatus,outcome:outcome(answer.status),text:answer.text,sources:list(answer.sources).map(source),
+              operation_request_id:operation.requestId,ml_insight_id:answer.mlInsightId,run_id:answer.runId,
+              company_id:answer.companyId,event_id:answer.eventId,as_of:answer.asOf,
+              corpus_revision:answer.corpusRevision ?? operation.corpusRevision,event_content_sha256:answer.eventContentSha256,
+              status:answer.mlStatus,outcome:outcome(answer.status,mlOutcome),ml_outcome:mlOutcome,operation_status:operation.status,
+              error_code:operation.error?.code,text:answer.text,sources:list(answer.sources).map(source),
               missing_data:[...list(answer.missingData),...list(answer.warnings)],claims:list(answer.claims).map(c=>part(c,'answer')),disclaimer:answer.disclaimer};
           },options.signal);
       }
