@@ -109,6 +109,14 @@ final class PinnedSchemaValidator {
             for (int i = 0; i < value.size(); i++) {
                 validate(root, schema.get("items"), value.get(i), path + "[" + i + "]", depth + 1);
             }
+        } else if (value.isNumber()) {
+            for (String bound : new String[]{"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum"}) {
+                if (!schema.has(bound)) continue;
+                int comparison = value.decimalValue().compareTo(schema.get(bound).decimalValue());
+                if (("minimum".equals(bound) && comparison < 0) || ("maximum".equals(bound) && comparison > 0)
+                        || ("exclusiveMinimum".equals(bound) && comparison <= 0) || ("exclusiveMaximum".equals(bound) && comparison >= 0))
+                    throw invalid(path, "number outside " + bound);
+            }
         } else if (value.isTextual()) {
             String text = value.textValue();
             int length = text.codePointCount(0, text.length());

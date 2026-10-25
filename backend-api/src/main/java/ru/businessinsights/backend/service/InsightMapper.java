@@ -27,11 +27,13 @@ public class InsightMapper {
     public OperationView operation(Operation op) {
         FailureView error = op.errorCode() == null ? null : new FailureView(op.errorCode(), op.errorMessage(), op.retryable());
         if (error == null && "FAILED".equals(op.status())) {
-            error = new FailureView("ML_ANALYSIS_FAILED", "ML завершил анализ без пригодного результата", false);
+            error = new FailureView(op.result() != null && text(op.result(), "error_code") != null ? text(op.result(), "error_code") : "ML_ANALYSIS_FAILED", "ML завершил анализ без пригодного результата", false);
         }
         boolean published = "SUCCEEDED".equals(op.status()) || "LIMITED".equals(op.status());
         return new OperationView(op.id(), op.kind(), op.status(), op.createdAt(), op.updatedAt(), error, op.warnings(),
-                "ANALYSIS".equals(op.kind()) && published && op.result() != null ? op.id() : null, op.parentId());
+                "ANALYSIS".equals(op.kind()) && published && op.result() != null ? op.id() : null, op.parentId(),
+                op.result() == null ? null : text(op.result(), "outcome"), op.result() == null ? null : text(op.result(), "request_id"),
+                op.result() == null ? null : text(op.result(), "corpus_revision"));
     }
 
     public InsightView insight(Operation op, boolean hidden) {
@@ -44,13 +46,19 @@ public class InsightMapper {
                 strings(r.path("profile_features_used")), sources(r), strings(r.path("missing_data")),
                 new SelfCheckView(r.path("self_check").path("passed").asBoolean(), r.path("self_check").path("issues"),
                         r.path("self_check").path("iterations").asInt(1), strings(r.path("self_check").path("adaptations"))),
-                strings(r.path("models")), mapper.convertValue(r.get("generated_at"), java.time.Instant.class), DISCLAIMER, op.warnings(), hidden);
+                strings(r.path("models")), mapper.convertValue(r.get("generated_at"), java.time.Instant.class), DISCLAIMER, op.warnings(), hidden,
+                text(r, "insight_id"), text(r, "run_id"), r.path("version").asInt(1), text(r, "outcome"),
+                text(r, "error_code"), text(r, "request_id"), text(r, "parent_run_id"), r.path("cache_hit").asBoolean(),
+                mapper.convertValue(r.get("as_of"), java.time.Instant.class), text(r, "corpus_revision"), text(r, "event_content_sha256"),
+                conflicts(r));
     }
 
     public AnswerView answer(Operation op) {
         JsonNode r = op.result();
         return new AnswerView(op.id(), op.parentId(), op.status(), text(r, "status"), text(r, "text"),
-                claims(r, "claims", sourceKinds(r)), sources(r), strings(r.path("missing_data")), DISCLAIMER, op.warnings());
+                claims(r, "claims", sourceKinds(r)), sources(r), strings(r.path("missing_data")), DISCLAIMER, op.warnings(),
+                text(r, "insight_id"), text(r, "run_id"), text(r, "company_id"), text(r, "event_id"),
+                mapper.convertValue(r.get("as_of"), java.time.Instant.class), text(r, "corpus_revision"), text(r, "event_content_sha256"));
     }
 
     private List<ClaimView> claims(JsonNode r, String section, Map<String, String> sources) {
@@ -67,7 +75,7 @@ public class InsightMapper {
                 case "unavailable" -> "UNAVAILABLE";
                 default -> "MODEL_INFERENCE";
             };
-            result.add(new ClaimView(text(c, "text"), kind, origin, ids, strings(c.path("profile_features")), text(c, "level"), text(c, "horizon")));
+            result.add(new ClaimView(text(c, "text"), kind, origin, ids, strings(c.path("profile_features")), text(c, "level"), text(c, "horizon"), text(c, "claim_id")));
         }
         return result;
     }
@@ -76,9 +84,21 @@ public class InsightMapper {
         var result = new ArrayList<SourceView>();
         for (JsonNode s : r.path("sources")) {
             result.add(new SourceView(text(s, "source_id"), text(s, "kind"), text(s, "title"),
-                    mapper.convertValue(s.get("date"), java.time.LocalDate.class), s.path("page").isIntegralNumber() ? s.path("page").intValue() : null, safeUrl(text(s, "url"))));
+                    mapper.convertValue(s.get("date"), java.time.LocalDate.class), s.path("page").isIntegralNumber() ? s.path("page").intValue() : null, safeUrl(text(s, "url")),
+                    text(s, "doc_id"), text(s, "content_sha256"), text(s, "excerpt"), text(s, "publisher_id"), text(s, "adapter_id"),
+                    text(s, "material_type"), text(s, "completeness"), text(s, "language"),
+                    mapper.convertValue(s.get("published_date"), java.time.LocalDate.class), text(s, "published_precision"),
+                    mapper.convertValue(s.get("first_seen_at"), java.time.Instant.class), mapper.convertValue(s.get("retrieved_at"), java.time.Instant.class),
+                    text(s, "statement_type"), text(s, "target_period"), mapper.convertValue(s.get("valid_until"), java.time.LocalDate.class),
+                    safeUrl(text(s, "rights_url")), text(s, "translation_attribution")));
         }
         return result;
+    }
+
+    private List<ConflictView> conflicts(JsonNode r) {
+        var conflicts = new ArrayList<ConflictView>();
+        for (JsonNode c : r.path("conflicts")) conflicts.add(new ConflictView(text(c, "reason"), strings(c.path("source_ids")), c.path("resolved").asBoolean()));
+        return conflicts;
     }
 
     private Map<String, String> sourceKinds(JsonNode r) {

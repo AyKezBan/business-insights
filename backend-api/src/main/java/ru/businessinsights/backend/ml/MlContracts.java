@@ -29,6 +29,8 @@ public final class MlContracts {
 
     public enum Level {low, medium, high}
 
+    public enum Outcome {full, limited, refused, none}
+
     public enum InsightStatus {complete, limited, failed}
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
@@ -53,7 +55,8 @@ public final class MlContracts {
                                  Products products, Boolean foreignTrade, List<String> foreignTradeCountries,
                                  List<Counterparty> counterparties, List<String> groupMemberOkveds,
                                  BigDecimal selfTransferShare, Map<String, String> userProvided,
-                                 List<String> missingFields) {
+                                 List<String> missingFields, Integer revenueYear, String revenueStatus, String revenueScope,
+                                 Boolean foreignTradeDataAvailable, String paymentPeriod, List<String> profileQualityNotes) {
         public CompanyProfile {
             products = products == null ? new Products(null, null, null, null, null, null, null) : products;
             foreignTradeCountries = immutable(foreignTradeCountries);
@@ -61,28 +64,57 @@ public final class MlContracts {
             groupMemberOkveds = immutable(groupMemberOkveds);
             userProvided = userProvided == null ? Map.of() : Map.copyOf(userProvided);
             missingFields = immutable(missingFields);
+            profileQualityNotes = immutable(profileQualityNotes);
+            if ("observed".equals(revenueStatus)) revenueStatus = "known";
         }
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record SourceRef(String sourceId, SourceKind kind, String title, LocalDate date,
-                            Integer page, String url) {
+                            Integer page, String url, String docId, String contentSha256, String excerpt,
+                            String publisherId, String adapterId, String materialType, String completeness,
+                            String language, LocalDate publishedDate, String publishedPrecision,
+                            Instant firstSeenAt, Instant retrievedAt, String statementType, String targetPeriod,
+                            LocalDate validUntil, String rightsUrl, String translationAttribution) {
+        public SourceRef {
+            if (page != null && page < 1) throw new IllegalArgumentException("Source page must be positive");
+            if (contentSha256 != null && !contentSha256.matches("[a-f0-9]{64}")) throw new IllegalArgumentException("Invalid source content SHA256");
+        }
+        public SourceRef(String sourceId, SourceKind kind, String title, LocalDate date, Integer page, String url) {
+            this(sourceId, kind, title, date, page, url, null, null, null, null, null, null, null, null, null, null,
+                    null, null, null, null, null, null, null);
+        }
+    }
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record SourceConflict(String reason, List<String> sourceIds, boolean resolved) {
+        public SourceConflict { sourceIds = immutable(sourceIds); }
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record NewsEvent(String eventId, String title, String text, Instant publishedAt,
-                            SourceRef source, List<SourceRef> relatedSources, List<String> topics) {
+                            SourceRef source, List<SourceRef> relatedSources, List<String> topics,
+                            List<SourceConflict> conflicts, LocalDate publishedDate, String publishedPrecision) {
+        public NewsEvent(String eventId, String title, String text, Instant publishedAt, SourceRef source,
+                         List<SourceRef> relatedSources, List<String> topics) {
+            this(eventId, title, text, publishedAt, source, relatedSources, topics, List.of(), null, null);
+        }
         public NewsEvent {
             relatedSources = immutable(relatedSources);
             topics = immutable(topics);
+            conflicts = immutable(conflicts);
         }
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record InsightRequest(CompanyProfile profile, UserRole role, NewsEvent event) {
+    public record InsightRequest(CompanyProfile profile, UserRole role, NewsEvent event, String requestId,
+                                 String parentRunId, Instant asOf, String corpusRevision, String eventContentSha256) {
+        public InsightRequest(CompanyProfile profile, UserRole role, NewsEvent event) {
+            this(profile, role, event, null, null, null, null, null);
+        }
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
@@ -92,7 +124,7 @@ public final class MlContracts {
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Claim(String text, ClaimKind kind, List<String> sourceIds, List<String> profileFeatures) {
+    public record Claim(String text, ClaimKind kind, List<String> sourceIds, List<String> profileFeatures, String claimId) {
         public Claim {
             sourceIds = immutable(sourceIds);
             profileFeatures = immutable(profileFeatures);
@@ -102,7 +134,7 @@ public final class MlContracts {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Impact(String text, ClaimKind kind, List<String> sourceIds, List<String> profileFeatures,
-                         Level level, String horizon) {
+                         Level level, String horizon, String claimId) {
         public Impact {
             sourceIds = immutable(sourceIds);
             profileFeatures = immutable(profileFeatures);
@@ -143,8 +175,11 @@ public final class MlContracts {
                           List<Claim> bankView, List<String> modelVsBank, Level impactLevel,
                           String impactRationale, List<String> profileFeaturesUsed, List<SourceRef> sources,
                           List<String> missingData, SelfCheckReport selfCheck, List<String> models,
-                          Instant generatedAt, String disclaimer) {
+                          Instant generatedAt, String disclaimer, Integer version, Outcome outcome, String errorCode,
+                          String requestId, String parentRunId, boolean cacheHit, Instant asOf, String corpusRevision,
+                          String eventContentSha256, List<SourceConflict> conflicts) {
         public Insight {
+            conflicts = immutable(conflicts);
             whatHappened = immutable(whatHappened);
             whyItMatters = immutable(whyItMatters);
             consequences = immutable(consequences);
@@ -165,7 +200,8 @@ public final class MlContracts {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Answer(String insightId, String runId, String status, String text, List<Claim> claims,
-                         List<SourceRef> sources, List<String> missingData, String disclaimer) {
+                         List<SourceRef> sources, List<String> missingData, String disclaimer,
+                         String companyId, String eventId, Instant asOf, String corpusRevision, String eventContentSha256) {
         public Answer {
             claims = immutable(claims);
             sources = immutable(sources);

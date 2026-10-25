@@ -36,7 +36,7 @@ import ru.businessinsights.backend.store.OperationStore.Operation;
 @Service
 public class InsightService {
     private static final Logger LOG = LoggerFactory.getLogger(InsightService.class);
-    private static final String ML_COMMIT = "7cbd690892addc495fbf9bee144c48931c464170";
+    private static final String ML_COMMIT = MlContracts.CONTRACT_COMMIT;
     private static final String DATA_COMMIT = "f44b69f0d124e8e4c33e5301b629413618090fa5";
     private final CompanyProfileService profiles;
     private final MlClient ml;
@@ -263,7 +263,6 @@ public class InsightService {
             return;
         }
         var profile = snapshot.profile();
-        warnings.addAll(compatibilityWarnings(profile));
         var result = ml.generate(new MlContracts.InsightRequest(profile, MlContracts.UserRole.valueOf(input.role().name()), mlEvent(event)));
         String status = switch (result.status()) {
             case failed -> "FAILED";
@@ -306,24 +305,6 @@ public class InsightService {
 
     private MlContracts.SourceRef mlSource(SourceInput source) {
         return new MlContracts.SourceRef(source.sourceId(), MlContracts.SourceKind.news, source.title(), source.date(), source.page(), source.url());
-    }
-
-    private List<String> compatibilityWarnings(MlContracts.CompanyProfile p) {
-        var warnings = new ArrayList<String>();
-        if (p.revenueRub() != null && p.revenueRub().compareTo(java.math.BigDecimal.valueOf(1000)) < 0) {
-            warnings.add("ML_REVENUE_FILTER: Git-версия ML игнорирует действительные выручки 0..999; Java сохраняет исходное значение");
-        }
-        if (p.groupRevenueRub() == null && p.revenueRub() != null) {
-            warnings.add("ML_GROUP_SCALE: ML может оценить масштаб группы по выручке юрлица; консолидированная выручка неизвестна");
-        }
-        if (!p.counterparties().isEmpty()) {
-            warnings.add("ML_PAYMENT_SEMANTICS: названия покупатель/поставщик в ML не доказаны платежами");
-            warnings.add("ML_COUNTERPARTY_REFERENCE: ML сортирует контрагентов и меняет индексы признаков; ссылки counterparties[i] требуют согласования");
-        }
-        if (Boolean.TRUE.equals(p.foreignTrade()) || !p.foreignTradeCountries().isEmpty()) {
-            warnings.add("ML_FTS_DIRECTION: сведения ФТС не устанавливают направление импорта или экспорта; соответствующие выводы ML требуют подтверждения");
-        }
-        return warnings;
     }
 
     private String hash(JsonNode node) {

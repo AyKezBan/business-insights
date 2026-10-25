@@ -260,6 +260,11 @@ public final class HttpMlClient implements MlClient {
                 throw invalid("ML response has empty or duplicate source IDs");
             }
         }
+        for (JsonNode conflict : result.path("conflicts")) {
+            for (JsonNode ref : conflict.path("source_ids")) {
+                if (!sourceIds.contains(ref.asText())) throw invalid("ML conflict references an absent source");
+            }
+        }
         for (String section : List.of("what_happened", "why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view", "claims", "scenarios")) {
             for (JsonNode claim : result.path(section)) {
                 for (JsonNode ref : claim.path("source_ids")) {

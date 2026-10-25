@@ -1,0 +1,125 @@
+{
+  "insight_id": "ins_1",
+  "run_id": "run_a1",
+  "event_id": "opaque:event:1",
+  "company_id": "U_1",
+  "role": "ceo",
+  "version": 1,
+  "status": "limited",
+  "outcome": "limited",
+  "error_code": null,
+  "request_id": "request-1",
+  "parent_run_id": "run_old",
+  "cache_hit": false,
+  "as_of": "2026-10-25T10:00:00Z",
+  "corpus_revision": "revision-context",
+  "event_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "headline": "Ставка не изменилась",
+  "what_happened": [
+    {
+      "claim_id": "claim:one",
+      "text": "Ставка не изменилась.",
+      "kind": "fact",
+      "source_ids": [
+        "source:opaque:1"
+      ],
+      "profile_features": []
+    },
+    {
+      "claim_id": "claim:two",
+      "text": "Публикация исправлена.",
+      "kind": "fact",
+      "source_ids": [
+        "source:opaque:2"
+      ],
+      "profile_features": []
+    }
+  ],
+  "why_it_matters": [],
+  "consequences": [],
+  "risks": [],
+  "opportunities": [],
+  "scenarios": [],
+  "actions": [],
+  "bank_view": [],
+  "model_vs_bank": [],
+  "impact_level": "low",
+  "impact_rationale": "Неопределённость",
+  "profile_features_used": [],
+  "sources": [
+    {
+      "source_id": "source:opaque:1",
+      "kind": "news",
+      "title": "Публикация",
+      "date": "2026-10-25",
+      "page": null,
+      "url": "https://example.org/article?revision=1",
+      "doc_id": "doc:opaque:1",
+      "content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "excerpt": "Ставка не изменилась.",
+      "publisher_id": "cbr",
+      "adapter_id": "cbr-news-v2",
+      "material_type": "news_article",
+      "completeness": "full",
+      "language": "ru",
+      "published_date": "2026-10-25",
+      "published_precision": "date",
+      "first_seen_at": "2026-10-25T12:30:00Z",
+      "retrieved_at": "2026-10-26T08:00:00Z",
+      "statement_type": null,
+      "target_period": null,
+      "valid_until": null,
+      "rights_url": "https://example.org/rights",
+      "translation_attribution": null
+    },
+    {
+      "source_id": "source:opaque:2",
+      "kind": "news",
+      "title": "Публикация",
+      "date": "2026-10-25",
+      "page": null,
+      "url": "https://example.org/article?revision=1",
+      "doc_id": "doc:opaque:1",
+      "content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "excerpt": "Ставка не изменилась.",
+      "publisher_id": "cbr",
+      "adapter_id": "cbr-news-v2",
+      "material_type": "news_article",
+      "completeness": "full",
+      "language": "ru",
+      "published_date": "2026-10-25",
+      "published_precision": "date",
+      "first_seen_at": "2026-10-25T12:30:00Z",
+      "retrieved_at": "2026-10-26T08:00:00Z",
+      "statement_type": null,
+      "target_period": null,
+      "valid_until": null,
+      "rights_url": "https://example.org/rights",
+      "translation_attribution": null
+    }
+  ],
+  "conflicts": [
+    {
+      "reason": "different versions",
+      "source_ids": [
+        "source:opaque:1",
+        "source:opaque:2"
+      ],
+      "resolved": false
+    }
+  ],
+  "missing_data": [
+    "conflict"
+  ],
+  "self_check": {
+    "passed": true,
+    "issues": [],
+    "iterations": 1,
+    "adaptations": []
+  },
+  "models": [
+    "offline"
+  ],
+  "generated_at": "2026-10-26T09:00:00Z",
+  "disclaimer": "test"
+}

@@ -429,6 +429,9 @@ components:
         warnings: {$ref: '#/components/schemas/StringList'}
         insightId: {type: string, format: uuid, nullable: true}
         parentInsightId: {type: string, format: uuid, nullable: true}
+        outcome: {type: string, enum: [full, limited, refused, none], nullable: true}
+        requestId: {type: string, nullable: true}
+        corpusRevision: {type: string, nullable: true}
     Source:
       type: object
       required: [sourceId, kind, title]
@@ -439,6 +442,23 @@ components:
         date: {type: string, format: date, nullable: true}
         page: {type: integer, nullable: true}
         url: {type: string, nullable: true, description: Safe HTTP(S) URL if supplied; missing URL does not prove a source is accessible}
+        docId: {type: string, nullable: true}
+        contentSha256: {type: string, nullable: true}
+        excerpt: {type: string, nullable: true}
+        publisherId: {type: string, nullable: true}
+        adapterId: {type: string, nullable: true}
+        materialType: {type: string, nullable: true}
+        completeness: {type: string, nullable: true}
+        language: {type: string, nullable: true}
+        publishedPrecision: {type: string, nullable: true}
+        statementType: {type: string, nullable: true}
+        targetPeriod: {type: string, nullable: true}
+        rightsUrl: {type: string, nullable: true}
+        translationAttribution: {type: string, nullable: true}
+        publishedDate: {type: string, format: date, nullable: true}
+        validUntil: {type: string, format: date, nullable: true}
+        firstSeenAt: {type: string, format: date-time, nullable: true}
+        retrievedAt: {type: string, format: date-time, nullable: true}
     Claim:
       type: object
       required: [text, kind, origin, sourceIds, profileFeatures]
@@ -450,6 +470,13 @@ components:
         profileFeatures: {$ref: '#/components/schemas/StringList'}
         level: {type: string, enum: [low, medium, high], nullable: true}
         horizon: {type: string, nullable: true}
+        claimId: {type: string, nullable: true}
+    SourceConflict:
+      type: object
+      properties:
+        reason: {type: string}
+        sourceIds: {$ref: '#/components/schemas/StringList'}
+        resolved: {type: boolean}
     ClaimList: {type: array, items: {$ref: '#/components/schemas/Claim'}}
     Scenario:
       type: object
@@ -496,6 +523,18 @@ components:
         disclaimer: {type: string}
         warnings: {$ref: '#/components/schemas/StringList'}
         hidden: {type: boolean}
+        mlInsightId: {type: string}
+        runId: {type: string}
+        version: {type: integer}
+        outcome: {type: string, enum: [full, limited, refused, none], nullable: true}
+        errorCode: {type: string, nullable: true}
+        requestId: {type: string, nullable: true}
+        parentRunId: {type: string, nullable: true}
+        cacheHit: {type: boolean}
+        asOf: {type: string, format: date-time, nullable: true}
+        corpusRevision: {type: string, nullable: true}
+        eventContentSha256: {type: string, nullable: true}
+        conflicts: {type: array, items: {$ref: '#/components/schemas/SourceConflict'}}
     Answer:
       type: object
       properties:
@@ -509,6 +548,13 @@ components:
         missingData: {$ref: '#/components/schemas/StringList'}
         disclaimer: {type: string}
         warnings: {$ref: '#/components/schemas/StringList'}
+        mlInsightId: {type: string}
+        runId: {type: string}
+        companyId: {type: string, nullable: true}
+        eventId: {type: string, nullable: true}
+        asOf: {type: string, format: date-time, nullable: true}
+        corpusRevision: {type: string, nullable: true}
+        eventContentSha256: {type: string, nullable: true}
     Trace:
       type: object
       properties:

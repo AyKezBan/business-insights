@@ -82,15 +82,21 @@ public final class ApiModels {
 
     public record OperationView(UUID operationId, String kind, String status, Instant createdAt,
                                 Instant updatedAt, FailureView error, List<String> warnings,
-                                UUID insightId, UUID parentInsightId) {
+                                UUID insightId, UUID parentInsightId, String outcome, String requestId, String corpusRevision) {
     }
 
-    public record SourceView(String sourceId, String kind, String title, LocalDate date, Integer page, String url) {
+    public record SourceView(String sourceId, String kind, String title, LocalDate date, Integer page, String url,
+                             String docId, String contentSha256, String excerpt, String publisherId, String adapterId,
+                             String materialType, String completeness, String language, LocalDate publishedDate,
+                             String publishedPrecision, Instant firstSeenAt, Instant retrievedAt, String statementType,
+                             String targetPeriod, LocalDate validUntil, String rightsUrl, String translationAttribution) {
     }
 
     public record ClaimView(String text, String kind, String origin, List<String> sourceIds,
-                            List<String> profileFeatures, String level, String horizon) {
+                            List<String> profileFeatures, String level, String horizon, String claimId) {
     }
+
+    public record ConflictView(String reason, List<String> sourceIds, boolean resolved) {}
 
     public record ScenarioView(String name, String trigger, String implication, String plausibility,
                                List<String> sourceIds) {
@@ -107,12 +113,15 @@ public final class ApiModels {
                               List<String> modelVsBank, String impactLevel, String impactRationale,
                               List<String> profileFeaturesUsed, List<SourceView> sources, List<String> missingData,
                               SelfCheckView selfCheck, List<String> models, Instant generatedAt, String disclaimer,
-                              List<String> warnings, boolean hidden) {
+                              List<String> warnings, boolean hidden, String mlInsightId, String runId, Integer version,
+                              String outcome, String errorCode, String requestId, String parentRunId, boolean cacheHit,
+                              Instant asOf, String corpusRevision, String eventContentSha256, List<ConflictView> conflicts) {
     }
 
     public record AnswerView(UUID operationId, UUID insightId, String status, String mlStatus, String text,
                              List<ClaimView> claims, List<SourceView> sources, List<String> missingData,
-                             String disclaimer, List<String> warnings) {
+                             String disclaimer, List<String> warnings, String mlInsightId, String runId, String companyId,
+                             String eventId, Instant asOf, String corpusRevision, String eventContentSha256) {
     }
 
     public record TraceView(UUID operationId, UUID insightId, String traceStatus, JsonNode steps,
