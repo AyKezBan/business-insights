@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Бизнес-события · учебный Альфа-Бизнес</title>
+  <link rel="stylesheet" href="/styles.css"><script src="/integration.js" defer></script><script src="/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#main">Перейти к содержимому</a>
+<aside class="sidebar">
+  <a class="brand" href="#/home"><span class="logo">А</span><span>Альфа-Бизнес<small>Учебный интерфейс</small></span></a>
+  <nav aria-label="Основная навигация">
+    <a data-nav="home" href="#/home"><span aria-hidden="true">⌂</span> Главная</a>
+    <a data-nav="profile" href="#/profile"><span aria-hidden="true">○</span> Профиль</a>
+    <a data-nav="feed" href="#/feed"><span aria-hidden="true">↗</span> Бизнес-события</a>
+  </nav>
+  <div class="sidebar-bottom"><span class="dot"></span> Прототип D09 / D10<p>От события к обоснованному решению</p></div>
+</aside>
+<div class="workspace">
+  <header class="topbar">
+    <span class="topbar-title">Персональная бизнес-аналитика</span>
+    <a id="profile-link" class="profile-link" href="#/profile">Профиль</a>
+    <span class="demo-pill">Учебные данные</span>
+  </header>
+  <main id="main" tabindex="-1">
+    <p id="status" role="status" aria-live="polite">Подключаем сервис…</p>
+    <div id="error" class="error" role="alert" hidden></div>
+    <div id="page" aria-busy="true"></div>
+  </main>
+  <footer id="notice"></footer>
+</div>
+</body></html>
