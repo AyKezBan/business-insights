@@ -122,20 +122,31 @@ async function main() {
     walk(blockedApp.root).find(e=>e.tagName==='button' && e.textContent==='Полезно').onclick();
     assert(blockedApp.doc.getElementById('page').textContent.includes('Не удалось сохранить оценку'));
 
+    const sentBefore = app.requests.length;
     app.location.hash='#/profile'; await app.run('renderRoute()');
     app.doc.getElementById('profile-name').value='Тестовый пользователь';
     app.doc.getElementById('profile-company').value='energy'; app.doc.getElementById('profile-role').value='ceo';
     await app.doc.getElementById('profile-form').onsubmit({preventDefault(){}});
     const saved = JSON.parse(app.storage.get('d09-d10-profile-v1'));
     assert.equal(saved.company_id,'energy'); assert.equal(saved.role,'ceo');
-    const sentBefore = app.requests.length;
     assert.equal(app.doc.getElementById('login'), undefined);
     assert.equal(app.doc.getElementById('password'), undefined);
     assert.equal(app.doc.getElementById('login-form'), undefined);
     const profileContent = app.doc.getElementById('page').textContent;
     assert(profileContent.includes('Персональная аналитика'));
     assert(profileContent.includes('Выберите компанию и должность'));
-    assert.equal(app.requests.length,sentBefore);
+    assert.equal(app.requests.length,sentBefore, 'Opening and saving the local profile must not send requests');
+    const feedLink = walk(app.root).find(e=>e.tagName==='a' && e.textContent==='Перейти к бизнес-событиям →');
+    assert(feedLink, 'Profile must offer a working link to business events');
+    app.location.hash=feedLink.href; await app.run('renderRoute()');
+    assert.equal(app.run('state.ctx.company_id'),'energy');
+    assert.equal(app.run('state.ctx.role'),'ceo');
+    const feedRequest = app.requests.at(-1);
+    assert(feedRequest.url.startsWith('/api/feed?'));
+    const feedParams = new URL(feedRequest.url,base).searchParams;
+    assert.equal(feedParams.get('company_id'),'energy');
+    assert.equal(feedParams.get('role'),'ceo');
+    assert(!app.requests.slice(sentBefore).some(r=>r.options?.method==='POST'), 'Profile navigation must not trigger generation');
 
     const reloaded = setup(source,base,app.storage,'#/insight/rate?company_id=retail&role=cfo&view=overview');
     await reloaded.run('init()');
