@@ -64,7 +64,7 @@ def _rejected(entries, code):
 
 
 def semantic_issues(llm: StructuredLLM, model: str, state, draft, *, sections=SECTIONS) -> list[CheckIssue]:
-    """One logical batch through the existing run budget, at most one attempt per model.
+    """One logical batch through the existing run budget, at most one repair retry per model.
 
     StructuredLLM may try its configured fallback (two client calls maximum).
     Its transport can retry a JSON-mode HTTP400 once per client call.
@@ -131,33 +131,44 @@ def semantic_issues(llm: StructuredLLM, model: str, state, draft, *, sections=SE
     try:
         batch = llm.generate("semantic_verify", model,
                              [{"role": "system", "content": system}, {"role": "user", "content": _json(payload)}],
-                             SemanticBatch, retries=0)
+                             SemanticBatch, retries=1)
         expected = {entry["claim_id"]: entry for entry in entries}
-        if (len(batch.verdicts) != len(expected)
-                or {v.claim_id for v in batch.verdicts} != set(expected)):
-            raise ValueError("Semantic verdict set does not match candidate snapshot")
+        # Fail closed per claim: only a claim with exactly one well-formed verdict can pass, but a malformed
+        # verdict for one claim must not discard the correctly verified others (all-or-nothing wasted whole runs).
+        by_id: dict[str, list] = {}
         for verdict in batch.verdicts:
-            declared = set(expected[verdict.claim_id]["content"].get("source_ids", []))
+            by_id.setdefault(verdict.claim_id, []).append(verdict)
+        accepted, unresolved = {}, []
+        for claim_id, entry in expected.items():
+            candidates = by_id.get(claim_id, [])
+            if len(candidates) != 1:
+                unresolved.append((entry, "missing_or_duplicate_verdict"))
+                continue
+            verdict = candidates[0]
+            declared = set(entry["content"].get("source_ids", []))
             if (len(verdict.span_ids) != len(set(verdict.span_ids))
                     or any(span not in spans or spans[span] not in declared for span in verdict.span_ids)):
-                raise ValueError("Semantic verdict references foreign evidence")
-            if verdict.status == "supported" and declared != {spans[s] for s in verdict.span_ids}:
-                raise ValueError("Supported verdict omits declared source evidence")
-        rejected = [expected[v.claim_id] for v in batch.verdicts if v.status != "supported"]
-        for verdict in batch.verdicts:
-            target = targets.get(expected[verdict.claim_id]["location"])
+                unresolved.append((entry, "foreign_evidence"))
+            elif verdict.status == "supported" and declared != {spans[s] for s in verdict.span_ids}:
+                unresolved.append((entry, "omitted_declared_evidence"))
+            else:
+                accepted[claim_id] = verdict
+        rejected = [expected[claim_id] for claim_id, v in accepted.items() if v.status != "supported"]
+        for claim_id, verdict in accepted.items():
+            target = targets.get(expected[claim_id]["location"])
             if verdict.status == "supported" and target is not None:
-                target.claim_id = verdict.claim_id
+                target.claim_id = claim_id
             if (verdict.status == "supported" and target is not None
                     and target.kind not in (ClaimKind.fact, ClaimKind.assessment)):
                 target.evidence_spans = [span_models[s] for s in verdict.span_ids]
         # Reasons are bounded diagnostics only; public issues use controlled text.
         llm.tracer.emit("check", "semantic_verify", {"candidates": len(entries), "rejected": len(rejected),
+                         "unresolved": [{"claim_id": e["claim_id"], "reason": reason} for e, reason in unresolved],
                          "candidate_bindings": [{"claim_id": e["claim_id"], "location": e["location"],
                                                  "content_sha256": hashlib.sha256(_json(e["content"]).encode()).hexdigest()}
                                                 for e in entries],
-                         "verdicts": [v.model_dump() for v in batch.verdicts]})
-        return _rejected(rejected, "semantic_unsupported")
+                         "verdicts": [v.model_dump() for v in accepted.values()]})
+        return _rejected(rejected, "semantic_unsupported") + _rejected([e for e, _ in unresolved], "semantic_unverified")
     except (BudgetExceeded, LLMError, ValueError) as exc:
         llm.tracer.emit("error", "semantic_verify", {"failure_type": type(exc).__name__, "candidates": len(entries)})
         return _rejected(entries, "semantic_unverified")

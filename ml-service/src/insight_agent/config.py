@@ -13,22 +13,26 @@ class Settings(BaseSettings):
     llm_model_light: str = "gemma-4-26b-a4b"
     llm_model_reasoning: str = "qwen3.6-35b-a3b"
     llm_model_fallback: str = "glm-5.3-flash"
-    llm_timeout_seconds: float = 60.0
+    llm_timeout_seconds: float = 120.0  # шлюз отвечает на длинный запрос 20-90 с
+    llm_max_output_tokens: int = 4096
     llm_daily_token_budget: int = 2_000_000
     # Бюджет в рублях на общий ключ. Тарифы провайдера уточнить: цены по умолчанию консервативные.
     llm_daily_budget_rub: Decimal = Decimal(500)
     llm_budget_warn_rub: Decimal = Decimal(350)
     llm_budget_stop_optional_rub: Decimal = Decimal(450)
-    llm_price_default_in_rub_per_1k: Decimal = Decimal("0.5")
-    llm_price_default_out_rub_per_1k: Decimal = Decimal("1.5")
+    # Верхняя оценка для резерва: по наблюдаемой стоимости шлюза (около 0,013 руб. за 1000 токенов) с запасом.
+    # Фактический расход берётся из usage.cost ответа шлюза.
+    llm_price_default_in_rub_per_1k: Decimal = Decimal("0.02")
+    llm_price_default_out_rub_per_1k: Decimal = Decimal("0.04")
     llm_prices_json: str = ""
-    budget_timezone: str = "Europe/Moscow"
+    budget_timezone: str = "UTC"  # шлюз сбрасывает суточный лимит ключа в 00:00 UTC
     budget_state_path: Path | None = None
 
     agent_max_iterations: int = 3
     agent_max_tool_calls: int = 12
-    agent_max_tokens_per_run: int = 40_000
-    agent_max_seconds: float = 120.0
+    # Потолок токенов - защита от зацикливания; деньги ограничивает бюджет ключа. Запуск стоит около 1 руб.
+    agent_max_tokens_per_run: int = 200_000
+    agent_max_seconds: float = 480.0
 
     bank_fragments_path: Path = Path("data/bank_fragments.jsonl")
     news_path: Path = Path("data/news.jsonl")

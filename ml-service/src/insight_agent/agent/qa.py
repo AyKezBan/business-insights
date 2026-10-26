@@ -5,6 +5,7 @@ from insight_agent.agent.semantic import semantic_issues
 
 from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.agent.personalizer import _sources_block
+from insight_agent.agent.evidence import span_hash_normalizer
 from insight_agent.agent.prompts import KIND_RULES, ROLE_FOCUS, UNTRUSTED, data_block, schema_hint
 from insight_agent.llm import BudgetExceeded, LLMError, error_code
 from insight_agent.materials.runtime import CorpusError
@@ -72,6 +73,7 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
         draft = llm.generate(
             "answer", agent.settings.llm_model_reasoning,
             [{"role": "system", "content": system}, {"role": "user", "content": user}], AnswerDraft,
+            normalize=span_hash_normalizer(state.source_texts(), set(state.bank)),
         )
     except (BudgetExceeded, LLMError) as exc:
         tracer.emit("error", "answer", {"error": str(exc)})

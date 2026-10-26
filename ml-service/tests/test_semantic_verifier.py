@@ -44,7 +44,7 @@ def test_every_published_generated_surface_is_in_one_batch(request_):
     state, draft = state_and_draft(request_)
     verifier = Verifier()
     assert semantic_issues(verifier, "model", state, draft) == []
-    assert len(verifier.calls) == 1 and verifier.calls[0][2] == 0
+    assert len(verifier.calls) == 1 and verifier.calls[0][2] == 1
     candidates = verifier.calls[0][1]["candidates"]
     paths = {c["location"] for c in candidates}
     assert {"why_it_matters[0]", "consequences[0]", "risks[0]", "opportunities[0]",
@@ -61,14 +61,34 @@ def test_every_published_generated_surface_is_in_one_batch(request_):
     lambda v, p: v[0].update(claim_id="foreign-candidate"),
     lambda v, p: v[0].update(span_ids=["foreign-span"]),
     lambda v, p: v[0].update(span_ids=[]),
-    lambda v, p: v[0].update(status="maybe"),
 ])
-def test_incomplete_or_foreign_verdict_fails_closed_for_entire_batch(request_, mutation):
+def test_malformed_verdict_rejects_only_its_own_claim(request_, mutation):
+    """Fail closed per claim: a claim passes only with exactly one well-formed verdict, and one malformed
+    verdict does not discard the correctly verified others (live runs lost whole cards to this)."""
     state, draft = state_and_draft(request_)
     verifier = Verifier(mutation)
     issues = semantic_issues(verifier, "model", state, draft)
+    locations = {c["location"] for c in verifier.calls[0][1]["candidates"]}
+    assert len(issues) == 1 and issues[0].location in locations and issues[0].severity == "error"
+    assert issues[0].code == "semantic_unverified"
+
+
+def test_unreadable_verdict_schema_still_rejects_the_whole_batch(request_):
+    state, draft = state_and_draft(request_)
+    verifier = Verifier(lambda v, p: v[0].update(status="maybe"))
+    issues = semantic_issues(verifier, "model", state, draft)
     assert {x.location for x in issues} == {c["location"] for c in verifier.calls[0][1]["candidates"]}
     assert all(x.severity == "error" for x in issues)
+
+
+def test_unresolved_claims_are_named_in_the_trace_with_a_reason(request_):
+    state, draft = state_and_draft(request_)
+    verifier = Verifier(lambda v, p: v[0].update(span_ids=["foreign-span"]))
+    events = []
+    verifier.tracer = type("Trace", (), {"emit": lambda self, kind, step, data=None: events.append((step, data))})()
+    semantic_issues(verifier, "model", state, draft)
+    data = next(d for step, d in events if step == "semantic_verify")
+    assert [u["reason"] for u in data["unresolved"]] == ["foreign_evidence"]
 
 
 def test_unsupported_reason_and_provider_text_never_become_visible_issues(request_):

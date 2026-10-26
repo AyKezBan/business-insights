@@ -2,7 +2,7 @@ from insight_agent.agent.prompts import UNTRUSTED, data_block, schema_hint
 from insight_agent.llm import StructuredLLM
 from insight_agent.schemas import ClaimKind, EventAnalysis, NewsEvent
 from insight_agent.tools.profile import CHANNELS
-from insight_agent.agent.evidence import pack_sources, quote_options
+from insight_agent.agent.evidence import pack_sources, quote_options, span_hash_normalizer
 
 MAX_EVENT_CHARS = 6000
 
@@ -35,6 +35,7 @@ def analyze_event(llm: StructuredLLM, model: str, event: NewsEvent, *, source_te
     analysis = llm.generate(
         "analyze_event", model, [{"role": "system", "content": system}, {"role": "user", "content": user}],
         EventAnalysis,
+        normalize=span_hash_normalizer({src: event.text} if source_texts is None else source_texts),
     )
     analysis.event_id = event.event_id
     analysis.impact_channels = [c for c in analysis.impact_channels if c in CHANNELS]

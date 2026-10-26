@@ -275,11 +275,13 @@ public class OperationStore {
                 LEFT JOIN backend_api.insight_state s ON s.operation_id=o.id AND s.owner_id=o.owner_id
                 WHERE o.owner_id=? AND o.company_id=? AND o.role=? AND o.kind='ANALYSIS'
                   AND o.status IN ('SUCCEEDED','LIMITED') AND o.result IS NOT NULL AND (? OR NOT COALESCE(s.hidden,false))
+                  AND COALESCE(o.result->>'outcome','') <> 'refused'
                   AND NOT o.stale AND o.event_version=e.current_version AND o.expires_at>now()
                   AND NOT EXISTS (SELECT 1 FROM backend_api.operation newer WHERE newer.owner_id=o.owner_id
                     AND newer.company_id=o.company_id AND newer.role=o.role AND newer.kind='ANALYSIS'
                     AND newer.event_id=o.event_id AND newer.event_version=o.event_version
                     AND newer.status IN ('SUCCEEDED','LIMITED') AND newer.result IS NOT NULL
+                    AND COALESCE(newer.result->>'outcome','') <> 'refused'
                     AND (newer.created_at,newer.id)>(o.created_at,o.id))
                 ORDER BY o.relevance_score DESC, CASE o.result->>'impact_level' WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
                   o.created_at DESC,o.id DESC LIMIT ? OFFSET ?

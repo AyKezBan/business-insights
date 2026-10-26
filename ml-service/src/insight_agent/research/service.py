@@ -112,8 +112,8 @@ class OpenResearch:
             steps.append(("ключевая ставка", lambda: [self._key_rate(as_of)]))
         if plan.currencies:
             steps.append(("курсы валют", lambda: self._fx(plan.currencies, as_of)))
-        if plan.keywords:
-            steps.append(("пресс-релизы", lambda: self._press(plan.keywords, as_of, top_k, result)))
+        if plan.keywords or plan.weak_keywords:
+            steps.append(("пресс-релизы", lambda: self._press(plan.keywords, plan.weak_keywords, as_of, top_k, result)))
         for label, run in steps:
             try:
                 result.docs += run()
@@ -142,7 +142,7 @@ class OpenResearch:
                 continue  # валюты нет в официальном списке на эту дату: ничего не придумываем
         return docs
 
-    def _press(self, keywords: list[str], as_of: date, top_k: int, result: ResearchResult) -> list[OpenDocument]:
+    def _press(self, keywords: list[str], weak: list[str], as_of: date, top_k: int, result: ResearchResult) -> list[OpenDocument]:
         limit = datetime.combine(as_of, datetime.max.time(), UTC)
         scored = []
         _, feed = self._get(PRESS_FEED_URL, None, FEED_TTL)
@@ -152,9 +152,11 @@ class OpenResearch:
                 continue
             words = re.findall(r"[а-яёa-z0-9]+", item["title"].casefold())
             # основа должна совпасть с началом слова: «курс» не находит «конкурс»
-            score = sum(1 for k in keywords if any(w.startswith(k) for w in words))
-            if score:
-                scored.append((score, published, item))
+            strong_hits = sum(1 for k in keywords if any(w.startswith(k) for w in words))
+            weak_hits = sum(1 for k in weak if any(w.startswith(k) for w in words))
+            # документ нужен, если совпала тема канала или хотя бы два слабых слова (ОКВЭД, запрос модели)
+            if strong_hits or weak_hits >= 2:
+                scored.append((strong_hits * 2 + weak_hits, published, item))
         scored.sort(key=lambda s: (s[0], s[1]), reverse=True)
         docs = []
         for _, published, item in scored[:top_k]:

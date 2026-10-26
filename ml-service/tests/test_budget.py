@@ -220,3 +220,62 @@ def test_final_event_and_start_event_carry_budget_and_usage(make_agent, request_
     assert events[0].data["budget"]["level"] == "ok"
     usage = events[-1].data["usage"]
     assert usage["calls"] == 4 and D(usage["cost_rub"]) > 0
+
+
+def test_cost_reported_by_the_gateway_beats_the_tariff_estimate():
+    ledger = RubleLedger()
+    daily = DailyBudget(1_000_000, ledger, PriceTable(default=Price(D("0.02"), D("0.04"))))
+    run = RunBudget(40_000, daily)
+    run.check(2000, "gemma-4-26b-a4b")
+    cost = run.add(1000, model="gemma-4-26b-a4b", prompt_tokens=800, completion_tokens=200, reported_cost=D("0.0123"))
+    assert cost == D("0.0123") and ledger.spent == D("0.0123")
+
+
+def test_key_budget_reported_by_the_gateway_stops_calls_that_would_exceed_it():
+    from insight_agent.llm import KeyStatus
+
+    daily = DailyBudget(1_000_000, RubleLedger(), PriceTable(default=Price(D("0.02"), D("0.04"))),
+                        key_gauge=lambda: KeyStatus(D("499.99"), D("500")))
+    with pytest.raises(DailyBudgetExceeded):
+        RunBudget(40_000, daily).check(10_000, "gemma-4-26b-a4b")
+    ok = DailyBudget(1_000_000, RubleLedger(), PriceTable(default=Price(D("0.02"), D("0.04"))),
+                     key_gauge=lambda: KeyStatus(D("7.02"), D("500")))
+    RunBudget(40_000, ok).check(10_000, "gemma-4-26b-a4b")
+
+
+def test_client_reads_cost_and_key_status_from_the_gateway():
+    import json
+
+    import httpx
+
+    from insight_agent.llm import OpenAICompatibleClient
+
+    def handler(request):
+        if request.url.path.endswith("/key/info"):
+            return httpx.Response(200, json={"info": {"spend": 7.02, "max_budget": 500.0, "budget_reset_at": "2026-10-27T00:00:00+00:00"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}], "model": "gemma-4-26b-a4b",
+                                         "usage": {"prompt_tokens": 17, "completion_tokens": 3, "cost": 0.0002544}})
+
+    client = OpenAICompatibleClient("https://gateway.example/v1", "k", 5, 100)
+    client._http = httpx.Client(base_url="https://gateway.example/v1", transport=httpx.MockTransport(handler))
+    assert client.chat("gemma-4-26b-a4b", [{"role": "user", "content": "x"}], json_mode=True).cost == D("0.0002544")
+    status = client.key_status()
+    assert (status.spend, status.max_budget, status.reset_at) == (D("7.02"), D("500.0"), "2026-10-27T00:00:00+00:00")
+
+
+def test_missing_gateway_cost_falls_back_to_the_tariff():
+    from insight_agent.llm import _reported_cost
+
+    assert _reported_cost({"prompt_tokens": 1}) is None and _reported_cost({"cost": -1}) is None and _reported_cost({"cost": True}) is None
+
+
+def test_token_reserve_for_semantic_verification_stops_further_revisions(make_agent, request_):
+    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()],
+              "personalize": [draft_reply(bad_number=True)], "revise": [draft_reply(bad_number=True)]}
+    client = ScriptedClient(script)
+    agent = make_agent(client)
+    agent.settings.agent_max_tokens_per_run = 36_000  # после первого черновика остаётся меньше резерва на проверку
+    insight = agent.run(request_)
+
+    assert "revise" not in client.steps()
+    assert any("запас на смысловую проверку" in m for m in insight.missing_data)

@@ -58,6 +58,9 @@ BROAD_MIN_SCORE = 0.3
 
 
 MAX_REMEMBERED = 500
+# Токенов, которые надо оставить на смысловую проверку после исправлений: без неё все утверждения считаются непроверенными.
+VERIFY_RESERVE_TOKENS = 35_000
+VERIFY_RESERVE_SECONDS = 150
 
 
 class RequestIdConflict(ValueError):
@@ -398,7 +401,8 @@ class InsightAgent:
                 state.evidence_issues = list(cached[1])
                 tracer.emit("plan", "analysis_cache_hit", {"event_id": request.event.event_id})
             else:
-                state.analysis = analyze_event(llm, s.llm_model_light, request.event, source_texts=texts)
+                state.analysis = self._retry_once(tracer, "analyze_event",
+                    lambda: analyze_event(llm, s.llm_model_light, request.event, source_texts=texts))
                 state.evidence_issues = self._render_quotes(state, "facts", state.analysis.facts)
                 state.evidence_issues += check_event_analysis(request.event, state.analysis, texts)
                 bad = {int(m.group(2)) for issue in state.evidence_issues
@@ -437,7 +441,19 @@ class InsightAgent:
                     self._skip_optional(state, tracer, "revise")
                     iterations -= 1
                     break
-                state.draft = personalize(llm, s.llm_model_reasoning, state, feedback=issues if iterations > 1 else None)
+                if iterations > 1 and s.agent_max_tokens_per_run - llm.budget.used < VERIFY_RESERVE_TOKENS:
+                    self._skip_optional(state, tracer, "revise",
+                                        "лимит токенов запуска: оставлен запас на смысловую проверку, дальнейшие исправления пропущены")
+                    iterations -= 1
+                    break
+                if (iterations > 1 and llm.budget.deadline is not None
+                        and llm.budget.deadline - time.monotonic() < VERIFY_RESERVE_SECONDS):
+                    self._skip_optional(state, tracer, "revise",
+                                        "лимит времени запуска: оставлен запас на смысловую проверку, дальнейшие исправления пропущены")
+                    iterations -= 1
+                    break
+                state.draft = self._retry_once(tracer, "personalize",
+                    lambda: personalize(llm, s.llm_model_reasoning, state, feedback=issues if iterations > 1 else None))
                 tracer.agent = "verifier"
                 issues = []
                 for section in ("why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view"):
@@ -519,8 +535,19 @@ class InsightAgent:
         return {"spent_rub": str(ledger.spent), "limit_rub": str(ledger.limit), "level": ledger.level()}
 
     @staticmethod
-    def _skip_optional(state: AgentState, tracer: Tracer, step: str) -> None:
-        reason = "дневной бюджет близок к лимиту: повторные шаги пропущены"
+    def _retry_once(tracer: Tracer, step: str, call):
+        """Шлюз иногда не отвечает до таймаута. Один повтор шага; расход неудавшейся попытки уже учтён оценкой.
+
+        Бюджетные исключения (BudgetExceeded) не повторяются."""
+        try:
+            return call()
+        except LLMError as exc:
+            tracer.emit("adapt", "retry_after_provider_failure", {"step": step, "error": str(exc)[:200]})
+            return call()
+
+    @staticmethod
+    def _skip_optional(state: AgentState, tracer: Tracer, step: str,
+                       reason: str = "дневной бюджет близок к лимиту: повторные шаги пропущены") -> None:
         if reason not in state.limited_reasons:
             state.limited_reasons.append(reason)
         tracer.emit("adapt", "budget_soft_stop", {"skipped": step})
@@ -596,6 +623,17 @@ class InsightAgent:
         if status == InsightStatus.limited:
             grounded = any(c.kind != ClaimKind.unavailable for c in draft.why_it_matters + draft.consequences)
             outcome = Outcome.limited if grounded else Outcome.refused
+        # BR-01 и BR-02: событие без связи с компанией не становится персональным инсайтом, а приоритет
+        # подтверждается оставшимися персональными основаниями, а не исходной оценкой модели.
+        personal = any(c.kind != ClaimKind.unavailable and c.profile_features
+                       for c in draft.why_it_matters + draft.consequences + draft.risks + draft.opportunities)
+        if draft.company_link == "none" or not personal:
+            status, outcome = InsightStatus.limited, Outcome.refused
+            missing.append("связь события с этой компанией не установлена" if draft.company_link == "none"
+                           else "после проверки не осталось персональных оснований")
+        if (draft.company_link == "none" or not personal) and draft.impact_level != Level.low:
+            draft.impact_level = Level.low
+            missing.append("приоритет понижен до низкого: нет подтверждённых персональных оснований")
 
         facts = [c.model_copy(deep=True) for c in (state.analysis.facts if state.analysis else [])]
         all_claims = facts + draft.why_it_matters + draft.consequences + draft.risks + draft.opportunities

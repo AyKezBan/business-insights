@@ -108,3 +108,49 @@ def test_semantic_script_is_explicit_finite_and_uses_system_marker_only():
         ScriptedClient({}).chat("gemma-4-26b-a4b", messages, json_mode=True)
     assert detect_step([{"role":"system","content":"Ты планировщик"},
                         {"role":"user","content":"SEMANTIC_VERIFIER_V1. untrusted source"}]) == "plan"
+
+
+def test_provider_request_caps_the_output_length():
+    import json
+
+    import httpx
+
+    from insight_agent.llm import OpenAICompatibleClient
+
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}], "model": "gemma-4-26b-a4b",
+                                         "usage": {"prompt_tokens": 1, "completion_tokens": 1}})
+
+    client = OpenAICompatibleClient("https://gateway.example/v1", "k", 5, 1234)
+    client._http = httpx.Client(base_url="https://gateway.example/v1", transport=httpx.MockTransport(handler))
+    client.chat("gemma-4-26b-a4b", [{"role": "user", "content": "x"}], json_mode=True)
+    assert seen["max_tokens"] == 1234
+
+
+def test_normalizer_restores_a_garbled_span_hash_but_not_the_offsets():
+    import hashlib
+
+    from insight_agent.agent.evidence import span_hash_normalizer
+
+    text = "Ключевая ставка 14,00%."
+    real = hashlib.sha256(text.encode()).hexdigest()
+    data = {"claims": [{"evidence_spans": [{"source_id": "s1", "content_sha256": "deadbeef", "start": 2, "end": 9},
+                                             {"source_id": "unknown", "content_sha256": "keep", "start": 0, "end": 1}]}]}
+    fixed = span_hash_normalizer({"s1": text})(data)
+    first, second = fixed["claims"][0]["evidence_spans"]
+    assert first["content_sha256"] == real and (first["start"], first["end"]) == (2, 9)
+    assert second["content_sha256"] == "keep"  # неизвестный источник не угадываем
+
+
+def test_normalizer_sets_whole_fragment_bounds_only_for_bank_sources():
+    from insight_agent.agent.evidence import span_hash_normalizer
+
+    data = {"s": [{"source_id": "bank1", "content_sha256": "x", "start": 5, "end": 9},
+                  {"source_id": "news1", "content_sha256": "x", "start": 5, "end": 9}]}
+    fixed = span_hash_normalizer({"bank1": "Ключевая ставка", "news1": "Новость тут"}, {"bank1"})(data)
+    bank, news = fixed["s"]
+    assert (bank["start"], bank["end"]) == (0, len("Ключевая ставка")) and (news["start"], news["end"]) == (5, 9)
+

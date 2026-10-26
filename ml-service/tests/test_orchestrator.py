@@ -194,3 +194,20 @@ def test_daily_budget_failure_has_error_code(make_agent, request_):
 
 def test_llm_failure_has_error_code(make_agent, request_):
     _failed_with(make_agent(ScriptedClient({"analyze_event": [LLMError("503")]})), request_, "llm_error")
+
+
+def test_one_provider_failure_in_personalization_is_retried_once(make_agent, request_):
+    from insight_agent.llm import LLMError
+    from fakes import reviewed_semantics, semantic_contents
+
+    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()],
+              "personalize": [LLMError("503"), draft_reply()],
+              "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))]}
+    client = ScriptedClient(script)
+    agent = make_agent(client)
+    agent.settings.llm_model_fallback = agent.settings.llm_model_reasoning
+    insight = agent.run(request_)
+
+    assert insight.status != InsightStatus.failed
+    assert client.steps().count("personalize") == 2
+    assert any(e.step == "retry_after_provider_failure" for e in record_events(agent, insight))
