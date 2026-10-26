@@ -22,7 +22,8 @@ class ClarificationRequest(BaseModel):
 
 
 def build_agent(settings: Settings, client: ChatClient | None = None) -> InsightAgent:
-    client = client or OpenAICompatibleClient(settings.llm_base_url, settings.llm_api_key, settings.llm_timeout_seconds)
+    client = client or OpenAICompatibleClient(settings.llm_base_url, settings.llm_api_key, settings.llm_timeout_seconds,
+                                                  settings.llm_max_output_tokens)
     registry = CorpusRegistry(settings.materials_dir, settings.materials_public_base_url,
                               settings.materials_cache_size) if settings.materials_dir is not None else None
     bundle = registry.current() if registry else None

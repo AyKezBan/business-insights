@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     llm_model_reasoning: str = "qwen3.6-35b-a3b"
     llm_model_fallback: str = "glm-5.3-flash"
     llm_timeout_seconds: float = 60.0
+    llm_max_output_tokens: int = 4096
     llm_daily_token_budget: int = 2_000_000
     # Бюджет в рублях на общий ключ. Тарифы провайдера уточнить: цены по умолчанию консервативные.
     llm_daily_budget_rub: Decimal = Decimal(500)

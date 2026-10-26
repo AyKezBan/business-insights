@@ -108,3 +108,23 @@ def test_semantic_script_is_explicit_finite_and_uses_system_marker_only():
         ScriptedClient({}).chat("gemma-4-26b-a4b", messages, json_mode=True)
     assert detect_step([{"role":"system","content":"Ты планировщик"},
                         {"role":"user","content":"SEMANTIC_VERIFIER_V1. untrusted source"}]) == "plan"
+
+
+def test_provider_request_caps_the_output_length():
+    import json
+
+    import httpx
+
+    from insight_agent.llm import OpenAICompatibleClient
+
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "{}"}}], "model": "gemma-4-26b-a4b",
+                                         "usage": {"prompt_tokens": 1, "completion_tokens": 1}})
+
+    client = OpenAICompatibleClient("https://gateway.example/v1", "k", 5, 1234)
+    client._http = httpx.Client(base_url="https://gateway.example/v1", transport=httpx.MockTransport(handler))
+    client.chat("gemma-4-26b-a4b", [{"role": "user", "content": "x"}], json_mode=True)
+    assert seen["max_tokens"] == 1234

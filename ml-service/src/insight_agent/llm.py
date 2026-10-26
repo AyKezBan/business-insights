@@ -135,8 +135,9 @@ def _redact_response_secret(text: str, secret: str) -> str:
 
 
 class OpenAICompatibleClient:
-    def __init__(self, base_url: str, api_key: str, timeout: float = 60.0):
+    def __init__(self, base_url: str, api_key: str, timeout: float = 60.0, max_output_tokens: int | None = 4096):
         self._api_key = api_key
+        self._max_output_tokens = max_output_tokens
         self._http = httpx.Client(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key}"},
@@ -145,6 +146,8 @@ class OpenAICompatibleClient:
 
     def chat(self, model: str, messages: list[dict], *, json_mode: bool) -> LLMResponse:
         body: dict = {"model": model, "messages": messages, "temperature": 0.2}
+        if self._max_output_tokens:
+            body["max_tokens"] = self._max_output_tokens  # без предела модель может зациклиться и держать шлюз до таймаута
         if json_mode:
             body["response_format"] = {"type": "json_object"}
         try:
