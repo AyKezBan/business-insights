@@ -58,6 +58,8 @@ BROAD_MIN_SCORE = 0.3
 
 
 MAX_REMEMBERED = 500
+# Токенов, которые надо оставить на смысловую проверку после исправлений: без неё все утверждения считаются непроверенными.
+VERIFY_RESERVE_TOKENS = 35_000
 
 
 class RequestIdConflict(ValueError):
@@ -437,6 +439,11 @@ class InsightAgent:
                     self._skip_optional(state, tracer, "revise")
                     iterations -= 1
                     break
+                if iterations > 1 and s.agent_max_tokens_per_run - llm.budget.used < VERIFY_RESERVE_TOKENS:
+                    self._skip_optional(state, tracer, "revise",
+                                        "лимит токенов запуска: оставлен запас на смысловую проверку, дальнейшие исправления пропущены")
+                    iterations -= 1
+                    break
                 state.draft = personalize(llm, s.llm_model_reasoning, state, feedback=issues if iterations > 1 else None)
                 tracer.agent = "verifier"
                 issues = []
@@ -519,8 +526,8 @@ class InsightAgent:
         return {"spent_rub": str(ledger.spent), "limit_rub": str(ledger.limit), "level": ledger.level()}
 
     @staticmethod
-    def _skip_optional(state: AgentState, tracer: Tracer, step: str) -> None:
-        reason = "дневной бюджет близок к лимиту: повторные шаги пропущены"
+    def _skip_optional(state: AgentState, tracer: Tracer, step: str,
+                       reason: str = "дневной бюджет близок к лимиту: повторные шаги пропущены") -> None:
         if reason not in state.limited_reasons:
             state.limited_reasons.append(reason)
         tracer.emit("adapt", "budget_soft_stop", {"skipped": step})
