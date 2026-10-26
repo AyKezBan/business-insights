@@ -1,5 +1,7 @@
+import pytest
+
 from fakes import FIXTURES, analysis_reply, draft_reply
-from insight_agent.agent.critic import check, has_errors
+from insight_agent.agent.critic import _numbers, check, has_errors
 from insight_agent.agent.state import AgentState
 from insight_agent.schemas import EventAnalysis, PersonalizationDraft
 from insight_agent.tools.bank import BankIndex
@@ -78,3 +80,24 @@ def test_unused_bank_material_is_warning(request_):
     issues = check(_state(request_), PersonalizationDraft.model_validate(draft_reply(with_bank=False)))
     assert "bank_material_unused" in _codes(issues, "warning")
     assert not has_errors(issues)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["2 400 000 000 руб.", "2\u00a0400\u00a0000\u00a0000 руб.", "2,4 млрд руб.", "2.40 млрд", "2400 млн"],
+)
+def test_same_amount_written_differently_is_the_same_number(text):
+    assert "2400000000" in _numbers(text)
+
+
+def test_digit_groups_are_not_split_into_separate_numbers():
+    assert _numbers("выручка 2 400 000 000 руб.") == {"2400000000"}
+
+
+def test_unit_does_not_swallow_longer_words():
+    assert _numbers("5 миллионов") == {"5"}
+
+
+def test_digit_group_does_not_swallow_digits_of_the_next_number():
+    assert _numbers("Q2 2027 forecast: the rate remains 18%.") == {"2", "2027", "18"}
+    assert _numbers("1 2345") == {"1", "2345"}

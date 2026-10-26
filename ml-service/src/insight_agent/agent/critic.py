@@ -1,11 +1,11 @@
 """Deterministic evidence checks; semantic usefulness still needs expert evaluation."""
 import re
+from decimal import Decimal
 
 from insight_agent.agent.state import AgentState
 from insight_agent.schemas import CheckIssue, Claim, ClaimKind, EventAnalysis, NewsEvent, PersonalizationDraft, Scenario, SourceKind
 from insight_agent.tools.search import tokenize
 
-_NUMBER = re.compile(r"\d+(?:[.,]\d+)?")
 _QUANTITY = re.compile(r"(\d+(?:[.,]\d+)?)\s*(%|процент(?:а|ов)?|б\.?\s*п\.?|п\.?\s*п\.?|bps?)", re.I)
 NEEDS_SOURCE = {ClaimKind.fact, ClaimKind.assessment}
 NEEDS_BASIS = {ClaimKind.inference, ClaimKind.recommendation}
@@ -13,13 +13,31 @@ RETELL_OVERLAP = 0.6
 SECTIONS = ("why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view")
 
 
+_NUMBER = re.compile(
+    r"(?<!\d)(\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?!\d)|\d+)(?:[.,](\d+))?(?:[ \u00a0\u202f]*(трлн|млрд|млн|тыс)(?![а-яё]))?",
+    re.IGNORECASE,
+)
+_SCALE = {"тыс": Decimal(10) ** 3, "млн": Decimal(10) ** 6, "млрд": Decimal(10) ** 9, "трлн": Decimal(10) ** 12}
+
+
 def _norm(number: str) -> str:
     number = number.replace(",", ".")
     return number.rstrip("0").rstrip(".") if "." in number else number
 
 
+def _plain(value: Decimal) -> str:
+    return format(value.normalize(), "f")
+
+
 def _numbers(text: str) -> set[str]:
-    return {_norm(n) for n in _NUMBER.findall(text)}
+    """Числа из текста в каноничном виде; число с «млн/млрд» даёт и сокращённую, и полную запись."""
+    found: set[str] = set()
+    for whole, fraction, unit in _NUMBER.findall(text):
+        value = Decimal(re.sub(r"\D", "", whole) + (f".{fraction}" if fraction else ""))
+        found.add(_plain(value))
+        if unit:
+            found.add(_plain(value * _SCALE[unit.lower()]))
+    return found
 
 
 def _quantities(text: str) -> set[tuple[str, str]]:
@@ -44,6 +62,76 @@ def _references(ids, catalog, texts, location, *, required=False):
     if unresolved := [sid for sid in ids if sid in catalog and not texts.get(sid)]:
         issues.append(_issue("unresolved_source", f"Нет текста версии источника: {unresolved}", location))
     return issues
+
+
+_MODEL_KINDS = (ClaimKind.inference, ClaimKind.recommendation)
+_INVESTMENT_ADVICE = re.compile(r"\b(купите|покупайте|продайте|продавайте|инвестируйте|вложите(?:сь)?)\b", re.IGNORECASE)
+_CONTRACT_EFFECT = re.compile(
+    r"(платеж\w*|выплат\w*|процентн\w+\s+(?:расход|нагрузк)\w*|переплат\w*)[^.;]{0,40}"
+    r"\b(вырастет|вырастут|увеличится|увеличатся|возрастет|возрастут|снизится|снизятся|сократится|составит|составят)\b",
+    re.IGNORECASE,
+)
+_CATEGORICAL = re.compile(r"\b(обязательно|гарантированно|неизбежно|без сомнени\w+|стопроцентно)\b", re.IGNORECASE)
+
+
+def _language_issues(claim: Claim, location: str) -> list[CheckIssue]:
+    """Условия договоров компании неизвестны, личных инвестиционных советов сервис не даёт."""
+    issues = []
+    text = claim.text.replace("ё", "е").replace("Ё", "Е")
+    if claim.kind in (*_MODEL_KINDS, ClaimKind.hypothesis) and _INVESTMENT_ADVICE.search(text):
+        issues.append(_issue("investment_advice", "Персональные инвестиционные рекомендации недопустимы", location))
+    if claim.kind in _MODEL_KINDS and _CONTRACT_EFFECT.search(text):
+        issues.append(_issue("unknown_terms_as_fact",
+                             "Ставка, срок и график платежей по договорам неизвестны: изменение платежа можно подать только как гипотезу",
+                             location))
+    if claim.kind in _MODEL_KINDS and _CATEGORICAL.search(text):
+        issues.append(_issue("categorical_language", "Категоричная формулировка без оснований", location, "warning"))
+    return issues
+
+
+_KEYRATE_SOURCE = "cbr_keyrate_"
+_KEYRATE_CURRENT = re.compile(r"на \d{2}\.\d{2}\.\d{4}: (\d+[.,]\d+)% годовых")
+_KEYRATE_PREVIOUS = re.compile(r"Предыдущее значение: (\d+[.,]\d+)% годовых")
+_PAST_MARKER = re.compile(r"предыдущ|ранее|раньше|прежн|было|составляла|снизил|повысил|снижен|повышен|до этого", re.IGNORECASE)
+_ABOUT_KEYRATE = re.compile(r"ключев|ставк", re.IGNORECASE)
+
+
+def _keyrate_issues(claim: Claim, texts: dict[str, str], location: str) -> list[CheckIssue]:
+    """Число из прошлого значения ставки нельзя выдавать за текущее: оба числа есть в тексте источника."""
+    if not _ABOUT_KEYRATE.search(claim.text):
+        return []
+    percents = {value for value, unit in _quantities(claim.text) if unit == "percent"}
+    for sid in claim.source_ids:
+        text = texts.get(sid, "")
+        if not sid.startswith(_KEYRATE_SOURCE) or not (current := _KEYRATE_CURRENT.search(text)):
+            continue
+        previous = _KEYRATE_PREVIOUS.search(text)
+        old, now = (_norm(previous.group(1)) if previous else None), _norm(current.group(1))
+        if old and old != now and old in percents and now not in percents and not _PAST_MARKER.search(claim.text):
+            return [_issue("keyrate_value_mismatch", f"Источник: текущая ставка {now}%, значение {old}% было предыдущим", location)]
+    return []
+
+
+_FX_SOURCE = "cbr_fx_"
+_FX_CURRENT = re.compile(r"на \d{2}\.\d{2}\.\d{4}: 1 [^=]+= (\d+[.,]\d+) руб\.")
+_FX_START = re.compile(r"На \d{2}\.\d{2}\.\d{4}: (\d+[.,]\d+) руб\.")
+_ABOUT_FX = re.compile(r"курс|валют|юан|доллар|евро|лир|дирхам|тенге|рупи|иен", re.IGNORECASE)
+_START_MARKER = re.compile(r"назад|начал|ранее|было|составлял|в начале|на \d{2}\.\d{2}\.\d{4}", re.IGNORECASE)
+
+
+def _fx_issues(claim: Claim, texts: dict[str, str], location: str) -> list[CheckIssue]:
+    """Курс на начало периода нельзя выдать за текущий официальный курс."""
+    if not _ABOUT_FX.search(claim.text):
+        return []
+    numbers = _numbers(claim.text)
+    for sid in claim.source_ids:
+        text = texts.get(sid, "")
+        if not sid.startswith(_FX_SOURCE) or not (now := _FX_CURRENT.search(text)) or not (start := _FX_START.search(text)):
+            continue
+        current, old = _plain(Decimal(now.group(1).replace(",", "."))), _plain(Decimal(start.group(1).replace(",", ".")))
+        if old != current and old in numbers and current not in numbers and not _START_MARKER.search(claim.text):
+            return [_issue("fx_value_mismatch", f"Источник: текущий курс {current} руб., значение {old} руб. относится к началу периода", location)]
+    return []
 
 
 def _numeric_issues(text, cited, location, *, strict, profile=""):
@@ -77,6 +165,9 @@ def check_claims(claims: list[Claim], state: AgentState, *, section: str) -> lis
         cited = " ".join(texts.get(sid, "") for sid in claim.source_ids)
         issues += _numeric_issues(claim.text, cited, loc, strict=claim.kind in NEEDS_SOURCE,
                                  profile="" if claim.kind in NEEDS_SOURCE else state.profile_text())
+        issues += _language_issues(claim, loc)
+        issues += _keyrate_issues(claim, texts, loc)
+        issues += _fx_issues(claim, texts, loc)
     return issues
 
 

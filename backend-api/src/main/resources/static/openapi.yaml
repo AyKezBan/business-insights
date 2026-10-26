@@ -64,6 +64,28 @@ paths:
               schema: {$ref: '#/components/schemas/Profile'}
         '422': {$ref: '#/components/responses/Error'}
         default: {$ref: '#/components/responses/Error'}
+  /api/v1/materials/events:
+    get:
+      operationId: materialCatalog
+      description: >-
+        Reads and validates the complete trusted ML current catalog before atomic local publication.
+        Returns available materials separately from prepared insights. No generation or provider call is started.
+        Later UI pages pass the first revision; a changed publication returns 409 rather than mixing versions.
+        Historical catalog reads are not exposed by this synchronization route.
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
+        - {name: offset, in: query, schema: {type: integer, minimum: 0, default: 0}}
+        - {name: revision, in: query, schema: {type: string, pattern: '^[a-f0-9]{64}$'}}
+      responses:
+        '200':
+          description: One validated catalog publication, paged after synchronization
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/MaterialCatalog'}
+        '409': {$ref: '#/components/responses/Error'}
+        '502': {$ref: '#/components/responses/Error'}
+        '503': {$ref: '#/components/responses/Error'}
+        default: {$ref: '#/components/responses/Error'}
   /api/v1/events:
     post:
       operationId: registerExternalEvent
@@ -87,7 +109,10 @@ paths:
   /api/v1/analyses:
     post:
       operationId: createAnalysis
-      description: Explicit company, role and registered event; no role inference from links.
+      description: >-
+        Explicit company, role and registered event; no role inference from links.
+        For catalog selections supply corpusRevision and eventContentSha256 from that displayed item.
+        A changed selection receives 409; it is never silently replaced with the latest material.
       parameters:
         - {$ref: '#/components/parameters/Idempotency'}
       requestBody:
@@ -364,6 +389,11 @@ components:
         ftsInformationObserved: {type: boolean, nullable: true, description: Evidence of FTS information only; never inferred false from absence}
         ftsCountries: {$ref: '#/components/schemas/StringList'}
         selfTransferShareOfObservedEligiblePayments: {type: number, minimum: 0, maximum: 1, nullable: true, description: Eligible self amount / all eligible incident amount; self counted once, unknown or zero denominator yields null}
+        revenueStatus: {type: string, enum: [known, placeholder, missing, invalid], nullable: true}
+        revenueScope: {type: string, enum: [company, group, unknown], nullable: true}
+        foreignTradeDataAvailable: {type: boolean, nullable: true}
+        paymentPeriod: {type: string, nullable: true}
+        profileQualityNotes: {$ref: '#/components/schemas/StringList'}
     SourceInput:
       type: object
       required: [sourceId, title]
@@ -386,6 +416,38 @@ components:
         source: {$ref: '#/components/schemas/SourceInput'}
         relatedSources: {type: array, maxItems: 30, items: {$ref: '#/components/schemas/SourceInput'}}
         topics: {type: array, maxItems: 30, items: {type: string, minLength: 1, maxLength: 100}}
+    CatalogToken:
+      type: object
+      required: [storeId, generation, revision]
+      properties:
+        storeId: {type: string, minLength: 1}
+        generation: {type: integer, format: int64, minimum: 1}
+        revision: {type: string, pattern: '^[a-f0-9]{64}$'}
+    MaterialEvent:
+      type: object
+      required: [eventId, title, text, source, relatedSources, topics, conflicts, eventContentSha256, corpusRevision]
+      properties:
+        eventId: {type: string}
+        title: {type: string}
+        text: {type: string}
+        publishedAt: {type: string, format: date-time, nullable: true}
+        publishedDate: {type: string, format: date, nullable: true}
+        publishedPrecision: {type: string, nullable: true}
+        source: {$ref: '#/components/schemas/Source'}
+        relatedSources: {type: array, items: {$ref: '#/components/schemas/Source'}}
+        topics: {$ref: '#/components/schemas/StringList'}
+        conflicts: {type: array, items: {$ref: '#/components/schemas/SourceConflict'}}
+        eventContentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        corpusRevision: {type: string, pattern: '^[a-f0-9]{64}$'}
+    MaterialCatalog:
+      type: object
+      required: [catalogToken, items, limit, offset, total]
+      properties:
+        catalogToken: {$ref: '#/components/schemas/CatalogToken'}
+        items: {type: array, items: {$ref: '#/components/schemas/MaterialEvent'}}
+        limit: {type: integer}
+        offset: {type: integer}
+        total: {type: integer}
     AnalysisInput:
       type: object
       required: [companyId, role, eventId]
@@ -394,6 +456,10 @@ components:
         companyId: {type: string, pattern: '^U_[0-9]+$'}
         role: {$ref: '#/components/schemas/Role'}
         eventId: {type: string, minLength: 1, maxLength: 200}
+        asOf: {type: string, format: date-time, nullable: true, description: Publication cutoff truncated to microseconds when frozen; this is not point-in-time market replay}
+        corpusRevision: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
+        eventContentSha256: {type: string, pattern: '^[a-f0-9]{64}$', nullable: true}
+        requestId: {type: string, minLength: 1, maxLength: 128, nullable: true}
         userProvided:
           type: object
           maxProperties: 20
@@ -429,6 +495,9 @@ components:
         warnings: {$ref: '#/components/schemas/StringList'}
         insightId: {type: string, format: uuid, nullable: true}
         parentInsightId: {type: string, format: uuid, nullable: true}
+        outcome: {type: string, enum: [full, limited, refused, none], nullable: true}
+        requestId: {type: string, nullable: true}
+        corpusRevision: {type: string, nullable: true}
     Source:
       type: object
       required: [sourceId, kind, title]
@@ -439,6 +508,37 @@ components:
         date: {type: string, format: date, nullable: true}
         page: {type: integer, nullable: true}
         url: {type: string, nullable: true, description: Safe HTTP(S) URL if supplied; missing URL does not prove a source is accessible}
+        docId: {type: string, nullable: true}
+        contentSha256: {type: string, nullable: true}
+        excerpt: {type: string, nullable: true}
+        publisherId: {type: string, nullable: true}
+        adapterId: {type: string, nullable: true}
+        materialType: {type: string, nullable: true}
+        completeness: {type: string, nullable: true}
+        language: {type: string, nullable: true}
+        publishedPrecision: {type: string, nullable: true}
+        statementType: {type: string, nullable: true}
+        targetPeriod: {type: string, nullable: true}
+        rightsUrl: {type: string, nullable: true}
+        translationAttribution: {type: string, nullable: true}
+        rawPublication: {type: string, nullable: true}
+        sourceTimezone: {type: string, nullable: true}
+        sourceUtcOffsetSeconds: {type: integer, nullable: true}
+        timezoneProvenance: {type: string, enum: [explicit_offset, source_policy, unknown], nullable: true}
+        publishedDate: {type: string, format: date, nullable: true}
+        validUntil: {type: string, format: date, nullable: true}
+        firstSeenAt: {type: string, format: date-time, nullable: true}
+        retrievedAt: {type: string, format: date-time, nullable: true}
+    EvidenceSpan:
+      type: object
+      additionalProperties: false
+      description: Exact source-body range [start,end) in Unicode code points; sourceId is opaque and end must exceed start
+      required: [sourceId, contentSha256, start, end]
+      properties:
+        sourceId: {type: string, minLength: 1}
+        contentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        start: {type: integer, format: int64, minimum: 0}
+        end: {type: integer, format: int64, minimum: 1}
     Claim:
       type: object
       required: [text, kind, origin, sourceIds, profileFeatures]
@@ -448,8 +548,19 @@ components:
         origin: {type: string, enum: [FACT, BANK_ANALYSIS, EXTERNAL_ASSESSMENT, MODEL_INFERENCE, HYPOTHESIS, MODEL_RECOMMENDATION, UNAVAILABLE]}
         sourceIds: {$ref: '#/components/schemas/StringList'}
         profileFeatures: {$ref: '#/components/schemas/StringList'}
+        evidenceSpans:
+          type: array
+          default: []
+          items: {$ref: '#/components/schemas/EvidenceSpan'}
         level: {type: string, enum: [low, medium, high], nullable: true}
         horizon: {type: string, nullable: true}
+        claimId: {type: string, nullable: true}
+    SourceConflict:
+      type: object
+      properties:
+        reason: {type: string}
+        sourceIds: {$ref: '#/components/schemas/StringList'}
+        resolved: {type: boolean}
     ClaimList: {type: array, items: {$ref: '#/components/schemas/Claim'}}
     Scenario:
       type: object
@@ -496,6 +607,25 @@ components:
         disclaimer: {type: string}
         warnings: {$ref: '#/components/schemas/StringList'}
         hidden: {type: boolean}
+        openedAt: {type: string, format: date-time, nullable: true}
+        feedback:
+          type: object
+          nullable: true
+          properties:
+            rating: {type: string, enum: [USEFUL, IRRELEVANT, UNSUPPORTED, OTHER]}
+            comment: {type: string, nullable: true}
+        mlInsightId: {type: string}
+        runId: {type: string}
+        version: {type: integer}
+        outcome: {type: string, enum: [full, limited, refused, none], nullable: true}
+        errorCode: {type: string, nullable: true}
+        requestId: {type: string, nullable: true}
+        parentRunId: {type: string, nullable: true}
+        cacheHit: {type: boolean}
+        asOf: {type: string, format: date-time, nullable: true}
+        corpusRevision: {type: string, nullable: true}
+        eventContentSha256: {type: string, nullable: true}
+        conflicts: {type: array, items: {$ref: '#/components/schemas/SourceConflict'}}
     Answer:
       type: object
       properties:
@@ -509,6 +639,13 @@ components:
         missingData: {$ref: '#/components/schemas/StringList'}
         disclaimer: {type: string}
         warnings: {$ref: '#/components/schemas/StringList'}
+        mlInsightId: {type: string}
+        runId: {type: string}
+        companyId: {type: string, nullable: true}
+        eventId: {type: string, nullable: true}
+        asOf: {type: string, format: date-time, nullable: true}
+        corpusRevision: {type: string, nullable: true}
+        eventContentSha256: {type: string, nullable: true}
     Trace:
       type: object
       properties:

@@ -41,7 +41,12 @@ public final class ApiModels {
 
     public record AnalysisInput(@NotBlank @Pattern(regexp = "U_\\d+") String companyId,
                                 @NotNull Role role, @NotBlank @Size(max = 200) String eventId,
-                                @Size(max = 20) Map<@NotBlank @Size(max = 80) String, @NotBlank @Size(max = 1000) String> userProvided) {
+                                @Size(max = 20) Map<@NotBlank @Size(max = 80) String, @NotBlank @Size(max = 1000) String> userProvided,
+                                Instant asOf, @Pattern(regexp = "[a-f0-9]{64}") String corpusRevision,
+                                @Pattern(regexp = "[a-f0-9]{64}") String eventContentSha256, @Size(min = 1, max = 128) String requestId) {
+        public AnalysisInput(String companyId, Role role, String eventId, Map<String, String> userProvided) {
+            this(companyId, role, eventId, userProvided, null, null, null, null);
+        }
     }
 
     public record QuestionInput(@NotBlank @Size(max = 1000) String question) {
@@ -67,7 +72,9 @@ public final class ApiModels {
                                String registrationCity, String registrationRegion, BigDecimal revenueRub,
                                int revenueYear, String currency, BigDecimal consolidatedGroupRevenueRub,
                                String clientType, String employeesResolved, Boolean ftsInformationObserved,
-                               List<String> ftsCountries, BigDecimal selfTransferShareOfObservedEligiblePayments) {
+                               List<String> ftsCountries, BigDecimal selfTransferShareOfObservedEligiblePayments,
+                               String revenueStatus, String revenueScope, Boolean foreignTradeDataAvailable,
+                               String paymentPeriod, List<String> profileQualityNotes) {
     }
 
     public record ProfileView(String companyId, CompanyFacts facts, JsonNode provenance,
@@ -77,20 +84,32 @@ public final class ApiModels {
     public record ProblemView(int status, String code, String message, boolean retryable, String requestId) {
     }
 
+    public record FeedbackView(String rating, String comment) {}
+
     public record FailureView(String code, String message, boolean retryable) {
     }
 
     public record OperationView(UUID operationId, String kind, String status, Instant createdAt,
                                 Instant updatedAt, FailureView error, List<String> warnings,
-                                UUID insightId, UUID parentInsightId) {
+                                UUID insightId, UUID parentInsightId, String outcome, String requestId, String corpusRevision) {
     }
 
-    public record SourceView(String sourceId, String kind, String title, LocalDate date, Integer page, String url) {
+    public record SourceView(String sourceId, String kind, String title, LocalDate date, Integer page, String url,
+                             String docId, String contentSha256, String excerpt, String publisherId, String adapterId,
+                             String materialType, String completeness, String language, LocalDate publishedDate,
+                             String publishedPrecision, Instant firstSeenAt, Instant retrievedAt, String statementType,
+                             String targetPeriod, LocalDate validUntil, String rightsUrl, String translationAttribution,
+                             String rawPublication, String sourceTimezone, Integer sourceUtcOffsetSeconds, String timezoneProvenance) {
     }
+
+    public record EvidenceSpanView(String sourceId, String contentSha256, long start, long end) {}
 
     public record ClaimView(String text, String kind, String origin, List<String> sourceIds,
-                            List<String> profileFeatures, String level, String horizon) {
+                            List<String> profileFeatures, String level, String horizon, String claimId,
+                            List<EvidenceSpanView> evidenceSpans) {
     }
+
+    public record ConflictView(String reason, List<String> sourceIds, boolean resolved) {}
 
     public record ScenarioView(String name, String trigger, String implication, String plausibility,
                                List<String> sourceIds) {
@@ -107,12 +126,15 @@ public final class ApiModels {
                               List<String> modelVsBank, String impactLevel, String impactRationale,
                               List<String> profileFeaturesUsed, List<SourceView> sources, List<String> missingData,
                               SelfCheckView selfCheck, List<String> models, Instant generatedAt, String disclaimer,
-                              List<String> warnings, boolean hidden) {
+                              List<String> warnings, boolean hidden, String mlInsightId, String runId, Integer version,
+                              String outcome, String errorCode, String requestId, String parentRunId, boolean cacheHit,
+                              Instant asOf, String corpusRevision, String eventContentSha256, List<ConflictView> conflicts, Instant openedAt, FeedbackView feedback) {
     }
 
     public record AnswerView(UUID operationId, UUID insightId, String status, String mlStatus, String text,
                              List<ClaimView> claims, List<SourceView> sources, List<String> missingData,
-                             String disclaimer, List<String> warnings) {
+                             String disclaimer, List<String> warnings, String mlInsightId, String runId, String companyId,
+                             String eventId, Instant asOf, String corpusRevision, String eventContentSha256) {
     }
 
     public record TraceView(UUID operationId, UUID insightId, String traceStatus, JsonNode steps,
@@ -122,6 +144,16 @@ public final class ApiModels {
 
     public record FeedView(List<InsightView> items, int limit, int offset, String order, String emptyReason) {
     }
+
+    public record CatalogTokenView(String storeId, long generation, String revision) {}
+
+    public record MaterialEventView(String eventId, String title, String text, Instant publishedAt,
+                                    LocalDate publishedDate, String publishedPrecision, SourceView source,
+                                    List<SourceView> relatedSources, List<String> topics, List<ConflictView> conflicts,
+                                    String eventContentSha256, String corpusRevision) {}
+
+    public record MaterialCatalogView(CatalogTokenView catalogToken, List<MaterialEventView> items,
+                                      int limit, int offset, int total) {}
 
     public record ActionView(UUID actionId, UUID insightId, String action, String status, String delivery) {
     }

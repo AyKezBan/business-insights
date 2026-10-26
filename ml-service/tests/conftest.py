@@ -13,6 +13,7 @@ def settings(tmp_path) -> Settings:
     return Settings(
         _env_file=None,
         llm_api_key="test-key",
+        open_research_enabled=False,
         llm_model_light="gemma-4-26b-a4b",
         llm_model_reasoning="qwen3.6-35b-a3b",
         llm_model_fallback="glm-5.3-flash",

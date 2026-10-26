@@ -1,0 +1,126 @@
+{
+  "version": 2,
+  "frozen_before_paid_calls": true,
+  "date": "2026-10-26",
+  "plan": "docs/superpowers/plans/2026-10-26-domains-03-04-finalization.md#task-12",
+  "matrix": {
+    "publishers": [
+      "cbr",
+      "fns",
+      "eia"
+    ],
+    "new_events_per_publisher": 1,
+    "profiles_file": "release-profiles-2026-10-26.json",
+    "insight_pairs": 9,
+    "qa_minimum": 9,
+    "role_by_profile": {
+      "RELEASE_MANUFACTURING_BORROWER": "cfo",
+      "RELEASE_MANUFACTURING_DEPOSITOR": "cfo",
+      "RELEASE_MISSING_PROFILE": "owner"
+    }
+  },
+  "selection_policy": {
+    "select_before_first_paid_call": true,
+    "new_events_exclude_prior_development_and_holdout": true,
+    "event_metadata": [
+      "event_id",
+      "event_content_sha256",
+      "publisher_id",
+      "original_url",
+      "source_id",
+      "content_sha256",
+      "published_date",
+      "published_precision",
+      "corpus_revision"
+    ],
+    "no_tuning_on_holdout": true,
+    "failed_class_policy": "A defect becomes a regression; evaluate the same failure class on a newly frozen event/question. Preserve all attempts and costs."
+  },
+  "zero_tolerance_errors": [
+    "wrong entity or participant role",
+    "negation reversal",
+    "future or conditional action reported as completed",
+    "wrong period or publication date",
+    "number, unit, currency or sign mutation",
+    "external or model view attributed to Alfa-Bank",
+    "US/global evidence asserted as a Russian/company fact",
+    "unsupported company exposure or market share",
+    "claim not supported by the cited source span",
+    "QA factual or attribution error"
+  ],
+  "per_insight_review": [
+    "Read every published field, including summary, what_happened, bank_view, consequences, actions and scenarios.",
+    "Compare each claim to original source and pinned source text; distinguish facts, reviewed bank assessments, inferences and hypotheses.",
+    "Verify profile references name known fields; false/unknown products are not exposures.",
+    "Check recommendations are concrete and explained; do not force a product distinction when it is irrelevant to the event.",
+    "A limited result is acceptable only when useful, grounded and explicit about the missing data; an empty or generic result is not useful.",
+    "Publication cutoff is not point-in-time market replay; corrected-after-cutoff evidence must carry an explicit limitation."
+  ],
+  "qa_policy": {
+    "minimum_one_per_insight": true,
+    "questions": [
+      "Explain the evidence for the main company-specific conclusion.",
+      "Which part is the bank assessment and which is model inference?",
+      "What remains unknown and what would change the conclusion?"
+    ],
+    "checks": [
+      "parent corpus revision retained after refresh/restart",
+      "source/span references resolve",
+      "no unsupported new facts or company data",
+      "explicit no_answer if required historical evidence is missing"
+    ]
+  },
+  "cross_run_checks": [
+    "At least one accepted run shows a concrete reviewed bank assessment changing the explanation.",
+    "At least one run has no eligible bank coverage and says so.",
+    "Compare borrower and depositor profiles on the same events; explain useful exposure differences without inventing facts.",
+    "The missing profile causes an honest useful limitation.",
+    "A corrected event triggers a new analysis and leaves the old run/QA reproducible.",
+    "One unavailable publisher retains usable prior records and reports degradation."
+  ],
+  "gates": {
+    "factual_and_attribution_errors": 0,
+    "failed_runs_on_valid_inputs": 0,
+    "all_nine_pairs_useful": true,
+    "all_nine_qa_manually_scored": true,
+    "new_holdout_for_each_repaired_failure_class": true,
+    "reviewer_identity_recorded": true
+  },
+  "budget": {
+    "currency": "RUB",
+    "shared_daily_limit": 500,
+    "reset": "03:00 Europe/Moscow",
+    "session_cap": null,
+    "require_actual_pricing_before_paid_calls": false,
+    "require_current_shared_remaining_budget": true,
+    "stop_on_exhaustion_or_unknown_cost": false,
+    "ingestion_and_ordinary_ci_paid_calls": 0,
+    "stop_on_gateway_budget_exhaustion": true,
+    "actual_spend_observation": "Read gateway key spend before/after bounded live stages; preserve raw cost metadata and its declared or unknown currency.",
+    "user_override": {
+      "date": "2026-10-26",
+      "instruction": "продолжай, ограничений нет",
+      "effect": "Proceed without waiting for a tariff table; earlier local 100 RUB session cap is waived. Existing per-run/token guards and gateway-enforced shared key limit remain."
+    }
+  },
+  "result_metadata": [
+    "integrated_git_sha",
+    "prompt_version",
+    "schema_hash",
+    "policy_version",
+    "corpus_revision",
+    "catalog_token",
+    "profile_hash",
+    "event_content_sha256",
+    "run_id",
+    "insight_id",
+    "qa_run_ids",
+    "manual_verdicts",
+    "calls",
+    "tokens",
+    "cost_rub",
+    "latency_seconds",
+    "limitations"
+  ],
+  "acceptance_status": "NOT_RUN"
+}

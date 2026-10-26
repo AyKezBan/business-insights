@@ -3,6 +3,11 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT"
+# Bake checkout provenance at build time; do not relabel existing images at runtime.
+if [ "${GIT_SHA+x}" != x ]; then
+  GIT_SHA=$(git rev-parse HEAD 2>/dev/null) || GIT_SHA=unknown
+fi
+export GIT_SHA
 command=${1:-help}
 [ "$#" -eq 0 ] || shift
 case "$command" in
@@ -26,13 +31,17 @@ else:
 PY
     ;;
   up) docker compose -f compose.yaml up -d --build --wait --wait-timeout 240 "$@" ;;
-  down) docker compose -f compose.yaml down "$@" ;;
-  status) docker compose -f compose.yaml ps -a "$@" ;;
-  logs) docker compose -f compose.yaml logs --tail 100 "$@" ;;
+  down) docker compose -f compose.yaml -f infra/compose.materials.yaml --profile jobs down "$@" ;;
+  status) docker compose -f compose.yaml -f infra/compose.materials.yaml --profile jobs ps -a "$@" ;;
+  logs) docker compose -f compose.yaml -f infra/compose.materials.yaml --profile jobs logs --tail 100 "$@" ;;
   config) docker compose -f compose.yaml config --quiet "$@" ;;
   build) docker compose -f compose.yaml build "$@" ;;
   import) docker compose -f compose.yaml run --rm import-data "$@" ;;
   materials-up) docker compose -f compose.yaml -f infra/compose.materials.yaml up -d --build --wait --wait-timeout 240 "$@" ;;
+  materials-watch)
+    export LOCAL_UID=${LOCAL_UID:-$(id -u)} LOCAL_GID=${LOCAL_GID:-$(id -g)}
+    docker compose -f compose.yaml -f infra/compose.materials.yaml --profile jobs up -d --build --no-deps materials-poller "$@"
+    ;;
   materials)
     export LOCAL_UID=${LOCAL_UID:-$(id -u)} LOCAL_GID=${LOCAL_GID:-$(id -g)}
     docker compose -f compose.yaml -f infra/compose.materials.yaml run --rm --no-deps materials "$@"
@@ -42,6 +51,7 @@ PY
     cat <<'HELP'
 Usage: ./stack init | up | down | status | logs | config | build | import
        ./stack materials-up
+       ./stack materials-watch
        ./stack materials check --store /app/materials
        ./stack smoke
 Set DATA_DIR and local credentials with ./stack init then edit .env.

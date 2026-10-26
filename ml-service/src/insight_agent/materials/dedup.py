@@ -1,12 +1,12 @@
 """Conservative exact deduplication; revisions never erase prior source texts."""
 from collections import defaultdict
-from datetime import datetime
+from datetime import UTC, datetime
 import re
 import unicodedata
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from insight_agent.materials.artifacts import digest
-from insight_agent.materials.models import NewsImportResult, RawNews, SourceVersion
+from insight_agent.materials.models import NewsImportResult, RawNews, SourceMetadata, SourceVersion
 from insight_agent.materials.news import classify_topics
 from insight_agent.schemas import NewsEvent, SourceConflict, SourceKind, SourceRef
 
@@ -26,8 +26,13 @@ def normalize_news_text(text: str) -> str:
 
 def source_ref(version: SourceVersion) -> SourceRef:
     return SourceRef(source_id=version.source_id, kind=SourceKind.news, title=version.title,
-        date=version.published_at.date() if version.published_at else None,
-        url=version.url, content_sha256=version.content_sha256)
+        date=version.published_date,
+        url=version.url, content_sha256=version.content_sha256,
+        **{key: getattr(version, key) for key in (
+            "publisher_id", "adapter_id", "material_type", "completeness", "language",
+            "published_date", "published_precision", "first_seen_at", "retrieved_at",
+            "raw_publication", "source_timezone", "source_utc_offset_seconds", "timezone_provenance",
+            "rights_url", "translation_attribution")})
 
 
 def events_from_versions(versions: list[SourceVersion], previous: list[NewsEvent] = ()) -> list[NewsEvent]:
@@ -47,10 +52,22 @@ def events_from_versions(versions: list[SourceVersion], previous: list[NewsEvent
             matching = next((c for c in old.conflicts if sorted(c.source_ids) == ids), None) if old else None
             conflicts = [matching or SourceConflict(reason="previously_equal_sources_diverged", source_ids=ids)]
         events.append(NewsEvent(event_id=event_id, title=primary.title, text=primary.text,
-            published_at=primary.published_at, source=source_ref(primary),
+            published_at=primary.published_at, published_date=primary.published_date,
+            published_precision=primary.published_precision, source=source_ref(primary),
             related_sources=[source_ref(v) for v in ordered[1:]], conflicts=conflicts,
-            topics=classify_topics(primary.title + " " + primary.text)))
+            topics=primary.topics or classify_topics(primary.title + " " + primary.text)))
     return events
+
+
+def _semantic_metadata(value: SourceMetadata) -> dict:
+    # Parser/raw rendering/observation changes alone do not create new source versions.
+    metadata = value.model_dump(mode="json", include={
+        "published_at", "published_date", "published_precision", "source_timezone", "source_utc_offset_seconds",
+        "publisher_id", "adapter_id",
+        "language", "material_type", "completeness", "rights_url", "translation_attribution", "topics"})
+    if value.published_at:
+        metadata["published_at"] = value.published_at.astimezone(UTC).isoformat()
+    return metadata
 
 
 def merge_news(existing: list[NewsEvent], versions: list[SourceVersion], incoming: list[RawNews],
@@ -63,7 +80,7 @@ def merge_news(existing: list[NewsEvent], versions: list[SourceVersion], incomin
         url = canonicalize_url(raw.url)
         if url in incoming_by_url:
             earlier = incoming_by_url[url]
-            if (normalize_news_text(earlier.text), earlier.title, earlier.published_at) != (normalize_news_text(raw.text), raw.title, raw.published_at):
+            if (normalize_news_text(earlier.text), earlier.title, _semantic_metadata(earlier)) != (normalize_news_text(raw.text), raw.title, _semantic_metadata(raw)):
                 raise ValueError("Two unordered versions of the same URL in one batch")
             if earlier.retrieved_at >= raw.retrieved_at:
                 continue
@@ -73,11 +90,12 @@ def merge_news(existing: list[NewsEvent], versions: list[SourceVersion], incomin
         text_hash = digest(text.encode())
         url_versions = [v for v in result if v.url == url]
         active = next((v for v in url_versions if v.active), None)
-        if active and (text_hash, raw.title, raw.published_at) == (active.content_sha256, active.title, active.published_at):
+        if active and (text_hash, raw.title, _semantic_metadata(raw)) == (active.content_sha256, active.title, _semantic_metadata(active)):
             active.retrieved_at = max(active.retrieved_at, raw.retrieved_at)
             continue
         stale = active is not None and raw.retrieved_at < active.retrieved_at
-        if stale and any(v.content_sha256 == text_hash for v in url_versions):
+        if stale and any((v.content_sha256, v.title, _semantic_metadata(v)) ==
+                         (text_hash, raw.title, _semantic_metadata(raw)) for v in url_versions):
             continue
         if active:
             event_id = active.event_id
@@ -90,7 +108,8 @@ def merge_news(existing: list[NewsEvent], versions: list[SourceVersion], incomin
                 old.active = False
         result.append(SourceVersion(source_id=f"news:{digest(url.encode())[:20]}:r{revision}:{text_hash[:16]}",
             event_id=event_id, url=url, revision=revision, active=not stale,
-            content_sha256=text_hash, text=text, title=raw.title, published_at=raw.published_at,
+            content_sha256=text_hash, text=text, title=raw.title,
+            **{**raw.model_dump(include=set(SourceMetadata.model_fields)), "original_text": raw.original_text if raw.original_text is not None else raw.text},
             first_seen_at=raw.retrieved_at if stale else observed_at, retrieved_at=raw.retrieved_at))
     result.sort(key=lambda v: (v.url, v.revision))
     return NewsImportResult(events=events_from_versions(result, existing), versions=result)

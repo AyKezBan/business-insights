@@ -1,0 +1,232 @@
+{
+  "date": "2026-10-26",
+  "status": "IN_PROGRESS",
+  "code_candidate": "9e540255420aa7066af82d7b1abd6f4fd8606e2e",
+  "prompt_version": "3acbd32648a6",
+  "schema_sha256": "f1d32bd30171959038abed27fb2ab8cf71e5c50af8d703a7d79225df332ee804",
+  "contract_hashes": {
+    "answer.schema.json": "73e3a1a7b22fd0be41f57b052bb51d92f5e4b92715fbbfbb0d6764794b694ebd",
+    "bank-fragment.schema.json": "1db03a561182f9dd40e2c9aa07b923afaa24129457b23663325d817e355f97e5",
+    "catalog-response.schema.json": "f92569039c46d7a74c24520b38f78cc69aa84d9cb9cb8f6ec0941f4cd1c362d8",
+    "catalog-token.schema.json": "fce4508509c48c4b57a1da5ef78ec5ae05aeca82687c263ccee1ed6c2a8d2038",
+    "fetch-batch.schema.json": "717b8bed87ab38c3db74134c301ad8bac9351e91d16bcd0b8d74c43db5ae64fc",
+    "insight-request.schema.json": "4917878b5ec8a6c6604bf3babae6188e232bb653916d0bde08c45e5b87016b64",
+    "insight.schema.json": "397b9623d1c77c946103b30df5225b5a0fc32efea270bd29aa4033015234180e",
+    "material-event.schema.json": "0ad11d5ba274e0c6ac9d7292836815625b79dbc8f6a4de18730f109d948b88fb",
+    "materials.schema.json": "9fc021276414bd71281297af5424e67d3ba982d201572b3e734b8c077da40e88",
+    "question-request.schema.json": "7aabc6695e3c67f973c4e1af5a69f2c6f0d4eff946f10ec416cdb100b0570c81",
+    "source-spec.schema.json": "0a47ca9ffb7e5faad85bc2da08a67b15df255ac8a94fe43981c55c1bb8daecaf",
+    "trace-event.schema.json": "96a32d8653e59e9c9a8e300967d2f7a641a618f2329e7560f76e8096d360831d"
+  },
+  "rubric_version": 2,
+  "frozen_manifest_sha256": "585f4f6f6cf32ab8c926d39a43d23dd8a652e7956f700331a487d9ae58f7434c",
+  "profiles_file_sha256": "a185593331dcbe8fe2b98a706ba48086db59441ce93b04d538cb72d7b8a594ea",
+  "prior_exclusion_sha256": "1c63a21009cd09ace30736a26fb992c6b5db0028cde94be6fc5e9c5b37923630",
+  "corpus_revision": "0a418f6801bacdd23565be55b0a4b55f3ddb31d526437542915c3fcfe2bafd1b",
+  "catalog_token": {
+    "store_id": "430a2d7e-5fe2-4dd7-9ffb-4201936094d2",
+    "generation": 3,
+    "revision": "0a418f6801bacdd23565be55b0a4b55f3ddb31d526437542915c3fcfe2bafd1b"
+  },
+  "events": [
+    {
+      "publisher_id": "cbr",
+      "event_id": "evt-a7804e384dbe7bdcf6a2f6d1",
+      "event_content_sha256": "2a7efa3e73add2ec972c864af138f371b0dab380167bcd8d75fccd330f038724",
+      "url": "https://www.cbr.ru/press/PR/?file=639263022316269751BANK_SECTOR.htm",
+      "source_id": "news:a7804e384dbe7bdcf6a2:r1:af36f06e337924cd",
+      "content_sha256": "af36f06e337924cdb112f4a6c35d7f7519406786eb78d4a8d4e0acda8e7353f9",
+      "published_date": "2026-09-29",
+      "published_precision": "timestamp"
+    },
+    {
+      "publisher_id": "fns",
+      "event_id": "evt-00b61a7515c8bdd508221b58",
+      "event_content_sha256": "c18886d1646804f0427a450fd4ddb9e6e64bcc4046bffe812e74dbbcb6f49b6b",
+      "url": "https://www.nalog.gov.ru/rn77/news/activities_fts/16664671/",
+      "source_id": "news:00b61a7515c8bdd50822:r1:dab112cdbc12a754",
+      "content_sha256": "dab112cdbc12a7542fc5718d8899b03b21dd4f096515c76adc6b2688bf117e76",
+      "published_date": "2026-10-23",
+      "published_precision": "date"
+    },
+    {
+      "publisher_id": "eia",
+      "event_id": "evt-11274263ec4ec7aa15ad19bc",
+      "event_content_sha256": "b9d3c407d4f051d80c662778e744d5c7b40e0440724e76eb3a0d093fb539c3c5",
+      "url": "https://www.eia.gov/todayinenergy/detail.php?id=68344",
+      "source_id": "news:11274263ec4ec7aa15ad:r1:c81a848dfcb99765",
+      "content_sha256": "c81a848dfcb9976531e0961a3a29e8cd6c8c0629fb0a2cd3ac7d50aed6e3a207",
+      "published_date": "2026-10-22",
+      "published_precision": "date"
+    }
+  ],
+  "insights": [],
+  "qa": [],
+  "bank": {
+    "pdf_documents": 9,
+    "physical_pages": 64,
+    "page_dispositions": 64,
+    "verified": 72,
+    "eligible_as_of_2026_10_26": 61,
+    "eligible_dated_docs": 7,
+    "eligible_topics": 9,
+    "retrieval": {
+      "original": "10/10",
+      "extension": "12/12",
+      "negative_refusals": "6/6"
+    }
+  },
+  "source_portfolio": [
+    "cbr",
+    "fns",
+    "eia"
+  ],
+  "paid_acceptance": "IN_PROGRESS_NOT_ACCEPTED",
+  "human_reproduction": "NOT_RUN",
+  "production_pdf_browser": "NOT_RUN: renderer/extension limitation",
+  "synthetic_stack_browser": "PASS at68249b4; actual transport and finite manually approved provider, not live semantic quality",
+  "offline_tests": {
+    "ml": 928,
+    "java_postgresql": 131,
+    "import_postgresql": 7,
+    "frontend_python": 20,
+    "frontend_node_suites": 6,
+    "skipped": 0
+  },
+  "operational_attempts": [
+    {
+      "phase": "phase-1",
+      "case_id": "cbr__RELEASE_MANUFACTURING_BORROWER",
+      "code": "659ea87b6b7e7704fc08ed13413a7f8b6e39f99c",
+      "insight_id": "RELEASE_MANUFACTURING_BORROWER:evt-a7804e384dbe7bdcf6a2f6d1:fb014254",
+      "run_id": "run_77109697fb014254",
+      "status": "failed",
+      "qa_run_id": null,
+      "provider_requests": 1,
+      "latency_ms": 60325,
+      "local_estimate": {
+        "cost": "7.0140",
+        "currency": "RUB",
+        "input_rub_per_1k": "0.5",
+        "is_estimate": true,
+        "output_rub_per_1k": "1.5"
+      },
+      "gateway_usage": [],
+      "manual_verdict": "NOT_REVIEWED"
+    },
+    {
+      "phase": "phase-2",
+      "case_id": "cbr__RELEASE_MANUFACTURING_BORROWER",
+      "code": "659ea87b6b7e7704fc08ed13413a7f8b6e39f99c",
+      "insight_id": "RELEASE_MANUFACTURING_BORROWER:evt-a7804e384dbe7bdcf6a2f6d1:2a764b83",
+      "run_id": "run_cc5891d02a764b83",
+      "status": "failed",
+      "qa_run_id": null,
+      "provider_requests": 4,
+      "latency_ms": 143429,
+      "local_estimate": {
+        "cost": "22.3640",
+        "currency": "RUB",
+        "input_rub_per_1k": "0.5",
+        "is_estimate": true,
+        "output_rub_per_1k": "1.5"
+      },
+      "gateway_usage": [
+        {
+          "usage": {
+            "completion_tokens": 2380,
+            "cost": 0.0860567316882,
+            "prompt_tokens": 3582,
+            "total_tokens": 5962
+          },
+          "currency": "unknown"
+        },
+        {
+          "usage": {
+            "completion_tokens": 333,
+            "cost": 0.0163676775249,
+            "prompt_tokens": 774,
+            "total_tokens": 1107
+          },
+          "currency": "unknown"
+        },
+        {
+          "usage": {
+            "completion_tokens": 2314,
+            "cost": 0.0894908762722,
+            "prompt_tokens": 8230,
+            "total_tokens": 10544
+          },
+          "currency": "unknown"
+        },
+        {
+          "usage": {
+            "completion_tokens": 2174,
+            "cost": 0.17862786813300002,
+            "prompt_tokens": 10539,
+            "total_tokens": 12713
+          },
+          "currency": "unknown"
+        }
+      ],
+      "manual_verdict": "NOT_REVIEWED"
+    },
+    {
+      "phase": "phase-3",
+      "case_id": "cbr__RELEASE_MANUFACTURING_BORROWER",
+      "code": "9e540255420aa7066af82d7b1abd6f4fd8606e2e",
+      "insight_id": "RELEASE_MANUFACTURING_BORROWER:evt-a7804e384dbe7bdcf6a2f6d1:88a0449b",
+      "run_id": "run_2f1d95e888a0449b",
+      "status": "failed",
+      "qa_run_id": null,
+      "provider_requests": 4,
+      "latency_ms": 54231,
+      "local_estimate": {
+        "cost": "17.3895",
+        "currency": "RUB",
+        "input_rub_per_1k": "0.5",
+        "is_estimate": true,
+        "output_rub_per_1k": "1.5"
+      },
+      "gateway_usage": [
+        {
+          "usage": {
+            "completion_tokens": 1746,
+            "cost": 0.0701256512034,
+            "prompt_tokens": 3582,
+            "total_tokens": 5328
+          },
+          "currency": "unknown"
+        },
+        {
+          "usage": {
+            "completion_tokens": 326,
+            "cost": 0.018332887703,
+            "prompt_tokens": 773,
+            "total_tokens": 1099
+          },
+          "currency": "unknown"
+        },
+        {
+          "usage": {
+            "completion_tokens": 1107,
+            "cost": 0.0852589212696,
+            "prompt_tokens": 8374,
+            "total_tokens": 9481
+          },
+          "currency": "unknown"
+        },
+        {
+          "usage": {
+            "completion_tokens": 984,
+            "cost": 0.10510052919990001,
+            "prompt_tokens": 9561,
+            "total_tokens": 10545
+          },
+          "currency": "unknown"
+        }
+      ],
+      "manual_verdict": "NOT_REVIEWED"
+    }
+  ]
+}

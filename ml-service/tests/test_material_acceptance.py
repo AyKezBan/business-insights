@@ -4,7 +4,7 @@ from datetime import datetime,date,timezone
 
 from fastapi.testclient import TestClient
 
-from fakes import ScriptedClient,analysis_reply,draft_reply
+from fakes import ScriptedClient,analysis_reply,draft_reply, reviewed_semantics, semantic_contents
 from insight_agent.api import build_agent,create_app
 from insight_agent.materials.bank_corpus import prepare_bank
 from insight_agent.materials.dedup import merge_news
@@ -33,11 +33,13 @@ def test_pdf_to_insight_original_url_and_trace_hash(tmp_path,settings,request_):
     analysis=analysis_reply();analysis['event_id']=event.event_id
     for c in analysis['facts']: c['source_ids']=[event.source.source_id]
     draft=draft_reply();draft['scenarios']=[]
+    draft['bank_view'][0]['text']=f.text
     for key in ('why_it_matters','consequences','risks','actions','bank_view'):
         for c in draft[key]:
             c['source_ids']=[f.fragment_id if s=='bank_demo_rate_p3' else event.source.source_id for s in c.get('source_ids',[])]
     plan={'steps':[{'tool':'search_bank_analytics','args':{'query':'Bank forecast rate','min_score':0.3},'purpose':'evidence'}]}
-    client=ScriptedClient({'analyze_event':[analysis],'plan':[plan],'personalize':[draft]})
+    client=ScriptedClient({'analyze_event':[analysis],'plan':[plan],'personalize':[draft],
+        'semantic_verify':[reviewed_semantics(semantic_contents(draft))]})
     settings.materials_dir=root;settings.materials_public_base_url='http://testserver'
     agent=build_agent(settings,client)
     http=TestClient(create_app(agent))

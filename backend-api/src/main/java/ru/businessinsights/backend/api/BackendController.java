@@ -15,14 +15,17 @@ import org.springframework.web.bind.annotation.*;
 import ru.businessinsights.backend.api.ApiModels.*;
 import ru.businessinsights.backend.auth.DemoAuthFilter;
 import ru.businessinsights.backend.service.InsightService;
+import ru.businessinsights.backend.service.MaterialCatalogService;
 
 @RestController
 @Validated
 public class BackendController {
     private final InsightService service;
+    private final MaterialCatalogService materials;
 
-    public BackendController(InsightService service) {
+    public BackendController(InsightService service, MaterialCatalogService materials) {
         this.service = service;
+        this.materials = materials;
     }
 
     private String person(HttpServletRequest req) {
@@ -54,6 +57,13 @@ public class BackendController {
     @PostMapping("/api/v1/events")
     public ResponseEntity<EventInput> event(@Valid @RequestBody EventInput input) {
         return ResponseEntity.ok(service.event(input));
+    }
+
+    @GetMapping("/api/v1/materials/events")
+    public MaterialCatalogView materials(@RequestParam(defaultValue = "50") @Min(1) @Max(100) int limit,
+                                         @RequestParam(defaultValue = "0") @Min(0) int offset,
+                                         @RequestParam(required = false) @Pattern(regexp = "[a-f0-9]{64}") String revision) {
+        return materials.events(limit, offset, revision);
     }
 
     @PostMapping("/api/v1/analyses")

@@ -27,6 +27,11 @@ import ru.businessinsights.backend.api.ApiException;
 import ru.businessinsights.backend.api.ApiModels.*;
 import ru.businessinsights.backend.config.BackendProperties;
 import ru.businessinsights.backend.data.CompanyProfileService;
+import ru.businessinsights.backend.data.MaterialCatalogRepository;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import ru.businessinsights.backend.ml.MlClient;
 import ru.businessinsights.backend.ml.MlContracts;
 import ru.businessinsights.backend.ml.MlException;
@@ -36,10 +41,11 @@ import ru.businessinsights.backend.store.OperationStore.Operation;
 @Service
 public class InsightService {
     private static final Logger LOG = LoggerFactory.getLogger(InsightService.class);
-    private static final String ML_COMMIT = "7cbd690892addc495fbf9bee144c48931c464170";
+    private static final String ML_COMMIT = MlContracts.CONTRACT_COMMIT;
     private static final String DATA_COMMIT = "f44b69f0d124e8e4c33e5301b629413618090fa5";
     private final CompanyProfileService profiles;
     private final MlClient ml;
+    private final MaterialCatalogRepository catalog;
     private final OperationStore store;
     private final InsightMapper views;
     private final ObjectMapper mapper;
@@ -48,9 +54,10 @@ public class InsightService {
     private volatile boolean ready;
 
     public InsightService(CompanyProfileService profiles, MlClient ml, OperationStore store, InsightMapper views,
-                          ObjectMapper mapper, BackendProperties properties) {
+                          ObjectMapper mapper, BackendProperties properties, MaterialCatalogRepository catalog) {
         this.profiles = profiles;
         this.ml = ml;
+        this.catalog = catalog;
         this.store = store;
         this.views = views;
         this.mapper = mapper;
@@ -85,7 +92,8 @@ public class InsightService {
         var snapshot = profiles.loadProfile(company, Map.of());
         var p = snapshot.profile();
         var facts = new CompanyFacts(p.companyId(), p.groupId(), p.okvedCode(), p.okvedName(), p.city(), p.region(),
-                p.revenueRub(), 2025, "RUB", null, p.clientType(), p.employees(), p.foreignTrade(), p.foreignTradeCountries(), p.selfTransferShare());
+                p.revenueRub(), 2025, "RUB", null, p.clientType(), p.employees(), p.foreignTrade(), p.foreignTradeCountries(), p.selfTransferShare(), p.revenueStatus(), p.revenueScope(),
+                p.foreignTradeDataAvailable(), p.paymentPeriod(), p.profileQualityNotes());
         return new ProfileView(company, facts, snapshot.provenance(), snapshot.qualityIssues(), snapshot.sufficient());
     }
 
@@ -103,16 +111,44 @@ public class InsightService {
         return store.registerEvent(normalized, hash(store.tree(normalized)));
     }
 
+    // Profile loader holds importer table locks; READ_COMMITTED lets a racing idempotent
+    // INSERT observe the winner after ON CONFLICT waits. The entire accepted payload is one insert.
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public OperationView analyze(String person, AnalysisInput input, String key) {
-        requireReady();
         requireAccess(person, input.companyId());
-        store.event(input.eventId());
-        var normalized = new AnalysisInput(input.companyId(), input.role(), input.eventId(), input.userProvided() == null ? Map.of() : input.userProvided());
-        var submission = store.create(person, input.companyId(), input.role().name(), "ANALYSIS", null, input.eventId(), key, hash(store.tree(normalized)), normalized);
-        if (submission.created()) {
-            enqueue(submission.operation().id());
-        }
-        return operation(person, submission.operation().id());
+        var normalized = new AnalysisInput(input.companyId(), input.role(), input.eventId(), input.userProvided() == null ? Map.of() : input.userProvided(),
+                input.asOf(), input.corpusRevision(), input.eventContentSha256(), input.requestId());
+        String fingerprint = hash(store.tree(normalized));
+        var replay = store.replay(person, "ANALYSIS", key, fingerprint);
+        if (replay.isPresent()) return views.operation(replay.get());
+        requireReady();
+        var snapshot = profiles.loadProfile(input.companyId(), normalized.userProvided());
+        var material = catalog.findCurrent(input.eventId());
+        var event = material.isPresent() ? material.get().event() : mlEvent(store.event(input.eventId()));
+        String revision = material.map(m -> m.token().revision()).orElse(null);
+        String eventHash = material.map(MaterialCatalogRepository.CurrentEvent::eventContentSha256).orElse(null);
+        if (material.isPresent() && !material.get().token().equals(catalog.head()))
+            throw new ApiException(HttpStatus.CONFLICT, "MATERIAL_EVENT_STALE", "Материал нужно синхронизировать с текущей публикацией каталога");
+        if ((input.corpusRevision() != null && !input.corpusRevision().equals(revision))
+                || (input.eventContentSha256() != null && !input.eventContentSha256().equals(eventHash)))
+            throw new ApiException(HttpStatus.CONFLICT, "CORPUS_CONTEXT_MISMATCH", "Запрошенная версия материала отличается от принятого каталога");
+        // Python datetime preserves microseconds; freeze that shared precision before persisting or sending.
+        var asOf = (input.asOf() == null ? java.time.Instant.now() : input.asOf())
+                .truncatedTo(java.time.temporal.ChronoUnit.MICROS);
+        if (event.publishedAt() != null && event.publishedAt().isAfter(asOf))
+            throw new ApiException(HttpStatus.BAD_REQUEST, "EVENT_AFTER_CUTOFF", "Дата события позже выбранной границы публикаций");
+        String requestId = input.requestId() == null ? "request_" + UUID.randomUUID().toString().replace("-", "") : input.requestId();
+        var request = new MlContracts.InsightRequest(snapshot.profile(), MlContracts.UserRole.valueOf(input.role().name()), event,
+                requestId, null, asOf, revision, eventHash);
+        ObjectNode saved = store.tree(snapshot).deepCopy();
+        saved.put("mlContractCommit", ML_COMMIT).put("importContractCommit", DATA_COMMIT).put("role", input.role().name()).put("eventId", input.eventId());
+        saved.set("event", store.tree(event));
+        saved.put("asOf", asOf.toString()).put("requestId", requestId).put("corpusRevision", revision).put("eventContentSha256", eventHash);
+        var payload = mapper.createObjectNode();
+        payload.set("input", store.tree(normalized)); payload.set("request", store.tree(request));
+        var submission = store.createFrozen(person, input.companyId(), input.role().name(), "ANALYSIS", null, input.eventId(), key, fingerprint, payload, saved);
+        if (submission.created()) enqueueAfterCommit(submission.operation().id());
+        return views.operation(submission.operation());
     }
 
     public OperationView question(String person, UUID insightId, QuestionInput input, String key) {
@@ -120,7 +156,12 @@ public class InsightService {
         Operation parent = requireInsight(person, insightId);
         // Include parent ID in the fingerprint; a key cannot silently move a question to another insight.
         var payload = mapper.createObjectNode().put("question", input.question()).put("parentId", parent.id().toString());
-        var submission = store.create(person, parent.companyId(), parent.role(), "QUESTION", parent.id(), parent.eventId(), key, hash(payload), payload);
+        var context = mapper.createObjectNode();
+        for (String field : List.of("corpus_revision", "event_content_sha256", "as_of")) {
+            if (parent.result().has(field)) context.set(field, parent.result().get(field));
+        }
+        payload.set("request", context);
+        var submission = store.createFrozen(person, parent.companyId(), parent.role(), "QUESTION", parent.id(), parent.eventId(), key, hash(payload), payload, parent.profileSnapshot());
         if (submission.created()) {
             enqueue(submission.operation().id());
         }
@@ -134,14 +175,14 @@ public class InsightService {
     public FeedView feed(String person, String company, Role role, int limit, int offset, boolean includeHidden) {
         requireAccess(person, company);
         List<InsightView> items = store.feed(person, company, role.name(), limit, offset, includeHidden).stream()
-                .map(o -> views.insight(o, store.hidden(o.id(), person))).toList();
+                .map(o -> views.insight(o, store.interaction(o.id(), person))).toList();
         return new FeedView(items, limit, offset, "impactLevel DESC, createdAt DESC, insightId DESC",
                 items.isEmpty() ? "NO_MATCHING_INSIGHTS" : null);
     }
 
     public InsightView insight(String person, UUID id) {
         var op = requireInsight(person, id);
-        return views.insight(op, store.hidden(id, person));
+        return views.insight(op, store.interaction(id, person));
     }
 
     public AnswerView answer(String person, UUID id) {
@@ -213,6 +254,14 @@ public class InsightService {
         return op;
     }
 
+    private void enqueueAfterCommit(UUID id) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { enqueue(id); }
+            });
+        } else enqueue(id);
+    }
+
     private void enqueue(UUID id) {
         try {
             executor.execute(() -> process(id));
@@ -248,13 +297,10 @@ public class InsightService {
     }
 
     private void processAnalysis(Operation op) {
-        var input = store.convert(op.payload(), AnalysisInput.class);
-        var snapshot = profiles.loadProfile(op.companyId(), input.userProvided());
-        var event = store.event(op.eventId());
-        ObjectNode saved = store.tree(snapshot).deepCopy();
-        saved.put("mlContractCommit", ML_COMMIT).put("importContractCommit", DATA_COMMIT).put("role", op.role()).put("eventId", op.eventId());
-        saved.set("event", store.tree(event));
-        store.saveProfile(op.id(), saved);
+        var request = store.convert(op.payload().path("request"), MlContracts.InsightRequest.class);
+        var saved = op.profileSnapshot();
+        var snapshot = new ru.businessinsights.backend.data.ProfileSnapshot(request.profile(), saved.path("provenance"),
+                mapper.convertValue(saved.path("qualityIssues"), new com.fasterxml.jackson.core.type.TypeReference<List<String>>() {}), saved.path("sufficient").asBoolean());
         var warnings = new ArrayList<String>(snapshot.qualityIssues());
         if (!snapshot.sufficient()) {
             warnings.add("INSUFFICIENT_PROFILE: отсутствуют пригодные бизнес-признаки; персонализированная интерпретация не запрашивалась");
@@ -262,9 +308,7 @@ public class InsightService {
             store.trace(op.id(), null, "UNAVAILABLE", warnings);
             return;
         }
-        var profile = snapshot.profile();
-        warnings.addAll(compatibilityWarnings(profile));
-        var result = ml.generate(new MlContracts.InsightRequest(profile, MlContracts.UserRole.valueOf(input.role().name()), mlEvent(event)));
+        var result = ml.generate(request);
         String status = switch (result.status()) {
             case failed -> "FAILED";
             case limited -> "LIMITED";
@@ -288,6 +332,12 @@ public class InsightService {
         var insight = store.convert(parent.result(), MlContracts.Insight.class);
         var profile = store.convert(parent.profileSnapshot().path("profile"), MlContracts.CompanyProfile.class);
         var answer = ml.ask(insight.insightId(), op.payload().path("question").asText(), profile);
+        if ((answer.companyId() != null && !parent.companyId().equals(answer.companyId()))
+                || (answer.eventId() != null && !parent.eventId().equals(answer.eventId()))
+                || (insight.corpusRevision() != null && !insight.corpusRevision().equals(answer.corpusRevision()))
+                || (insight.eventContentSha256() != null && !insight.eventContentSha256().equals(answer.eventContentSha256()))
+                || (insight.asOf() != null && !insight.asOf().equals(answer.asOf())))
+            throw new MlException(MlException.Code.INVALID_RESPONSE, "ML answer differs from the saved insight context", false);
         List<String> warnings = new ArrayList<>(parent.warnings());
         String status = "no_answer".equals(answer.status()) ? "NO_RESULT" : warnings.isEmpty() ? "SUCCEEDED" : "LIMITED";
         store.finish(op.id(), status, answer, List.copyOf(warnings));
@@ -306,24 +356,6 @@ public class InsightService {
 
     private MlContracts.SourceRef mlSource(SourceInput source) {
         return new MlContracts.SourceRef(source.sourceId(), MlContracts.SourceKind.news, source.title(), source.date(), source.page(), source.url());
-    }
-
-    private List<String> compatibilityWarnings(MlContracts.CompanyProfile p) {
-        var warnings = new ArrayList<String>();
-        if (p.revenueRub() != null && p.revenueRub().compareTo(java.math.BigDecimal.valueOf(1000)) < 0) {
-            warnings.add("ML_REVENUE_FILTER: Git-версия ML игнорирует действительные выручки 0..999; Java сохраняет исходное значение");
-        }
-        if (p.groupRevenueRub() == null && p.revenueRub() != null) {
-            warnings.add("ML_GROUP_SCALE: ML может оценить масштаб группы по выручке юрлица; консолидированная выручка неизвестна");
-        }
-        if (!p.counterparties().isEmpty()) {
-            warnings.add("ML_PAYMENT_SEMANTICS: названия покупатель/поставщик в ML не доказаны платежами");
-            warnings.add("ML_COUNTERPARTY_REFERENCE: ML сортирует контрагентов и меняет индексы признаков; ссылки counterparties[i] требуют согласования");
-        }
-        if (Boolean.TRUE.equals(p.foreignTrade()) || !p.foreignTradeCountries().isEmpty()) {
-            warnings.add("ML_FTS_DIRECTION: сведения ФТС не устанавливают направление импорта или экспорта; соответствующие выводы ML требуют подтверждения");
-        }
-        return warnings;
     }
 
     private String hash(JsonNode node) {
