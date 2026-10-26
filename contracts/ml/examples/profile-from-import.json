@@ -1,0 +1,13 @@
+{
+  "company_id": "synthetic-demo",
+  "revenue_rub": null,
+  "revenue_year": 2025,
+  "revenue_status": "placeholder",
+  "revenue_scope": "unknown",
+  "foreign_trade": null,
+  "foreign_trade_data_available": false,
+  "payment_period": null,
+  "profile_quality_notes": [
+    "Synthetic example; data-import observed maps to known; period boundaries unknown."
+  ]
+}

@@ -1,0 +1,30 @@
+services:
+  ml:
+    image: business-insights-materials:local
+    build:
+      context: ../ml-service
+      args:
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-https://pypi.org/simple}
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    env_file: ../ml-service/.env
+    environment:
+      MATERIALS_DIR: /app/materials
+      TRACE_DIR: /app/traces
+      MATERIALS_PUBLIC_BASE_URL: ${MATERIALS_PUBLIC_BASE_URL:-http://localhost:8000}
+    volumes:
+      - ${MATERIALS_STORE:-../materials}:/app/materials:ro
+      - ${TRACES_DIR:-../traces}:/app/traces
+    ports:
+      - "8000:8000"
+  prepare:
+    image: business-insights-materials:local
+    profiles: [prepare]
+    user: "${LOCAL_UID:-1000}:${LOCAL_GID:-1000}"
+    entrypoint: [python, -m, insight_agent.materials.cli]
+    environment:
+      OMP_THREAD_LIMIT: "1"
+    volumes:
+      - ${PDF_DIR:-../../data/pdf}:/inputs:ro
+      - ../ml-service/config:/config:ro
+      - ${MATERIALS_STORE:-../materials}:/app/materials
+      - ${MATERIALS_REVIEW_DIR:-../materials-review}:/review:ro

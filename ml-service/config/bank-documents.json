@@ -1,0 +1,131 @@
+{
+  "documents": [
+    {
+      "doc_id": "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "title": "Макростатистика 7М26",
+      "doc_date": "2026-09-07",
+      "reported_period": null,
+      "sha256": "3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c",
+      "page_count": 4,
+      "relative_path": "ALFA-7M26.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "labor_costs",
+        "domestic_demand",
+        "inflation"
+      ]
+    },
+    {
+      "doc_id": "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "title": "Ключевая ставка ЦБ РФ",
+      "doc_date": "2026-09-11",
+      "reported_period": null,
+      "sha256": "92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb",
+      "page_count": 4,
+      "relative_path": "ALFA-Macro_Insights-Policy_Rate_11Sep.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "cost_of_debt",
+        "inflation"
+      ]
+    },
+    {
+      "doc_id": "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "title": "Потребление на пике",
+      "doc_date": "2026-08-05",
+      "reported_period": null,
+      "sha256": "807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6",
+      "page_count": 4,
+      "relative_path": "ALFA-consumption.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "domestic_demand",
+        "labor_costs"
+      ]
+    },
+    {
+      "doc_id": "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "title": "Макростатистика 1П26",
+      "doc_date": "2026-07-31",
+      "reported_period": null,
+      "sha256": "84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266",
+      "page_count": 5,
+      "relative_path": "ALFA-macro_stat1H26.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "domestic_demand",
+        "inflation"
+      ]
+    },
+    {
+      "doc_id": "bank-36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "title": "Российская сталь: исторический обзор",
+      "doc_date": "2021-04-15",
+      "reported_period": null,
+      "sha256": "36eaaa58ae68d858db3600dbf3cc93d0bdefb8ca03f1f5cc154c532cc32e0c86",
+      "page_count": 4,
+      "relative_path": "ALFA_Russian_Steels_1К21PreviewUpdate_15Apr2021.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "commodity_prices",
+        "export_demand"
+      ]
+    },
+    {
+      "doc_id": "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "title": "Долговой рынок: взгляд на 3К26",
+      "doc_date": "2026-07-22",
+      "reported_period": null,
+      "sha256": "6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046",
+      "page_count": 27,
+      "relative_path": "FI_Strategy_3Q26_22072026.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "cost_of_debt",
+        "liquidity"
+      ]
+    },
+    {
+      "doc_id": "bank-4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "title": "Обзор рынка золота",
+      "doc_date": null,
+      "reported_period": "Август 2026",
+      "sha256": "4159576a6223985dd318b6f5a04ad4aeb888f47a6c266d0e9ee9eb35bf01e245",
+      "page_count": 8,
+      "relative_path": "Gold_digest_August26.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "commodity_prices",
+        "fx"
+      ]
+    },
+    {
+      "doc_id": "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "title": "Инфляция 25–31 августа",
+      "doc_date": "2026-09-02",
+      "reported_period": null,
+      "sha256": "09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c",
+      "page_count": 3,
+      "relative_path": "Inflation_tracker_02.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "inflation",
+        "input_prices"
+      ]
+    },
+    {
+      "doc_id": "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "title": "Бонд Бриф: итоги недели",
+      "doc_date": "2026-09-14",
+      "reported_period": null,
+      "sha256": "87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055",
+      "page_count": 5,
+      "relative_path": "Бонд_Бриф_14092026.pdf",
+      "language": "rus+eng",
+      "topics": [
+        "cost_of_debt",
+        "counterparty_risk"
+      ]
+    }
+  ]
+}

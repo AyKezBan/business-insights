@@ -1,0 +1,461 @@
+{
+  "$defs": {
+    "CheckIssue": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Location"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "message"
+      ],
+      "title": "CheckIssue",
+      "type": "object"
+    },
+    "Claim": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "profile_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Profile Features",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "kind"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimKind": {
+      "enum": [
+        "fact",
+        "assessment",
+        "inference",
+        "hypothesis",
+        "recommendation",
+        "unavailable"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    },
+    "Impact": {
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "profile_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Profile Features",
+          "type": "array"
+        },
+        "level": {
+          "$ref": "#/$defs/Level"
+        },
+        "horizon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Horizon"
+        }
+      },
+      "required": [
+        "text",
+        "kind",
+        "level"
+      ],
+      "title": "Impact",
+      "type": "object"
+    },
+    "InsightStatus": {
+      "enum": [
+        "complete",
+        "limited",
+        "failed"
+      ],
+      "title": "InsightStatus",
+      "type": "string"
+    },
+    "Level": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "Scenario": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "trigger": {
+          "title": "Trigger",
+          "type": "string"
+        },
+        "implication": {
+          "title": "Implication",
+          "type": "string"
+        },
+        "plausibility": {
+          "$ref": "#/$defs/Level"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "trigger",
+        "implication",
+        "plausibility"
+      ],
+      "title": "Scenario",
+      "type": "object"
+    },
+    "SelfCheckReport": {
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/CheckIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "iterations": {
+          "default": 1,
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "adaptations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Adaptations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "passed"
+      ],
+      "title": "SelfCheckReport",
+      "type": "object"
+    },
+    "SourceKind": {
+      "enum": [
+        "news",
+        "bank",
+        "profile"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "SourceRef": {
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        }
+      },
+      "required": [
+        "source_id",
+        "kind",
+        "title"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "UserRole": {
+      "enum": [
+        "owner",
+        "ceo",
+        "cfo",
+        "chief_accountant",
+        "treasurer",
+        "other_c_level",
+        "other"
+      ],
+      "title": "UserRole",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "insight_id": {
+      "title": "Insight Id",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "event_id": {
+      "title": "Event Id",
+      "type": "string"
+    },
+    "company_id": {
+      "title": "Company Id",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/UserRole"
+    },
+    "status": {
+      "$ref": "#/$defs/InsightStatus"
+    },
+    "headline": {
+      "title": "Headline",
+      "type": "string"
+    },
+    "what_happened": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "What Happened",
+      "type": "array"
+    },
+    "why_it_matters": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Why It Matters",
+      "type": "array"
+    },
+    "consequences": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Consequences",
+      "type": "array"
+    },
+    "risks": {
+      "items": {
+        "$ref": "#/$defs/Impact"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "opportunities": {
+      "items": {
+        "$ref": "#/$defs/Impact"
+      },
+      "title": "Opportunities",
+      "type": "array"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/Scenario"
+      },
+      "title": "Scenarios",
+      "type": "array"
+    },
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "bank_view": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Bank View",
+      "type": "array"
+    },
+    "model_vs_bank": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Model Vs Bank",
+      "type": "array"
+    },
+    "impact_level": {
+      "$ref": "#/$defs/Level"
+    },
+    "impact_rationale": {
+      "title": "Impact Rationale",
+      "type": "string"
+    },
+    "profile_features_used": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Profile Features Used",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/SourceRef"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "missing_data": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing Data",
+      "type": "array"
+    },
+    "self_check": {
+      "$ref": "#/$defs/SelfCheckReport"
+    },
+    "models": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Models",
+      "type": "array"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "disclaimer": {
+      "default": "Аналитика носит информационный характер и не является инвестиционной рекомендацией. Выводы с пометкой «вывод модели» и «гипотеза» сформированы AI и не являются позицией Альфа-Банка.",
+      "title": "Disclaimer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "insight_id",
+    "run_id",
+    "event_id",
+    "company_id",
+    "role",
+    "status",
+    "headline",
+    "what_happened",
+    "why_it_matters",
+    "consequences",
+    "risks",
+    "opportunities",
+    "scenarios",
+    "actions",
+    "bank_view",
+    "model_vs_bank",
+    "impact_level",
+    "impact_rationale",
+    "profile_features_used",
+    "sources",
+    "missing_data",
+    "self_check",
+    "models",
+    "generated_at"
+  ],
+  "title": "Insight",
+  "type": "object"
+}
