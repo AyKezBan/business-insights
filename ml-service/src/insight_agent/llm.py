@@ -303,6 +303,59 @@ def _estimate_tokens(messages: list[dict]) -> int:
     return sum(len(m["content"]) for m in messages) // 3 + 1500
 
 
+_SAFE_VALIDATION_CODES = frozenset({
+    "missing", "string_type", "string_too_short", "string_too_long", "int_type", "int_parsing",
+    "float_type", "float_parsing", "bool_type", "bool_parsing", "list_type", "dict_type",
+    "model_type", "literal_error", "enum", "greater_than", "greater_than_equal", "less_than",
+    "less_than_equal", "too_short", "too_long", "extra_forbidden", "finite_number",
+})
+
+
+def _validation_diagnostic(schema: type[BaseModel], exc: ValidationError) -> str:
+    summary = f"Ответ не соответствует схеме (ошибок: {exc.error_count()})"
+    try:
+        root = schema.model_json_schema()
+    except Exception:
+        return summary
+
+    def variants(nodes):
+        pending, found, seen = list(nodes), [], set()
+        while pending:
+            node = pending.pop()
+            if not isinstance(node, dict) or id(node) in seen:
+                continue
+            seen.add(id(node))
+            found.append(node)
+            ref = node.get("$ref", "")
+            if isinstance(ref, str) and ref.startswith("#/$defs/"):
+                name = ref[len("#/$defs/"):].replace("~1", "/").replace("~0", "~")
+                pending.append(root.get("$defs", {}).get(name))
+            for keyword in ("anyOf", "oneOf", "allOf"):
+                pending.extend(node.get(keyword, []))
+        return found
+
+    hints = []
+    # Never render msg/input/context: custom validators can put raw text in all three.
+    for error in exc.errors(include_input=False, include_context=False, include_url=False)[:5]:
+        nodes, path = [root], ""
+        for part in error["loc"][:6]:
+            nodes = variants(nodes)
+            items = [node["items"] for node in nodes if isinstance(node.get("items"), dict)]
+            if type(part) is int and items:
+                path += f"[{part}]" if 0 <= part <= 9999 else "[?]"
+                nodes = items
+                continue
+            children = [node["properties"][part] for node in nodes
+                        if isinstance(part, str) and part in node.get("properties", {})]
+            # A map key is never a static field, even if another schema field shares its name.
+            name = part if children and re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]{0,47}", part) else "[field]"
+            path += ("." if path else "") + name
+            nodes = children or [node.get("additionalProperties") for node in nodes]
+        code = error["type"] if error["type"] in _SAFE_VALIDATION_CODES else "invalid"
+        hints.append(f"{(path or '[root]')[:128]}:{code}")
+    return summary + ": " + "; ".join(hints)
+
+
 class StructuredLLM:
     def __init__(self, client: ChatClient, budget: RunBudget, tracer: Tracer, fallback_model: str | None = None):
         self.client = client
@@ -380,9 +433,7 @@ class StructuredLLM:
                 try:
                     result = schema.model_validate(extract_json(resp.text))
                 except (ValueError, ValidationError) as exc:
-                    # Pydantic messages, locations and custom contexts may contain raw
-                    # values. Even include_input=False is insufficient for custom errors.
-                    last_error = (f"Ответ не соответствует схеме (ошибок: {exc.error_count()})"
+                    last_error = (_validation_diagnostic(schema, exc)
                                   if isinstance(exc, ValidationError) else "Ответ не содержит корректный JSON-объект")
                     self._trace(step, current, attempt_messages, resp, error=last_error, started=started, cost=cost)
                     attempt_messages = messages + [
