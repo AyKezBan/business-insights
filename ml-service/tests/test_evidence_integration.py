@@ -4,14 +4,14 @@ import hashlib
 import pytest
 from pydantic import ValidationError
 
-from fakes import ScriptedClient,analysis_reply,draft_reply,plan_reply,FIXTURES
+from fakes import ScriptedClient,analysis_reply,draft_reply,plan_reply,FIXTURES, reviewed_semantics, semantic_contents
 from insight_agent.schemas import NewsEvent,SourceRef,EventAnalysis
 from insight_agent.tools.bank import BankIndex
 
 
-def script(analysis=None,draft=None):
+def script(analysis=None,draft=None,*,batches=1):
     return ScriptedClient({'analyze_event':[analysis or analysis_reply()], 'plan':[plan_reply()],
-        'personalize':[draft or draft_reply()], 'revise':[draft or draft_reply()]})
+        'personalize':[draft or draft_reply()], 'semantic_verify':[reviewed_semantics(semantic_contents(draft_reply())) for _ in range(batches)], 'revise':[draft or draft_reply()]})
 
 
 def test_bank_source_keeps_document_page_url_hash_in_final_insight(make_agent,request_):
@@ -37,7 +37,7 @@ def test_bad_event_fact_cannot_survive_through_summary_or_public_free_text(make_
 
 
 def test_updated_event_text_invalidates_analysis_cache(make_agent,request_):
-    client=script()
+    client=script(batches=2)
     agent=make_agent(client)
     agent.run(request_)
     event=request_.event.model_copy(update={'text':request_.event.text+' New confirmed condition.'})
@@ -74,7 +74,7 @@ def test_resolved_secondary_source_is_visible_to_analyzer_and_retained(make_agen
     h=hashlib.sha256(text.encode()).hexdigest()
     version=SourceVersion(source_id='second',event_id=request_.event.event_id,url='https://www.cbr.ru/second',
         revision=1,content_sha256=h,published_at=now,first_seen_at=now,retrieved_at=now,text=text,title='Second')
-    analysis=analysis_reply();analysis['facts'].append({'text':'Separate source reports 25%.','kind':'fact','source_ids':['second']})
+    analysis=analysis_reply();analysis['facts'].append({'text':'A separate source reports 25%.','kind':'fact','source_ids':['second']})
     client=script(analysis);agent=make_agent(client)
     agent.news=NewsStore([],source_versions=[version])
     event=request_.event.model_copy(update={'related_sources':[SourceRef(source_id='second',kind='news',title='Second',content_sha256=h)]})
@@ -166,7 +166,7 @@ def test_resolved_conflicts_from_retrieved_news_survive_card_and_qa(make_agent,r
     found=NewsEvent(event_id='related_event',title='Ставки по корпоративным кредитам',text=texts['related_a'],
         published_at=at,source=refs[0],related_sources=[refs[1]],
         conflicts=[SourceConflict(reason='different_numbers',source_ids=list(texts))])
-    draft=draft_reply();draft['why_it_matters'].append({'text':'Показатель 17%.','kind':'fact','source_ids':['related_a']})
+    draft=draft_reply();draft['why_it_matters'].append({'text':'Ставки по корпоративным кредитам: показатель 17%.','kind':'fact','source_ids':['related_a']})
     seen=[]
     def capture(messages):
         seen.append(messages[-1]['content']);return draft
@@ -178,7 +178,7 @@ def test_resolved_conflicts_from_retrieved_news_survive_card_and_qa(make_agent,r
     assert any('расходятся' in m for m in insight.missing_data)
     assert 'different_numbers' in seen[0] and 'related_b' in seen[0]
     client.script['answer']=[{'answerable':True,'text':'17%.','claims':[
-        {'text':'Показатель 17%.','kind':'fact','source_ids':['related_a']}]}]
+        {'text':'Ставки по корпоративным кредитам: показатель 17%.','kind':'fact','source_ids':['related_a']}]}]
     answer=answer_question(agent,insight.insight_id,'Ставки по корпоративным кредитам?')
     assert {'related_a','related_b'} <= {s.source_id for s in answer.sources}
     assert 'расходятся' in answer.text

@@ -18,7 +18,7 @@ from pathlib import Path
 from pydantic import BaseModel, Field
 
 from insight_agent.agent.versions import PROMPT_VERSION, git_sha
-from insight_agent.schemas import Insight, InsightRequest, InsightStatus, Outcome
+from insight_agent.schemas import Answer, Insight, InsightRequest, InsightStatus, Outcome
 from insight_agent.trace import load_trace
 
 PASS, FAIL, BLOCKED, NOT_RUN = "PASS", "FAIL", "BLOCKED", "NOT_RUN"
@@ -53,11 +53,19 @@ def load_manifest(path: Path) -> list[ManifestRow]:
     return rows
 
 
-def _card_text(insight: Insight) -> str:
-    parts = [insight.headline, insight.impact_rationale]
-    for section in (insight.what_happened, insight.why_it_matters, insight.consequences, insight.risks,
-                    insight.opportunities, insight.actions, insight.bank_view):
-        parts += [c.text for c in section]
+def _card_text(insight: Insight | Answer) -> str:
+    parts = [getattr(insight, field, "") for field in ("headline", "impact_rationale", "text")]
+    for name in ("what_happened", "why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view", "claims"):
+        for claim in getattr(insight, name, []):
+            parts.append(claim.text)
+            if getattr(claim, "horizon", None):
+                parts.append(claim.horizon)
+    parts += insight.missing_data + getattr(insight, "model_vs_bank", [])
+    for scenario in getattr(insight, "scenarios", []):
+        parts += [scenario.name, scenario.trigger, scenario.implication]
+    report = getattr(insight, "self_check", None)
+    if report:
+        parts += [issue.message for issue in report.issues]
     return "\n".join(parts).lower()
 
 

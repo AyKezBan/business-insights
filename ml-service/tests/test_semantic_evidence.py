@@ -17,9 +17,11 @@ import pytest
 from fakes import ScriptedClient
 from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.agent.qa import answer_question
+from insight_agent.llm import LLMError
 from insight_agent.schemas import BankFragment, CompanyProfile, InsightRequest, NewsEvent, SourceRef
 from insight_agent.tools.bank import BankIndex
 from insight_agent.tools.news import NewsStore
+from insight_agent.trace import load_trace
 
 
 CASES_PATH = Path(__file__).parents[1] / "eval" / "material-semantic-cases.jsonl"
@@ -108,6 +110,35 @@ def _safe_script(case, request, *, analyst_candidate=None, draft_candidate=None,
         "model_vs_bank": [], "impact_level": "low", "impact_rationale": "Влияние на компанию требует подтверждения.",
         "missing_data": ["применимость сообщения к деятельности компании"],
     }
+    # The oracle approves only this separately reviewed useful baseline. Mutated
+    # claims below are never added to its expectations, even with valid sources.
+    reviewed = []
+    for section in ("why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view"):
+        for claim in draft[section]:
+            if claim["kind"] not in ("fact", "assessment"):
+                reviewed.append({"claim_id": None, "source_ids": [], "profile_features": [],
+                                 **deepcopy(claim)})
+    reviewed += [{"missing_data": text} for text in draft["missing_data"]]
+    def canonical(content):
+        return json.dumps({k: v for k, v in content.items() if k not in ("claim_id", "evidence_spans")}, sort_keys=True)
+    # Pydantic includes nullable Impact.horizon; bind it explicitly too.
+    for content in reviewed:
+        if "level" in content:
+            content.setdefault("horizon", None)
+    expected = {canonical(content) for content in reviewed}
+    def semantic_reply(messages):
+        payload = json.loads(messages[-1]["content"])
+        spans = {s["source"]["source_id"]: s["spans"][0]["span_id"]
+                 for s in payload["evidence"] if s["spans"]}
+        verdicts = []
+        for candidate in payload["candidates"]:
+            supported = canonical(candidate["content"]) in expected
+            verdicts.append({"claim_id": candidate["claim_id"],
+                             "status": "supported" if supported else "unsupported",
+                             "reason": "Explicit reviewed synthetic fixture expectation",
+                             "span_ids": [spans[s] for s in candidate["content"].get("source_ids", [])]
+                             if supported else []})
+        return {"verdicts": verdicts}
     if draft_candidate is not None:
         if inference:
             draft["why_it_matters"].append(_claim(draft_candidate, kind="inference"))
@@ -137,7 +168,8 @@ def _safe_script(case, request, *, analyst_candidate=None, draft_candidate=None,
     plan = {"steps": [{"tool": "search_bank_analytics", "args": {"query": analysis["bank_queries"][0], "min_score": 0},
                         "purpose": "Проверить наличие банковского источника"}]}
     return ScriptedClient({"analyze_event": [analysis], "plan": [plan], "personalize": [draft],
-                           "revise": [deepcopy(draft)], "answer": [answer]})
+                           "revise": [deepcopy(draft)], "answer": [answer],
+                           "semantic_verify": [semantic_reply, semantic_reply]})
 
 
 def _run(case, settings, **mutation):
@@ -165,6 +197,8 @@ def _published_texts(result):
     for index, scenario in enumerate(data.get("scenarios", [])):
         for field in ("name", "trigger", "implication"):
             yield f"scenarios[{index}].{field}", scenario[field]
+    for index, issue in enumerate(data.get("self_check", {}).get("issues", [])):
+        yield f"self_check.issues[{index}]", issue["message"]
 
 
 def _assert_positive_control(case, insight):
@@ -248,3 +282,160 @@ def test_qa_faithful_actor_answer_retains_original_source_and_useful_text(settin
     positive = case["positive_control"]
     assert positive["text"] in answer.text
     assert any(claim.text == positive["text"] and claim.source_ids == positive["source_ids"] for claim in answer.claims)
+
+
+def test_verifier_failure_removes_pending_generated_text_but_keeps_source_quote(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    candidate = case["unsafe_candidates"][0]
+    client = _safe_script(case, request, draft_candidate=candidate, inference=True)
+    client.script["semantic_verify"] = [LLMError(candidate["text"]), LLMError(candidate["text"])]
+    agent = InsightAgent(client, settings, bank, news)
+    result = agent.run(request)
+    assert result.outcome == "refused" and not result.self_check.passed
+    assert any(c.text == case["positive_control"]["text"] for c in result.what_happened)
+    assert all(c.kind == "unavailable" for c in result.why_it_matters + result.consequences)
+    _assert_not_published(candidate, result)
+    assert client.steps().count("semantic_verify") == 2  # primary plus configured fallback, one batch
+
+
+def test_revised_draft_does_not_inherit_support_after_verifier_failure(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    candidate = case["unsafe_candidates"][0]
+    client = _safe_script(case, request, draft_candidate=candidate, inference=True)
+    client.script["personalize"][0]["why_it_matters"][0]["profile_features"] = ["unknown_profile_feature"]
+    client.script["semantic_verify"] = [LLMError("offline verifier unavailable"), LLMError("offline verifier unavailable")]
+    result = InsightAgent(client, settings, bank, news).run(request)
+    assert "revise" in client.steps()
+    assert result.outcome == "refused"
+    _assert_not_published(candidate, result)
+
+
+def test_qa_verifier_failure_cannot_publish_pending_inference_or_exception(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    candidate = case["unsafe_candidates"][0]
+    client = _safe_script(case, request)
+    client.script["answer"][0]["claims"].append(_claim(candidate, kind="inference"))
+    client.script["semantic_verify"] = [client.script["semantic_verify"][0],
+                                        LLMError(candidate["text"]), LLMError(candidate["text"])]
+    agent = InsightAgent(client, settings, bank, news)
+    insight = agent.run(request)
+    answer = answer_question(agent, insight.insight_id, case["question"])
+    assert answer.status == "answered"
+    assert case["positive_control"]["text"] in answer.text
+    assert any("Часть утверждений исключена" in reason for reason in answer.missing_data)
+    _assert_not_published(candidate, answer)
+
+
+def test_verifier_reason_never_leaks_through_public_check_or_missing_data(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    candidate = case["unsafe_candidates"][0]
+    client = _safe_script(case, request, draft_candidate=candidate, inference=True)
+    reviewed = client.script["semantic_verify"][0]
+    def poisoned_reason(messages):
+        response = reviewed(messages)
+        for verdict in response["verdicts"]:
+            if verdict["status"] == "unsupported":
+                verdict["reason"] = candidate["text"]
+        return response
+    client.script["semantic_verify"] = [poisoned_reason]
+    result = InsightAgent(client, settings, bank, news).run(request)
+    _assert_positive_control(case, result)
+    _assert_not_published(candidate, result)
+
+
+def test_generator_schema_failure_does_not_publish_rejected_payload(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    candidate = case["unsafe_candidates"][0]
+    client = _safe_script(case, request)
+    client.script["personalize"] = [{"why_it_matters": candidate["text"]}]
+    result = InsightAgent(client, settings, bank, news).run(request)
+    assert result.status == "failed"
+    _assert_not_published(candidate, result)
+
+
+def test_qa_uses_sources_not_persisted_false_parent_claims(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    candidate = case["unsafe_candidates"][0]
+    client = _safe_script(case, request)
+    agent = InsightAgent(client, settings, bank, news)
+    insight = agent.run(request)
+    agent.records[insight.insight_id].insight.why_it_matters[0].text = candidate["text"]
+    response = deepcopy(client.script["answer"][0])
+    def check_prompt(messages):
+        assert candidate["text"] not in messages[-1]["content"]
+        return response
+    client.script["answer"] = [check_prompt]
+    answer = answer_question(agent, insight.insight_id, case["question"])
+    assert answer.status == "answered"
+    _assert_not_published(candidate, answer)
+
+
+@pytest.mark.parametrize("section,kind", [("consequences", "hypothesis"), ("actions", "recommendation"),
+                                          ("bank_view", "unavailable")])
+def test_claim_label_does_not_exempt_false_external_premise(section, kind, settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    candidate = case["unsafe_candidates"][0]
+    client = _safe_script(case, request)
+    client.script["personalize"][0][section].append(_claim(candidate, kind=kind))
+    result = InsightAgent(client, settings, bank, news).run(request)
+    _assert_positive_control(case, result)
+    _assert_not_published(candidate, result)
+
+
+def test_risk_horizon_cannot_publish_false_external_assertion(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    candidate = case["unsafe_candidates"][0]
+    client = _safe_script(case, request)
+    client.script["personalize"][0]["risks"][0]["horizon"] = candidate["text"]
+    result = InsightAgent(client, settings, bank, news).run(request)
+    _assert_positive_control(case, result)
+    _assert_not_published(candidate, result)
+
+
+def test_qa_final_usage_includes_the_shared_verifier_run(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    client = _safe_script(case, request)
+    client.script["answer"][0]["claims"].append(deepcopy(client.script["personalize"][0]["why_it_matters"][0]))
+    agent = InsightAgent(client, settings, bank, news)
+    insight = agent.run(request)
+    answer = answer_question(agent, insight.insight_id, case["question"])
+    assert answer.status == "answered" and len(answer.claims) == 2
+    events = load_trace(settings.trace_dir, answer.run_id)
+    assert events[-1].type == "final" and events[-1].step == "answer"
+    assert events[-1].data["usage"]["calls"] == 2
+    assert events[-1].data["usage"]["tokens"] == 2400
+    assert [e.step for e in events if e.type == "llm_call"] == ["answer", "semantic_verify"]
+    bindings = next(e.data["claims"] for e in events if e.step == "published_claims")
+    verified = next(e.data for e in events if e.type == "check" and e.step == "semantic_verify")
+    assert {b["claim_id"] for b in bindings} == {c.claim_id for c in answer.claims}
+    assert bindings[1]["semantic_candidate_id"] in {v["claim_id"] for v in verified["verdicts"]}
+
+
+def test_public_claims_trace_to_exact_reviewed_candidates_and_quote_spans(settings):
+    case = CASES[0]
+    request, bank, news = _inputs(case)
+    client = _safe_script(case, request)
+    client.script["analyze_event"][0]["facts"][0]["claim_id"] = "sv_forged_by_model"
+    client.script["personalize"][0]["why_it_matters"][0]["claim_id"] = "sv_also_forged"
+    agent = InsightAgent(client, settings, bank, news)
+    result = agent.run(request)
+    events = load_trace(settings.trace_dir, result.run_id)
+    bindings = next(e.data["claims"] for e in events if e.step == "published_claims")
+    verified = next(e.data for e in events if e.type == "check" and e.step == "semantic_verify")
+    candidates = {v["claim_id"] for v in verified["candidate_bindings"]}
+    mapping = {b["claim_id"]: b for b in bindings}
+    quote, inference = result.what_happened[0], result.why_it_matters[0]
+    assert mapping[quote.claim_id]["semantic_candidate_id"] is None
+    assert mapping[quote.claim_id]["evidence_spans"] == [s.model_dump() for s in quote.evidence_spans]
+    assert mapping[inference.claim_id]["semantic_candidate_id"] in candidates
+    assert mapping[inference.claim_id]["text_sha256"] == hashlib.sha256(inference.text.encode()).hexdigest()
+    assert all(b["semantic_candidate_id"] not in ("sv_forged_by_model", "sv_also_forged") for b in bindings)

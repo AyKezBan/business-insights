@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 from pydantic import BaseModel
 
-from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.budget import (
     DailyBudgetExceeded,
     Price,
@@ -192,6 +192,7 @@ def test_soft_stop_skips_revision_and_marks_limited(make_agent, request_):
         "analyze_event": [analysis_reply()],
         "plan": [plan_reply()],
         "personalize": [draft_reply(bad_number=True)],
+        "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))],
         "revise": [draft_reply()],
     }
     client = ScriptedClient(script)
@@ -213,9 +214,9 @@ def agent_events(agent, insight):
 
 
 def test_final_event_and_start_event_carry_budget_and_usage(make_agent, request_):
-    agent = make_agent(ScriptedClient({"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()]}))
+    agent = make_agent(ScriptedClient({"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))]}))
     insight = agent.run(request_)
     events = agent_events(agent, insight)
     assert events[0].data["budget"]["level"] == "ok"
     usage = events[-1].data["usage"]
-    assert usage["calls"] == 3 and D(usage["cost_rub"]) > 0
+    assert usage["calls"] == 4 and D(usage["cost_rub"]) > 0

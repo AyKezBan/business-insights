@@ -1,5 +1,5 @@
 from insight_agent.agent.planner import matched_channels
-from insight_agent.agent.evidence import pack_sources
+from insight_agent.agent.evidence import pack_sources, quote_options
 from insight_agent.agent.prompts import (
     KIND_RULES,
     LEVEL_DEFINITIONS,
@@ -27,6 +27,7 @@ def _sources_block(state: AgentState) -> str:
         parts.append(
             data_block(ref.kind.value, f"source_id: {sid}\nназвание: {ref.title}\nдата: {ref.date}\nстраница: {ref.page}\n{quality}\n{text}")
         )
+    parts.append(data_block("quote_options", quote_options(state.source_texts(), bank_ids=state.bank)))
     return "\n".join(parts)
 
 

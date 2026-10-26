@@ -399,7 +399,8 @@ class InsightAgent:
                 tracer.emit("plan", "analysis_cache_hit", {"event_id": request.event.event_id})
             else:
                 state.analysis = analyze_event(llm, s.llm_model_light, request.event, source_texts=texts)
-                state.evidence_issues = check_event_analysis(request.event, state.analysis, texts)
+                state.evidence_issues = self._render_quotes(state, "facts", state.analysis.facts)
+                state.evidence_issues += check_event_analysis(request.event, state.analysis, texts)
                 bad = {int(m.group(2)) for issue in state.evidence_issues
                        if issue.severity == "error" and (m := _LOCATION.match(issue.location or ""))}
                 state.analysis.facts = [c for i, c in enumerate(state.analysis.facts) if i not in bad]
@@ -438,7 +439,10 @@ class InsightAgent:
                     break
                 state.draft = personalize(llm, s.llm_model_reasoning, state, feedback=issues if iterations > 1 else None)
                 tracer.agent = "verifier"
-                issues = check(state, state.draft)
+                issues = []
+                for section in ("why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view"):
+                    issues += self._render_quotes(state, section, getattr(state.draft, section))
+                issues += check(state, state.draft)
                 tracer.emit(
                     "check",
                     f"iteration_{iterations}",
@@ -451,11 +455,21 @@ class InsightAgent:
         except (BudgetExceeded, LLMError) as exc:
             tracer.emit("error", "run", {"error": str(exc)})
             if state.draft is None:
-                return self._failed(state, tracer, llm, str(exc), error_code(exc))
-            issues = check(state, state.draft)
+                return self._failed(state, tracer, llm, self._failure_message(error_code(exc)), error_code(exc))
+            issues = []
+            for section in ("why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view"):
+                issues += self._render_quotes(state, section, getattr(state.draft, section))
+            issues += check(state, state.draft)
 
+        # Remove deterministic failures first; verdicts bind the remaining exact snapshot.
+        # Every final draft, including one retained after a failed revision, passes this gate.
+        removed = self._drop_invalid(state.draft, issues, fill=False)
+        from insight_agent.agent.semantic import semantic_issues
+        semantic = semantic_issues(llm, s.llm_model_reasoning, state, state.draft)
+        removed += self._drop_invalid(state.draft, semantic, fill=False)
+        issues += semantic
         tracer.agent = "orchestrator"
-        insight = self._assemble(state, issues, iterations, llm)
+        insight = self._assemble(state, issues, iterations, llm, removed_count=len(removed))
         tracer.emit(
             "final",
             "insight",
@@ -520,7 +534,7 @@ class InsightAgent:
         tracer.emit("adapt", "revise_with_feedback", {"codes": sorted(codes)})
 
     @staticmethod
-    def _drop_invalid(draft: PersonalizationDraft, issues: list[CheckIssue]) -> list[str]:
+    def _drop_invalid(draft: PersonalizationDraft, issues: list[CheckIssue], *, fill=True) -> list[str]:
         bad: dict[str, set[int]] = {}
         for issue in issues:
             m = _LOCATION.match(issue.location or "")
@@ -533,22 +547,44 @@ class InsightAgent:
             items = getattr(draft, section)
             removed += [f"{section}: {i}" for i in sorted(idx) if i < len(items)]
             setattr(draft, section, [c for i, c in enumerate(items) if i not in idx])
-        for section in ("why_it_matters", "consequences", "actions", "bank_view"):
+        for section in ("why_it_matters", "consequences", "actions", "bank_view") if fill else ():
             if not getattr(draft, section):
                 getattr(draft, section).append(
                     Claim(text="Недостаточно подтверждённых данных для этого раздела.", kind=ClaimKind.unavailable)
                 )
         return removed
 
-    def _assemble(self, state: AgentState, issues: list[CheckIssue], iterations: int, llm: StructuredLLM) -> Insight:
+    @staticmethod
+    def _render_quotes(state, section, claims) -> list[CheckIssue]:
+        from insight_agent.agent.spans import render_quote
+        issues = []
+        for index, claim in enumerate(claims):
+            if claim.kind not in (ClaimKind.fact, ClaimKind.assessment):
+                continue
+            claim.claim_id = None
+            try:
+                claims[index] = render_quote(claim, state.source_texts(), state.sources(), state.bank)
+            except ValueError:
+                issues.append(CheckIssue(code="invalid_evidence_span", severity="error", location=f"{section}[{index}]",
+                                         message="Для цитаты нет полного проверенного фрагмента источника."))
+        return issues
+
+    @staticmethod
+    def _failure_message(code):
+        return {"budget_run": "Исчерпан лимит одного анализа.", "budget_daily": "Исчерпан дневной лимит.",
+                "timeout": "Истекло время анализа."}.get(code, "Не удалось получить проверенный ответ модели.")
+
+    def _assemble(self, state: AgentState, issues: list[CheckIssue], iterations: int, llm: StructuredLLM,
+                  *, removed_count=0) -> Insight:
         draft = state.draft
         status = InsightStatus.complete
         outcome = Outcome.full
+        # Pending model text has already been sanitized; only controlled placeholders are added here.
+        self._drop_invalid(draft, [])
         missing = list(dict.fromkeys(draft.missing_data + state.missing_profile))
         if has_errors(issues):
-            removed = self._drop_invalid(draft, issues)
             status = InsightStatus.limited
-            missing.append(f"исключено утверждений без подтверждения: {len(removed)}")
+            missing.append(f"исключено утверждений без подтверждения: {removed_count}")
         if all(c.kind == ClaimKind.unavailable for c in draft.bank_view):
 
             status = InsightStatus.limited
@@ -570,8 +606,9 @@ class InsightAgent:
         e = state.event
         cited.update(dict.fromkeys(sid for c in state.source_conflicts() for sid in c.source_ids if sid in catalog))
         insight_id = f"{state.request.profile.company_id}:{e.event_id}:{state.run_id[-8:]}"
-        self._number_claims(insight_id, [facts, draft.why_it_matters, draft.consequences, draft.risks,
-                                         draft.opportunities, draft.actions, draft.bank_view])
+        bindings = self._number_claims(insight_id, [facts, draft.why_it_matters, draft.consequences, draft.risks,
+                                                  draft.opportunities, draft.actions, draft.bank_view])
+        llm.tracer.emit("check", "published_claims", {"claims": bindings})
         return Insight(
             insight_id=insight_id,
             run_id=state.run_id,
@@ -601,19 +638,28 @@ class InsightAgent:
             sources=[catalog[sid] for sid in cited],
             missing_data=missing,
             self_check=SelfCheckReport(
-                passed=not has_errors(issues), issues=issues, iterations=iterations, adaptations=state.adaptations
+                passed=not has_errors(issues),
+                issues=[i.model_copy(update={"message": "Проверка выявила ограничение в основаниях утверждения."}) for i in issues],
+                iterations=iterations, adaptations=state.adaptations
             ),
             models=llm.models_used,
             generated_at=datetime.now(UTC),
         )
 
     @staticmethod
-    def _number_claims(insight_id: str, sections: list[list[Claim]]) -> None:
-        n = 0
+    def _number_claims(insight_id: str, sections: list[list[Claim]]) -> list[dict]:
+        n, bindings = 0, []
         for section in sections:
             for claim in section:
                 n += 1
+                reviewed_id = claim.claim_id
                 claim.claim_id = f"{insight_id}:c{n}"
+                bindings.append({"claim_id": claim.claim_id, "semantic_candidate_id": reviewed_id,
+                                 "text_sha256": hashlib.sha256(claim.text.encode()).hexdigest(),
+                                 "source_ids": list(claim.source_ids),
+                                 "span_ids": [span.span_id for span in claim.evidence_spans],
+                                 "evidence_spans": [span.model_dump() for span in claim.evidence_spans]})
+        return bindings
 
     def _failed(self, state: AgentState, tracer: Tracer, llm: StructuredLLM, reason: str, code: str) -> Insight:
         e = state.event

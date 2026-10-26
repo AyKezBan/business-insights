@@ -1,4 +1,4 @@
-from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.evaluation import BLOCKED, FAIL, NOT_RUN, PASS, Expect, ManifestRow, run_manifest, summarize
 
 
@@ -7,7 +7,7 @@ def _row(request_, variant="base", **expect):
 
 
 def _agent(make_agent):
-    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()]}
+    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply())) for _ in range(2)]}
     return make_agent(ScriptedClient(script))
 
 

@@ -48,11 +48,12 @@ class FiniteClient:
 
 @pytest.fixture
 def harness(tmp_path, monkeypatch):
-    def make(replies=(), *, run_limit=40_000, daily_limit=1_000_000, prior_tokens=0, deadline=110):
+    def make(replies=(), *, run_limit=40_000, daily_limit=1_000_000, prior_tokens=0, deadline=110,
+             ledger_limit=Decimal(500)):
         clock = SimpleNamespace(now=100.0)
         monkeypatch.setattr(llm_module, "time", SimpleNamespace(monotonic=lambda: clock.now))
         ledger_path = tmp_path / "ledger.json"
-        ledger = RubleLedger(state_path=ledger_path)
+        ledger = RubleLedger(state_path=ledger_path, limit=ledger_limit)
         prices = PriceTable(default=Price(Decimal("0.5"), Decimal("1.5")))
         daily = DailyBudget(daily_limit, ledger, prices)
         if prior_tokens:
@@ -138,6 +139,16 @@ def test_fallback_response_overrun_stops_without_another_schema_or_provider_atte
     assert len(env.tracer.events) == len(env.reservations) == 2
     assert env.tracer.events[0].data["prompt_tokens"] is None
     assert env.tracer.events[0].data["cost_rub"] is None
+
+
+def test_actual_ruble_charge_above_reservation_cannot_authorize_terminal_reply(harness):
+    env = harness([('{"supported": true}', 800, 20_000, 101)], ledger_limit=Decimal(20))
+    with pytest.raises(DailyBudgetExceeded):
+        env.llm.generate("semantic_verdict", PRIMARY, MESSAGES, Verdict, retries=2)
+    assert_accounted(env, prompt=800, completion=20_000)
+    assert env.ledger.spent == Decimal("30.4000") > env.ledger.limit
+    assert env.client.attempts == [(PRIMARY, True)]
+    assert len(env.reservations) == 1
 
 
 @pytest.mark.parametrize("retries", [0, 1, 2])

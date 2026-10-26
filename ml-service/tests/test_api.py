@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 
-from fakes import FIXTURES, ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import FIXTURES, ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.api import create_app
 
 
@@ -9,7 +9,7 @@ def _answer_reply(messages):
         "answerable": True,
         "text": "По оценке аналитиков банка ставка сохранится до конца 2026 года.",
         "claims": [
-            {"text": "Ставка останется на уровне 18%.", "kind": "assessment", "source_ids": ["bank_demo_rate_p3"]},
+            draft_reply()["bank_view"][0],
             {"text": "Ставка вырастет до 25%.", "kind": "fact", "source_ids": ["news_invented"]},
         ],
     }
@@ -19,7 +19,7 @@ def _client(make_agent):
     script = {
         "analyze_event": [analysis_reply()],
         "plan": [plan_reply()],
-        "personalize": [draft_reply()],
+        "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))],
         "answer": [_answer_reply],
     }
     agent = make_agent(ScriptedClient(script))

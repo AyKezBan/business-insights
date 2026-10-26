@@ -18,6 +18,9 @@ Reply = str | dict | Exception | Callable[[list[dict]], str | dict]
 
 
 def detect_step(messages: list[dict]) -> str:
+    system = next((m["content"] for m in messages if m.get("role") == "system"), "")
+    if system.startswith("SEMANTIC_VERIFIER_V1."):
+        return "semantic_verify"
     text = messages[0]["content"] + "\n" + messages[-1]["content"]
     for step, marker in STEP_MARKERS:
         if marker in text:
@@ -36,7 +39,7 @@ class ScriptedClient:
         queue = self.script.get(step)
         if not queue:
             raise LLMError(f"Нет сценария для шага {step}")
-        reply = queue.pop(0) if len(queue) > 1 else queue[0]
+        reply = queue.pop(0) if step == "semantic_verify" or len(queue) > 1 else queue[0]
         if callable(reply) and not isinstance(reply, Exception):
             reply = reply(messages)
         if isinstance(reply, Exception):
@@ -48,13 +51,55 @@ class ScriptedClient:
         return [s for s, _ in self.calls]
 
 
+def semantic_contents(draft: dict, *, answer: bool = False) -> list[dict]:
+    """Normalize fixture content only; callers separately choose what was reviewed."""
+    from insight_agent.schemas import PersonalizationDraft
+    if answer:
+        from insight_agent.agent.qa import AnswerDraft
+        parsed = AnswerDraft.model_validate(draft)
+        sections = ("claims",)
+    else:
+        parsed = PersonalizationDraft.model_validate(draft)
+        sections = ("why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view")
+    contents = []
+    for section in sections:
+        for claim in getattr(parsed, section):
+            if claim.kind in ("fact", "assessment") and not getattr(claim, "horizon", None):
+                continue
+            contents.append(claim.model_dump(mode="json", exclude={"claim_id", "evidence_spans"}))
+    contents.extend(s.model_dump(mode="json") for s in getattr(parsed, "scenarios", []))
+    contents.extend({"missing_data": text} for text in parsed.missing_data)
+    return contents
+
+
+def reviewed_semantics(supported_contents: list[dict]):
+    """Finite scripts explicitly whitelist exact reviewed content, never generated IDs."""
+    canonical = lambda content: json.dumps(content, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    reviewed = frozenset(canonical(content) for content in supported_contents)
+
+    def respond(messages):
+        payload = json.loads(messages[-1]["content"])
+        verdicts = []
+        for candidate in payload["candidates"]:
+            supported = canonical(candidate["content"]) in reviewed
+            declared = candidate["content"].get("source_ids", [])
+            span_ids = [span["span_id"] for evidence in payload["evidence"]
+                        if evidence["source"]["source_id"] in declared for span in evidence["spans"]] if supported else []
+            verdicts.append({"claim_id": candidate["claim_id"], "status": "supported" if supported else "unsupported",
+                             "reason": "Explicitly reviewed fixture content" if supported else "Content not reviewed by this fixture",
+                             "span_ids": span_ids})
+        return {"verdicts": verdicts}
+
+    return respond
+
+
 def analysis_reply() -> dict:
     return {
         "event_id": "evt_demo_rate",
         "summary": "Банк России повысил ключевую ставку до 18% и допустил дальнейшее ужесточение.",
         "facts": [
-            {"text": "Ключевая ставка повышена на 100 б.п., до 18% годовых.", "kind": "fact", "source_ids": ["news_demo_rate"]},
-            {"text": "Регулятор допустил дальнейшее ужесточение политики.", "kind": "fact", "source_ids": ["news_demo_rate"]},
+            {"text": "Совет директоров Банка России повысил ключевую ставку на 100 б.п., до 18% годовых.", "kind": "fact", "source_ids": ["news_demo_rate"]},
+            {"text": "Регулятор указал на сохраняющееся инфляционное давление и допустил дальнейшее ужесточение.", "kind": "fact", "source_ids": ["news_demo_rate"]},
         ],
         "actors": ["Банк России"],
         "impact_channels": ["cost_of_debt", "deposit_yield", "domestic_demand", "not_a_channel"],
@@ -77,7 +122,7 @@ def draft_reply(*, with_bank: bool = True, bad_number: bool = False) -> dict:
     bank_view = (
         [
             {
-                "text": "Аналитики банка ожидают, что ставка останется на уровне 18% до конца 2026 года.",
+                "text": "Синтетический фрагмент для тестов. Аналитики ожидают, что ключевая ставка останется на уровне 18% до конца 2026 года, а снижение начнётся не раньше второго квартала 2027 года. Стоимость заёмного финансирования для компаний будет оставаться высокой.",
                 "kind": "assessment",
                 "source_ids": ["bank_demo_rate_p3"],
             }
@@ -86,13 +131,13 @@ def draft_reply(*, with_bank: bool = True, bad_number: bool = False) -> dict:
         else [{"text": "Материалов банка по теме нет.", "kind": "unavailable"}]
     )
     fact_text = (
-        "Ставка повышена до 21% годовых." if bad_number else "Ставка повышена до 18% годовых."
+        "Ставка повышена до 21% годовых." if bad_number else "Совет директоров Банка России повысил ключевую ставку на 100 б.п., до 18% годовых."
     )
     return {
-        "headline": "Рост ставки удорожает кредиты и лизинг компании",
+        "headline": "Проверка условий финансирования после изменения ключевой ставки",
         "why_it_matters": [
             {
-                "text": "У компании есть кредиты и лизинг в банке, поэтому рост ставки напрямую повышает стоимость обслуживания долга.",
+                "text": "Если у компании есть кредиты или лизинг, проверьте условия договоров: связь договорной ставки с ключевой пока неизвестна.",
                 "kind": "inference",
                 "source_ids": ["news_demo_rate"],
                 "profile_features": ["products.loans", "products.leasing"],
@@ -101,7 +146,7 @@ def draft_reply(*, with_bank: bool = True, bad_number: bool = False) -> dict:
         ],
         "consequences": [
             {
-                "text": "Металлообработка с ростом затрат на финансирование оборотного капитала может отложить закупки оборудования.",
+                "text": "Если финансирование оборотного капитала подорожает, компании может потребоваться пересмотреть закупки оборудования.",
                 "kind": "inference",
                 "source_ids": ["news_demo_rate"],
                 "profile_features": ["okved_code"],
@@ -109,17 +154,17 @@ def draft_reply(*, with_bank: bool = True, bad_number: bool = False) -> dict:
         ],
         "risks": [
             {
-                "text": "Рост процентных расходов по плавающим кредитам.",
+                "text": "Если в договорах есть ставка, привязанная к ключевой, её рост может увеличить процентные расходы; наличие такой привязки нужно проверить.",
                 "kind": "inference",
                 "source_ids": ["news_demo_rate"],
                 "profile_features": ["products.loans"],
                 "level": "high",
-                "horizon": "до 3 месяцев",
+                "horizon": None,
             }
         ],
         "opportunities": [
             {
-                "text": "Если появятся свободные средства, их размещение станет доходнее.",
+                "text": "При наличии свободных средств сравните доступные условия размещения; рост доходности не гарантирован.",
                 "kind": "hypothesis",
                 "profile_features": ["revenue_rub"],
                 "level": "low",
@@ -128,15 +173,15 @@ def draft_reply(*, with_bank: bool = True, bad_number: bool = False) -> dict:
         "scenarios": [
             {
                 "name": "Ставка сохраняется",
-                "trigger": "Регулятор не меняет ставку на следующем заседании",
-                "implication": "Стоимость долга остаётся высокой до 2027 года",
+                "trigger": "Если регулятор сохранит ключевую ставку",
+                "implication": "Условия действующих кредитов зависят от договоров; проверьте фиксированную или плавающую ставку.",
                 "plausibility": "medium",
                 "source_ids": ["bank_demo_rate_p3"] if with_bank else [],
             }
         ],
         "actions": [
             {
-                "text": "Пересчитать график платежей по кредитам и лизингу при ставке 18%.",
+                "text": "Проверить график платежей по кредитам и лизингу и договорные условия изменения ставки.",
                 "kind": "recommendation",
                 "source_ids": ["news_demo_rate"],
                 "profile_features": ["products.loans", "products.leasing"],
@@ -145,6 +190,6 @@ def draft_reply(*, with_bank: bool = True, bad_number: bool = False) -> dict:
         "bank_view": bank_view,
         "model_vs_bank": [],
         "impact_level": "high",
-        "impact_rationale": "Кредиты и лизинг делают компанию чувствительной к ставке.",
+        "impact_rationale": "Связь условий финансирования с ключевой ставкой требует проверки договоров.",
         "missing_data": ["объём и тип ставки по кредитам"],
     }

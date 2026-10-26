@@ -188,6 +188,8 @@ class RunBudget:
             raise RunBudgetExceeded("Исчерпан лимит токенов на один запуск агента")
         if self.daily.used > self.daily.limit:
             raise DailyBudgetExceeded("Исчерпан дневной лимит токенов")
+        if self.daily.ledger and self.daily.ledger.spent > self.daily.ledger.limit:
+            raise DailyBudgetExceeded("Исчерпан дневной лимит стоимости ответов")
 
     def release(self) -> None:
         self.daily.release(self._reservation)
