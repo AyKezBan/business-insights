@@ -7,6 +7,21 @@ const node = (tag, text = '', className = '') => {
 const status = text => { $('status').textContent = text; };
 const labels = {fact: 'Факт события', open: 'Аналитика по открытым источникам', bank: 'Аналитика от Альфа-банка', ai: 'Вывод для компании'};
 const certaintyLabels = {fact: 'Факт', inference: 'Вывод модели по источникам', hypothesis: 'Гипотеза · требует проверки', assessment: 'Оценка в аналитическом материале', recommendation: 'Рекомендация · требует проверки данных', unavailable: 'Нет данных'};
+const profileFieldLabels = {
+  industry:'отрасль', okved_code:'код ОКВЭД', okved_name:'вид деятельности по ОКВЭД',
+  revenue_rub:'выручка компании', group_revenue_rub:'выручка группы компаний', group_composition:'состав группы компаний',
+  employees:'численность сотрудников', company_age:'возраст компании', business_stage:'стадия развития бизнеса',
+  ownership:'форма собственности', region:'регион', city:'город', foreign_trade:'участие во внешнеэкономической деятельности',
+  foreign_trade_countries:'страны внешнеэкономической деятельности', counterparties:'контрагенты по наблюдаемым платежам',
+  group_member_okveds:'виды деятельности участников группы', self_transfer_share:'доля переводов между своими счетами',
+  payment_period:'период платежных данных', payment_coverage:'охват платежных данных',
+  'products.settlement':'наличие расчётно-кассового обслуживания', 'products.guarantees':'наличие гарантий',
+  'products.loans':'наличие кредитов', 'products.leasing':'наличие лизинга', 'products.deposits':'наличие депозитов',
+  'products.payroll':'наличие зарплатного проекта', 'products.factoring':'наличие факторинга'
+};
+// Translate only exact profile keys at presentation time; prose and stored values stay intact.
+function profileFieldLabel(value) { return Object.hasOwn(profileFieldLabels, value) ? profileFieldLabels[value] : value; }
+function missingDataText(value) { return Object.hasOwn(profileFieldLabels, value) ? 'Нет данных: ' + profileFieldLabels[value] : value; }
 let api = {mode: 'demo'};
 const pendingOperations = new Map();
 const materialAnalyses = new Map();
@@ -162,7 +177,7 @@ function sourceLinks(sources = []) {
 function claimEvidence(part, sources) {
   const box = sourceLinks(sources.filter(s => (part.source_ids || []).includes(s.id)));
   if (part.claim_id) box.dataset.claimId = part.claim_id;
-  if (part.feature_refs?.length) box.append(node('p', 'Использованные признаки: ' + part.feature_refs.join(', '), 'muted'));
+  if (part.feature_refs?.length) box.append(node('p', 'Использованные признаки: ' + part.feature_refs.map(profileFieldLabel).join(', '), 'muted'));
   return box;
 }
 function guardAccess(error) {
@@ -341,7 +356,7 @@ async function startMaterialAnalysis(ctx,material,button,epoch) {
     if (!result.insight_id) {
       const notice=node('section','','limitations');notice.setAttribute('role','status');
       notice.append(node('strong',InsightsIntegration.outcomes[result.outcome] || 'Подготовленного результата нет'));
-      for (const reason of new Set([result.outcome_message,...(result.missing_data || [])].filter(Boolean))) notice.append(node('p',reason));
+      for (const reason of new Set([result.outcome_message,...(result.missing_data || []).map(missingDataText)].filter(Boolean))) notice.append(node('p',reason));
       $('page').append(notice);button.textContent='Результат недоступен';button.dataset.terminal='true';
       status('Анализ завершён без опубликованного инсайта');return;
     }
@@ -419,7 +434,7 @@ function renderFeed(result) {
     const hideKey = preferenceKey(event.id), hideContext = `${state.profile.company_id}:${state.profile.role}`;
     hide.onclick = async () => { if (`${state.profile.company_id}:${state.profile.role}` !== hideContext) return; if (api.mode === 'server') { const message=node('p','','muted'); card.append(message); if (await persistServer(hideKey,{hidden:true},hide,message,{context:{...state.ctx,event_id:event.id},insight_id:event.insight_id})) await renderRoute(); return; } const updated = {...state.preferences, [hideKey]: {...state.preferences[hideKey], hidden: true}}; if (!saveStored(PREFERENCES_KEY, updated)) { showError('Не удалось сохранить скрытие в этом браузере.'); return; } state.preferences = updated; renderRoute(); };
     actions.append(link('Разобраться в событии →', 'insight/' + event.id), hide);
-    card.append(meta, node('h2', title), node('span', 'Требует проверки данных', 'badge'), node('p', publishable ? event.why : (event.missing_data || []).join(' ')), actions); grid.append(card);
+    card.append(meta, node('h2', title), node('span', 'Требует проверки данных', 'badge'), node('p', publishable ? event.why : (event.missing_data || []).map(missingDataText).join(' ')), actions); grid.append(card);
   }
   if (!visible.length) grid.append(node('p', 'Все события скрыты. Их можно вернуть кнопкой «Показать скрытые».', 'muted'));
   $('page').append(grid); status('Показано событий: ' + visible.length + ' · дата анализа ' + result.as_of);
@@ -434,7 +449,7 @@ function renderCard(card) {
   if (card.outcome && card.outcome !== 'COMPLETE') {
     const warning=node('section','','limitations'); warning.setAttribute('role','status');
     warning.append(node('h2', InsightsIntegration.outcomes[card.outcome] || 'Статус результата не распознан'), node('p',card.outcome_message || 'Учитывайте ограничения результата.'));
-    for (const reason of card.missing_data || []) warning.append(node('p',reason));
+    for (const reason of card.missing_data || []) warning.append(node('p',missingDataText(reason)));
     $('page').append(warning);
     if (!['LIMITED'].includes(card.outcome)) { $('page').append(link('Вернуться к событиям','feed')); status(warning.textContent); return; }
   }
@@ -494,7 +509,7 @@ function renderCard(card) {
   }
   if (card.missing_data.length) {
     const warning = node('div', '', 'limitations'); warning.append(node('strong', 'Границы вывода'));
-    for (const text of card.missing_data) warning.append(node('p', text)); blocks.append(warning);
+    for (const text of card.missing_data) warning.append(node('p', missingDataText(text))); blocks.append(warning);
   }
   content.append(blocks, questionPanel(), feedbackPanel(card));
   const aside = node('aside', '', 'panel aside-panel'); aside.append(node('h2', 'Основания и источники'), node('p', api.mode === 'demo' ? 'Синтетические материалы для проверки интерфейса. Оригинал открывается в новой вкладке.' : 'Первоисточники выводов. Оригинал открывается в новой вкладке.'), sourceLinks(card.sources), node('p', 'Вывод не заменяет проверку договоров и фактических показателей.'));
@@ -537,7 +552,7 @@ async function ask(question, requestId = crypto.randomUUID()) {
     }
     if (result.missing_data?.length) {
       const limits=node('div','','limitations'); limits.append(node('strong','Границы ответа'));
-      for (const text of result.missing_data) limits.append(node('p',text)); target.append(limits);
+      for (const text of result.missing_data) limits.append(node('p',missingDataText(text))); target.append(limits);
     }
     status(result.status === 'no_answer' ? 'Недостаточно оснований для ответа' : 'Уточнение готово');
   } catch (e) {
