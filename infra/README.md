@@ -2,6 +2,8 @@
 
 Root `compose.yaml` объединяет актуальный `develop` (e105b7c) и frontend из PR #6 (7c59dd0). PR #2–5 уже merged на 26.10.2026. Frontend добавлен локальным merge в ветку DevOps; shared branches/PR не менялись. В финализации D03/D04 дополнительно объединена `feature/ml-finalize` (416f24f). Исторический smoke DevOps PR #7 использовал прежний ML baseline; полный объединённый выпуск проверяется отдельно по финальному manifest. Ранее существовавший `compose.ml-materials.yml` оставлен для самостоятельного ML-сценария.
 
+Текущая последовательность для CSV + проверенных PDF + ЦБ/ФНС/EIA: [release-runbook](../docs/materials-release-runbook.md). Исторический baseline выше не является статусом приёмки текущего SHA.
+
 ## Запуск и данные
 
 Docker Compose 2.24.4+, доступный Docker daemon; Python 3 для wrapper init/smoke. Сборки загружают базовые образы, Maven и PyPI-зависимости. Из корня:
@@ -34,17 +36,7 @@ CSV-каталог должен содержать `df_Uid_data_hack.csv`, `df_F
 
 ## События и анализ
 
-UI читает сохранённую ленту и не запускает анализ автоматически. После первого импорта она пуста. Загрузите подготовленное внешнее событие согласно [OpenAPI](../backend-api/src/main/resources/static/openapi.yaml), затем запросите анализ (это расходует токены, если настроен ключ):
-
-```sh
-curl --fail-with-body http://127.0.0.1:8088/api/v1/companies
-curl --fail-with-body -H 'Content-Type: application/json' \
-  --data-binary @/путь/к/event.json http://127.0.0.1:8088/api/v1/events
-curl --fail-with-body -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: analysis-unique-request-1' \
-  --data '{"companyId":"U_1","role":"cfo","eventId":"your-event-id","userProvided":{}}' \
-  http://127.0.0.1:8088/api/v1/analyses
-```
+UI читает сохранённую ленту и отдельный каталог материалов. После первого CSV-импорта лента пуста. С materials overlay `GET /api/v1/materials/events` получает текущий каталог из ML и публикует его в Java с полным CatalogToken/CAS. Сбор материалов и чтение каталога не вызывают модель. Пользователь явно выбирает material/company/role для анализа; актуальные payload, revision/hash и команды — в [release-runbook](../docs/materials-release-runbook.md#4-явно-выбрать-анализ-открыть-источники-и-задать-qa). Legacy `POST /api/v1/events` остаётся immutable ручной регистрацией, не correction-upsert.
 
 Ответ 202 содержит `Location` для опроса операции. Завершённые SUCCEEDED/LIMITED результаты отображаются для выбранной компании и роли. Клиентский адаптер реализует семь bindings текущего frontend и сохраняет ссылки, типы утверждений и ограничения; прямого frontend→ML вызова нет. Учебный `frontend/server.py` остаётся самостоятельным demo, но общий стек его не запускает.
 
@@ -68,26 +60,27 @@ curl --fail-with-body -H 'Content-Type: application/json' \
 # Для нового корпуса создайте только свой каталог назначения и review-каталог.
 ./stack materials bank --store /app/materials --pdf-dir /inputs \
   --manifest /config/bank-documents.json --review-file /review/bank-review.json
-./stack materials news --store /app/materials --source cbr --limit 10
+./stack materials sync --store /app/materials \
+  --sources cbr_press,fns_news,eia_today --limit-per-source 5
 ./stack materials check --store /app/materials
 ./stack materials-up
 ```
 
-Jobs используют существующую CLI без изменений D03/D04. PDF и review — read-only, job пишет только выбранный store, работает под UID/GID вызывающего пользователя. На Linux каталоги должны быть доступны этому пользователю и ML uid1000 для чтения. Bank без достаточного review может завершиться кодом 2 и оставить предыдущую версию — не обходите проверку. Подробности: [material-ingestion.md](../ml-service/docs/material-ingestion.md).
+Jobs используют текущую D03/D04 CLI. Legacy одноканальный `news --source cbr` остаётся диагностикой; для текущего трёхиздательского потока используйте `sync` выше. PDF и review — read-only, job пишет только выбранный store, работает под UID/GID вызывающего пользователя. На Linux каталоги должны быть доступны этому пользователю и ML uid1000 для чтения. Bank без достаточного review может завершиться кодом 2 и оставить предыдущую версию — не обходите проверку. Подробности: [material-ingestion.md](../ml-service/docs/material-ingestion.md).
 
-После новой публикации snapshot выполните `docker compose -f compose.yaml -f infra/compose.materials.yaml restart ml`: ML закрепляет ревизию при старте. Для дальнейших `up` этого окружения используйте `materials-up`, чтобы не снять подключение корпуса. `MATERIALS_PUBLIC_BASE_URL` по умолчанию `http://127.0.0.1:${WEB_PORT}`; Java принимает только абсолютные http(s) ссылки. Пустое значение заменяется этим default. Произвольные ML generation/trace endpoints наружу не проксируются.
+После нормальной публикации snapshot restart ML не нужен: runtime читает current pointer для нового текущего запроса и закрепляет revision на весь run. Старый QA использует revision родительского результата; при её отсутствии возвращает `no_answer`. Внутренний `POST /v1/materials/refresh` диагностически перечитывает current; он не проксируется наружу. Повреждённый bundle не становится активным. Для дальнейших `up` этого окружения используйте `materials-up`, чтобы не снять подключение корпуса. `MATERIALS_PUBLIC_BASE_URL` по умолчанию `http://127.0.0.1:${WEB_PORT}`; Java принимает только абсолютные http(s) ссылки. Пустое значение заменяется этим default. Произвольные ML generation/trace endpoints наружу не проксируются.
 
 ## Регулярное обновление материалов (необязательно)
 
 При сборке с materials overlay wrapper передаёт `GIT_SHA` из HEAD своего checkout в build args ML, materials job и poller; Dockerfile сохраняет его внутри образа для traces. Явный override задаётся как `GIT_SHA=<revision> ./stack materials-up`; без Git (например, в архиве) используется `unknown`, команды help/init продолжают работать. При прямом вызове Compose передайте `GIT_SHA` самостоятельно. Runtime environment не подменяет SHA уже собранного образа: старый образ сохраняет свою версию до пересборки.
 
-После bootstrap корпуса, готовности `sync` из T05 и runtime/catalog T07/T09 явно запустите `./stack materials-watch`. Команда собирает и запускает только `materials-poller` из профиля `jobs`; `materials-up` сохраняет прежний ручной режим. Poller выполняет существующую команду `python -m insight_agent.materials.cli sync --sources cbr_press,fns_news,eia_today --limit-per-source 5 --store /app/materials` сразу, затем через 900 секунд после завершения предыдущей попытки. Он не вызывает LLM и не отправляет события в backend сам.
+После bootstrap проверенного корпуса явно запустите `./stack materials-watch`. Команда собирает и запускает только `materials-poller` из профиля `jobs`; `materials-up` сохраняет прежний ручной режим. Poller выполняет существующую команду `python -m insight_agent.materials.cli sync --sources cbr_press,fns_news,eia_today --limit-per-source 5 --store /app/materials` сразу, затем через 900 секунд после завершения предыдущей попытки. Он не вызывает LLM и не отправляет события в backend сам.
 
 Коды 1/2 и неизвестные ошибки увеличивают паузу до 1800/3600 секунд, код 0 сбрасывает её; частичный результат 3 остаётся виден и даёт обычную паузу 900 секунд. Только код 0 сбрасывает накопленный backoff. `MATERIALS_POLL_INTERVAL_SECONDS` меняет обычную паузу (положительная, не более 3600), `MATERIALS_POLL_TIMEOUT_SECONDS` — предел одной попытки (по умолчанию 600 секунд). После timeout дочерняя CLI получает terminate и до 10 секунд на остановку, затем kill. SIGTERM/SIGINT прерывают ожидание и останавливают только собственную CLI; новая попытка после stop не начинается.
 
 Poller пишет только в `MATERIALS_STORE`, под UID/GID пользователя; ключи LLM, credentials БД и admin token ему не передаются, дополнительные порты не открываются. Постоянный `.poller.lock` не допускает двух poller над одним store на файловой системе с POSIX flock. Общий `.writer.lock` CLI по-прежнему защищает публикации вместе с ручными jobs. Файл lock не удаляйте во время работы. `poller-status.json` атомарно хранит статус последней попытки, exit code, длительность и следующую паузу; подробные source reports принадлежат CLI. Её metadata output и статус poller доступны через `./stack logs materials-poller`; `./stack status` показывает его состояние. `./stack down` останавливает также poller и сохраняет volumes/store; `down -v` удаляет named volumes как прежде.
 
-Проверки supervisor выполняются без сети и LLM. На исходном DevOps baseline команда `sync` ещё отсутствует: запуск watcher требует интеграции T05; offline тесты poller не являются проверкой реальных publisher/runtime/Java/browser gates. Автоматический restart supervisor отключён: ошибка конфигурации или занятый `.poller.lock` требует исправления и явного повторного запуска.
+Проверки supervisor выполняются без сети и LLM. На историческом DevOps baseline команда `sync` ещё отсутствовала; текущая интеграция содержит sync/runtime/catalog. Offline тесты poller не являются проверкой реальных publisher/runtime/Java/browser gates. Автоматический restart supervisor отключён: ошибка конфигурации или занятый `.poller.lock` требует исправления и явного повторного запуска.
 
 ## Проверки и ограничения
 
@@ -99,10 +92,10 @@ Smoke собирает образы, создаёт случайный `bi-smoke
 
 Ограничения существующих сервисов:
 
-- В текущем develop бюджет ML и контекст вопросов находятся в памяти. Рестарт ML теряет контекст Q&A и счётчик дневного бюджета; traces сохраняются. Не масштабируйте сервис и не считайте это надёжным общим лимитом расходов.
+- Готовые ML state/insights и ruble ledger сохраняются в trace volume и загружаются после рестарта; сохраняйте volume и immutable corpus snapshots для старого QA/PDF. Локальный ledger не знает расходов других участников по общему ключу и не подтверждает provider balance. Масштабирование требует отдельной проверки общего бюджета/координации.
 - Backend имеет одного владельца demo и одну локальную очередь. Незавершённые операции после рестарта становятся FAILED; автоматический повтор может повторно расходовать токены и не выполняется.
-- Backend принимает события API, но автоматического моста публикации material-news → backend events нет. Подготовка корпуса сама не наполняет ленту.
-- Backend сохраняет feedback, но read DTO не возвращает rating/comment; UI восстанавливает hidden после перезагрузки, feedback пока виден только в текущей сессии.
-- Этот стек проверяет совместимость интегрированного develop. Новые ML/frontend контракты требуют отдельной повторной проверки.
+- Java получает catalog material-news при явном чтении каталога, сохраняет его с CAS и замораживает входы анализа до очереди. Подготовка корпуса сама не создаёт готовые инсайты и не запускает генерацию для клиентов.
+- Backend сохраняет feedback/opened/hidden и возвращает их в текущем read DTO; browser/restart проверка конкретного выпуска фиксируется отдельно.
+- Исторический smoke не доказывает текущую смысловую приёмку; необходимы проверки общего SHA по [E2E](../docs/materials-e2e.md) и [текущие результаты](../docs/materials-acceptance.md).
 
-Фактические результаты: [VERIFICATION.md](VERIFICATION.md).
+Исторические результаты DevOps baseline: [VERIFICATION.md](VERIFICATION.md). Актуальная приёмка: [materials-acceptance.md](../docs/materials-acceptance.md).
