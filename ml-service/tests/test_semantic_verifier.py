@@ -44,7 +44,7 @@ def test_every_published_generated_surface_is_in_one_batch(request_):
     state, draft = state_and_draft(request_)
     verifier = Verifier()
     assert semantic_issues(verifier, "model", state, draft) == []
-    assert len(verifier.calls) == 1 and verifier.calls[0][2] == 0
+    assert len(verifier.calls) == 1 and verifier.calls[0][2] == 1
     candidates = verifier.calls[0][1]["candidates"]
     paths = {c["location"] for c in candidates}
     assert {"why_it_matters[0]", "consequences[0]", "risks[0]", "opportunities[0]",

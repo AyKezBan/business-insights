@@ -64,7 +64,7 @@ def _rejected(entries, code):
 
 
 def semantic_issues(llm: StructuredLLM, model: str, state, draft, *, sections=SECTIONS) -> list[CheckIssue]:
-    """One logical batch through the existing run budget, at most one attempt per model.
+    """One logical batch through the existing run budget, at most one repair retry per model.
 
     StructuredLLM may try its configured fallback (two client calls maximum).
     Its transport can retry a JSON-mode HTTP400 once per client call.
@@ -131,7 +131,7 @@ def semantic_issues(llm: StructuredLLM, model: str, state, draft, *, sections=SE
     try:
         batch = llm.generate("semantic_verify", model,
                              [{"role": "system", "content": system}, {"role": "user", "content": _json(payload)}],
-                             SemanticBatch, retries=0)
+                             SemanticBatch, retries=1)
         expected = {entry["claim_id"]: entry for entry in entries}
         # Fail closed per claim: only a claim with exactly one well-formed verdict can pass, but a malformed
         # verdict for one claim must not discard the correctly verified others (all-or-nothing wasted whole runs).
