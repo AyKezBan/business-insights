@@ -149,11 +149,13 @@ async function main(){
   releaseLate(result);await lateClick;assert.equal(late.location.hash.split('?')[0],'#/feed','An old company/role request must not navigate a newer screen');
   let terminalSubmissions=0;
   const terminalUi=setup(appSource,'',new Map(),'#/materials');terminalUi.run('location.origin="https://test.local"');
-  const terminalBindings={...lateBindings,analyze:async()=>{terminalSubmissions++;return {insight_id:null,operation_id:operationId,outcome:'FAILED',outcome_message:'Недостаточно проверенных источников',missing_data:[]};}};
+  const terminalBindings={...lateBindings,analyze:async()=>{terminalSubmissions++;return {insight_id:null,operation_id:operationId,outcome:'FAILED',outcome_message:'Недостаточно проверенных источников',missing_data:['payment_coverage','  region  ','future_profile_key']};}};
   terminalUi.run('window.INSIGHTS_CONFIG={mode:"server",bindings:{}}');terminalUi.run('window.INSIGHTS_CONFIG').bindings=terminalBindings;
   await terminalUi.run('init()');const terminalButton=walk(terminalUi.root).find(e=>e.tagName==='button' && e.textContent==='Проанализировать');
   await terminalButton.onclick();assert.equal(terminalUi.location.hash.split('?')[0],'#/materials','Unpublished terminal result must not navigate to an insight');
   assert(terminalUi.text().includes('Недостаточно проверенных источников'));assert.equal(terminalButton.disabled,true);
+  assert(terminalUi.text().includes('Нет данных: охват платежных данных'),'Unpublished operation limitations label known profile keys');
+  assert(terminalUi.text().includes('  region  ') && terminalUi.text().includes('future_profile_key'),'Operation limitations preserve unknown prose verbatim');
   await terminalButton.onclick();assert.equal(terminalSubmissions,1,'A terminal result cannot submit the same analysis again');
   const demo=setup(appSource,'',new Map(),'#/materials',async url=>{if(url==='/api/bootstrap')return {ok:true,json:async()=>({profile:{name:'Demo',company_id:'demo',role:'cfo'},companies:[{id:'demo',name:'Demo'}],roles:{cfo:'CFO'},views:{overview:'Обзор'}})};throw new Error('Demo catalog must not call '+url);});
   await demo.run('init()');assert(demo.text().includes('серверном режиме'),'Demo catalog is explicitly unsupported');assert.equal(demo.requests.length,1);

@@ -175,6 +175,37 @@ async function main() {
   assert(walk(ui.root).some(e=>e.tagName==='a' && e.href==='https://example.org/conflicting'));
   assert(walk(ui.root).some(e=>e.tagName==='a' && e.href==='https://example.org/report.pdf?revision=1111111111111111111111111111111111111111111111111111111111111111#page=3'));
   assert(!ui.text().includes('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa') && !ui.text().includes('eia_v1'),'Technical IDs must not crowd source labels');
+  const missingKeys=['business_stage','company_age','counterparties','employees','foreign_trade','group_composition','group_revenue_rub','industry','ownership','payment_coverage','payment_period','products.deposits','products.factoring','products.guarantees','products.leasing','products.payroll','products.settlement','products.loans','self_transfer_share'];
+  const prose=['  region  ','Регион и products.deposits нужно уточнить.\n🧪 Без предположений.','future_profile_key','toString'];
+  const labelDto={...card,missingData:[...missingKeys,...prose],warnings:[],
+    whyItMatters:[{...claim('region'),profileFeatures:['region','future_profile_key']}],
+    sources:card.sources.map((s,n)=>n===0?{...s,excerpt:'products.deposits'}:s)};
+  const labelCard=await bindings.insight(ctx,{transport:async()=>labelDto});
+  const originalDto=JSON.stringify(labelDto),originalView=JSON.stringify(labelCard);
+  ui.doc.getElementById('page').replaceChildren();ui.run('renderCard')(labelCard);
+  const paragraphs=walk(ui.root).filter(e=>e.tagName==='p').map(e=>e.textContent);
+  assert(paragraphs.includes('Нет данных: наличие депозитов'),'A known missing product is explained without asserting its absence');
+  assert(paragraphs.includes('Нет данных: состав группы компаний'));
+  assert(missingKeys.every(key=>!paragraphs.includes(key)),'Known profile identifiers must not appear as bare missing-data prose');
+  for(const text of prose) assert(paragraphs.includes(text),'Unknown/generated missing-data text must remain exact: '+text);
+  assert(paragraphs.includes('Использованные признаки: регион, future_profile_key'),'Evidence references use labels only for exact known keys');
+  assert(paragraphs.includes('region'),'A claim that happens to equal a profile key must not be translated');
+  assert(walk(ui.root).some(e=>e.tagName==='blockquote' && e.textContent==='products.deposits'),'Source excerpts remain exact');
+  assert.equal(JSON.stringify(labelDto),originalDto);assert.equal(JSON.stringify(labelCard),originalView,'Labels must not mutate the view model');
+  const labelFeed=await bindings.feed(ctx,{transport:async()=>({items:[{...labelDto,outcome:'refused'}]})});
+  ui.doc.getElementById('page').replaceChildren();ui.run('renderFeed')(labelFeed);
+  assert(ui.text().includes('Нет данных: наличие депозитов'),'Non-publishable feed limitations also use human labels');
+  for(const text of prose) assert(ui.text().includes(text));
+  ui.doc.getElementById('page').replaceChildren();ui.run('renderCard')(labelCard);
+  const labelClarify=uiBindings.clarify;
+  uiBindings.clarify=async input=>reloadedBindings.clarify(input,{...opts,transport:async(url,o)=>{
+    const data=await transport(url,o);return url.endsWith('/questions')?data:{...data,missingData:['payment_period',...prose]};
+  }});
+  await ui.run('ask("Каких данных не хватает?")');
+  const answerLimits=walk(ui.doc.getElementById('reply')).filter(e=>e.tagName==='p').map(e=>e.textContent);
+  assert(answerLimits.includes('Нет данных: период платежных данных'),'QA limitations use the same presentation labels');
+  for(const text of prose) assert(answerLimits.includes(text));
+  uiBindings.clarify=labelClarify;
   const refused=await bindings.insight(ctx,{transport:async()=>({...card,outcome:'refused',missingData:['Нет проверенных оснований'],warnings:[]})});
   ui.doc.getElementById('page').replaceChildren(); ui.run('renderCard')(refused);
   assert(ui.text().includes('Нет проверенных оснований'),'Refusal must explain the evidence gap');
