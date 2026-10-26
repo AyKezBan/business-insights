@@ -1,7 +1,7 @@
 /* FE-08–FE-12: transport and UI boundary. Java DTO bindings await BE-12/13. */
 'use strict';
 (function (root) {
-  const outcomes = {LIMITED: 'Анализ ограничен доступными данными', INSUFFICIENT_DATA: 'Недостаточно данных для обоснованного вывода', NO_RESULT: 'Подготовленного результата нет', FAILED: 'Не удалось подготовить анализ'};
+  const outcomes = {REFUSED: 'Недостаточно проверенных оснований для анализа', LIMITED: 'Анализ ограничен доступными данными', INSUFFICIENT_DATA: 'Недостаточно данных для обоснованного вывода', NO_RESULT: 'Подготовленного результата нет', FAILED: 'Не удалось подготовить анализ'};
   function safeURL(value, base = 'http://localhost') {
     if (typeof value !== 'string' || !value.trim() || /[\\\x00-\x20]/.test(value)) return null;
     try { const u = new URL(value, base); if (!['http:', 'https:'].includes(u.protocol) || u.username || u.password) return null; return u.href; } catch { return null; }
@@ -59,7 +59,7 @@
     };
   }
   async function mapOperation(operation, mapper, signal) {
-    try { return mapper(await operation(),signal); }
+    try { return await mapper(await operation(),signal); }
     catch (e) { if (e.resume) { const resume=e.resume; e.resume=nextSignal=>mapOperation(()=>resume(nextSignal),mapper,nextSignal); } throw e; }
   }
   function createClient(config = {}) {
@@ -69,7 +69,10 @@
     const required = ['bootstrap','feed','insight','clarify','preferences','savePreference','opened'];
     for (const key of required) if (typeof config.bindings[key] !== 'function') throw new Error('Не настроен адаптер: ' + key);
     const transport = createTransport({fetch:(...args)=>fetch(...args), origin:location.origin});
-    return {mode:'server', call:(name, input, options={}) => config.bindings[name](input, {...options, transport})};
+    return {mode:'server', call:(name, input, options={}) => {
+      if (typeof config.bindings[name] !== 'function') throw new Error('Каталог и анализ материалов пока недоступны в этом подключении.');
+      return config.bindings[name](input, {...options, transport});
+    }};
   }
   root.InsightsIntegration = {outcomes, sourceURL, safeURL, createTransport, createClient, mapOperation};
 })(typeof globalThis === 'object' ? globalThis : this);

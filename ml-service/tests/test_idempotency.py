@@ -2,7 +2,7 @@ import threading
 
 from fastapi.testclient import TestClient
 
-from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.agent.orchestrator import MAX_REMEMBERED, RequestIdConflict
 from insight_agent.agent.store import InsightStore
 from insight_agent.agent.versions import PROMPT_VERSION, compute_version
@@ -13,7 +13,7 @@ import pytest
 
 
 def _script(**extra):
-    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()]}
+    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))]}
     script.update(extra)
     return script
 
@@ -24,6 +24,7 @@ def test_repeated_request_id_returns_same_insight_without_new_llm_calls(make_age
     request = request_.model_copy(update={"request_id": "req-1"})
 
     first = agent.run(request)
+    assert client.steps().count("semantic_verify") == 1
     calls = len(client.calls)
     second = agent.run(request)
 
@@ -72,6 +73,7 @@ def test_concurrent_identical_requests_pay_once(make_agent, request_):
         t.join()
 
     assert client.steps().count("analyze_event") == 1 and client.steps().count("personalize") == 1
+    assert client.steps().count("semantic_verify") == 1
     assert len({r.run_id for r in results}) == 1
 
 
@@ -88,7 +90,7 @@ def test_insight_survives_restart_and_still_answers_questions(make_agent, reques
 
     def answer(_messages):
         return {"answerable": True, "text": "Ставка сохранится.", "claims": [
-            {"text": "Ставка останется на уровне 18%.", "kind": "assessment", "source_ids": ["bank_demo_rate_p3"]}]}
+            draft_reply()["bank_view"][0]]}
 
     restarted = make_agent(ScriptedClient({"answer": [answer]}))
     assert restarted.records == {}

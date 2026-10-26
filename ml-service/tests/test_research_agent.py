@@ -1,7 +1,7 @@
 """Мультиагентная схема: аналитик, планировщик, исследователь, персонализатор, верификатор."""
 import httpx
 
-from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.agent.critic import check_claims
 from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.agent.state import AgentState
@@ -27,7 +27,7 @@ def _agent(make_agent, client, service):
 
 
 def _script(personalize=None):
-    return {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [personalize or draft_reply()]}
+    return {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [personalize or draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))]}
 
 
 def test_researcher_adds_official_indicators_chosen_by_the_profile(make_agent, request_):
@@ -77,7 +77,7 @@ def test_trace_names_the_acting_agent_in_pipeline_order(make_agent, request_):
     seen = list(dict.fromkeys(e.data.get("agent") for e in load_trace(agent.settings.trace_dir, insight.run_id)))
     assert seen == [None, "analyst", "planner", "researcher", "personalizer", "verifier", "orchestrator"]
     calls = [e for e in load_trace(agent.settings.trace_dir, insight.run_id) if e.type == "llm_call"]
-    assert {c.data["agent"] for c in calls} == {"analyst", "planner", "personalizer"}
+    assert {c.data["agent"] for c in calls} == {"analyst", "planner", "personalizer", "verifier"}
 
 
 def test_disabled_research_removes_the_tool(make_agent, request_):

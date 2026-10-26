@@ -10,7 +10,7 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from fakes import ScriptedClient, analysis_reply, draft_reply
+from fakes import ScriptedClient, analysis_reply, draft_reply, reviewed_semantics, semantic_contents
 from insight_agent.agent.qa import answer_question
 from insight_agent.agent.state import AgentState
 from insight_agent.api import build_agent, create_app
@@ -90,7 +90,7 @@ def runtime_request(request: InsightRequest, snapshot: CorpusSnapshot, **updates
     })
 
 
-def runtime_client() -> ScriptedClient:
+def runtime_client(*, batches: int = 1) -> ScriptedClient:
     def draft(messages):
         source_context = messages[-1]["content"]
         reply = draft_reply(with_bank=False)
@@ -111,6 +111,7 @@ def runtime_client() -> ScriptedClient:
              "purpose": "related news"},
         ]}],
         "personalize": [draft],
+        "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply(with_bank=False))) for _ in range(batches)],
     })
 
 
@@ -129,7 +130,7 @@ def test_inflight_tools_keep_r1_while_a_new_run_uses_r2(tmp_path, request_, monk
     r1 = publish_snapshot(root, old)
     new = make_runtime_snapshot(root, request_, "beta")
     settings = runtime_settings(tmp_path, root)
-    provider = runtime_client()
+    provider = runtime_client(batches=2)
     agent = build_agent(settings, provider)
     at_tool_boundary, continue_run = Event(), Event()
     emit = Tracer.emit
@@ -164,6 +165,7 @@ def test_inflight_tools_keep_r1_while_a_new_run_uses_r2(tmp_path, request_, monk
     assert retrieved_ids(settings, second, "search_news") == {"evt_related_beta"}
     assert second.bank_view[0].text == BANK_TEXT["beta"]
     assert provider.steps().count("personalize") == 2
+    assert provider.steps().count("semantic_verify") == 2
 
 
 def test_day_only_event_uses_its_known_day_for_bank_cutoff(tmp_path, request_):
@@ -313,7 +315,7 @@ def test_publication_cutoff_warns_about_later_observed_correction(tmp_path, requ
 
 
 def test_semantic_analysis_cache_ignores_fresh_retrieval_time(make_agent, request_):
-    provider = runtime_client()
+    provider = runtime_client(batches=2)
     agent = make_agent(provider)
     agent.run(request_)
     data = request_.model_dump(mode="json")
@@ -321,14 +323,16 @@ def test_semantic_analysis_cache_ignores_fresh_retrieval_time(make_agent, reques
     agent.run(InsightRequest.model_validate(data))
     assert provider.steps().count("analyze_event") == 1
     assert provider.steps().count("personalize") == 2
+    assert provider.steps().count("semantic_verify") == 2
 
 
 def test_analysis_cache_separates_effective_cutoffs(make_agent, request_):
-    provider = runtime_client()
+    provider = runtime_client(batches=2)
     agent = make_agent(provider)
     for cutoff in ("2026-10-24T12:00:00Z", "2026-10-26T12:00:00Z"):
         agent.run(InsightRequest.model_validate(request_.model_dump(mode="json") | {"as_of": cutoff}))
     assert provider.steps().count("analyze_event") == 2
+    assert provider.steps().count("semantic_verify") == 2
 
 
 def test_evicted_revision_reloads_exactly_and_bundle_results_cannot_be_mutated(tmp_path, request_):

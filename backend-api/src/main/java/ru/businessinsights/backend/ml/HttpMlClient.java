@@ -86,6 +86,12 @@ public final class HttpMlClient implements MlClient {
                 || !request.role().name().equals(response.path("role").asText())) {
             throw invalid("ML insight identity differs from the request");
         }
+        for (String field : List.of("corpus_revision", "event_content_sha256", "request_id", "parent_run_id")) {
+            if (body.hasNonNull(field) && !body.get(field).equals(response.get(field)))
+                throw invalid("ML insight " + field + " differs from the pinned request");
+        }
+        if (request.asOf() != null && !request.asOf().equals(mapper.convertValue(response.get("as_of"), java.time.Instant.class)))
+            throw invalid("ML insight cutoff differs from the pinned request");
         requireText(response, "insight_id");
         requireText(response, "run_id");
         requireText(response, "headline");
@@ -142,6 +148,10 @@ public final class HttpMlClient implements MlClient {
         return List.copyOf(result);
     }
 
+    JsonNode getJson(String path) {
+        return exchange("GET", path, null, null);
+    }
+
     private JsonNode exchange(String method, String path, JsonNode payload, MlException.Code notFound) {
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(baseUrl + path))
                 .timeout(requestTimeout).header("Accept", "application/json");
@@ -158,6 +168,11 @@ public final class HttpMlClient implements MlClient {
             // Keep this independent deadline as well as HttpRequest's transport timeout.
             HttpResponse<byte[]> response = pending.get(Math.max(1, requestTimeout.toMillis()), TimeUnit.MILLISECONDS);
             int status = response.statusCode();
+            String contentType = response.headers().firstValue("Content-Type").orElse("").split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
+            if (status == 409 || status == 503) {
+                var corpusFailure = corpusFailure(status, contentType, response.body());
+                if (corpusFailure != null) throw corpusFailure;
+            }
             if (status == 404 && notFound != null) {
                 throw new MlException(notFound, notFound == CONTEXT_EXPIRED
                         ? "ML insight context is missing or expired" : "ML trace is not available", false);
@@ -177,7 +192,6 @@ public final class HttpMlClient implements MlClient {
             if (status < 200 || status >= 300) {
                 throw invalid("Unexpected ML HTTP status " + status);
             }
-            String contentType = response.headers().firstValue("Content-Type").orElse("").split(";", 2)[0].trim().toLowerCase(java.util.Locale.ROOT);
             if (!("application/json".equals(contentType) || contentType.endsWith("+json"))) {
                 throw invalid("ML response must use a JSON content type");
             }
@@ -205,6 +219,29 @@ public final class HttpMlClient implements MlClient {
             throw transportFailure(ex.getCause());
         } catch (IOException ex) {
             throw transportFailure(ex);
+        }
+    }
+
+    private MlException corpusFailure(int status, String contentType, byte[] body) {
+        if (!("application/json".equals(contentType) || contentType.endsWith("+json"))) return null;
+        try {
+            JsonNode root = mapper.readTree(body);
+            JsonNode code = root == null ? null : root.path("detail").path("code");
+            if (code == null || !code.isTextual()) return null;
+            // The body is already size-bounded. Read only the allowlisted code, never the upstream message.
+            return switch (code.textValue()) {
+                case "corpus_event_mismatch" -> status == 409
+                        ? new MlException(CORPUS_EVENT_MISMATCH, "Событие не соответствует выбранной версии материалов.", false, status) : null;
+                case "corpus_unavailable" -> new MlException(CORPUS_UNAVAILABLE,
+                        status == 409 ? "Исходная версия материалов недоступна." : "Материалы временно недоступны.", status == 503, status);
+                case "catalog_uninitialized" -> status == 503
+                        ? new MlException(CATALOG_UNINITIALIZED, "Каталог материалов ещё не опубликован.", true, status) : null;
+                case "catalog_cursor_mismatch" -> status == 409
+                        ? new MlException(CATALOG_CURSOR_MISMATCH, "Страница каталога относится к другой публикации. Обновите список материалов.", false, status) : null;
+                default -> null;
+            };
+        } catch (IOException malformed) {
+            return null;
         }
     }
 
@@ -254,18 +291,34 @@ public final class HttpMlClient implements MlClient {
 
     private void validateReferences(JsonNode result, JsonNode profile) {
         Set<String> sourceIds = new HashSet<>();
+        var sources = new java.util.HashMap<String, JsonNode>();
         for (JsonNode source : result.path("sources")) {
             String id = source.path("source_id").asText();
             if (id.isBlank() || !sourceIds.add(id)) {
                 throw invalid("ML response has empty or duplicate source IDs");
             }
+            sources.put(id, source);
+        }
+        for (JsonNode conflict : result.path("conflicts")) {
+            for (JsonNode ref : conflict.path("source_ids")) {
+                if (!sourceIds.contains(ref.asText())) throw invalid("ML conflict references an absent source");
+            }
         }
         for (String section : List.of("what_happened", "why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view", "claims", "scenarios")) {
             for (JsonNode claim : result.path(section)) {
+                Set<String> cited = new HashSet<>();
                 for (JsonNode ref : claim.path("source_ids")) {
                     if (!sourceIds.contains(ref.asText())) {
                         throw invalid("ML assertion references an absent source");
                     }
+                    cited.add(ref.asText());
+                }
+                for (JsonNode span : claim.path("evidence_spans")) {
+                    JsonNode source = sources.get(span.path("source_id").asText());
+                    if (source == null || !cited.contains(span.path("source_id").asText()))
+                        throw invalid("ML evidence span references an uncited source");
+                    if (source.hasNonNull("content_sha256") && !source.get("content_sha256").equals(span.get("content_sha256")))
+                        throw invalid("ML evidence span differs from its source version");
                 }
                 if (profile != null) {
                     for (JsonNode feature : claim.path("profile_features")) {
@@ -355,7 +408,7 @@ public final class HttpMlClient implements MlClient {
         return duration;
     }
 
-    private static String segment(String value) {
+    static String segment(String value) {
         StringBuilder encoded = new StringBuilder();
         for (byte b : value.getBytes(StandardCharsets.UTF_8)) {
             int c = b & 0xff;

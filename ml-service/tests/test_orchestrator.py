@@ -1,4 +1,4 @@
-from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.llm import DailyBudget, LLMError
 from insight_agent.schemas import ClaimKind, InsightStatus, Outcome, UserRole
 from insight_agent.tools.bank import BankIndex
@@ -11,13 +11,13 @@ def record_events(agent, insight):
 
 def test_enough_data_gives_complete_personal_insight(make_agent, request_):
     client = ScriptedClient(
-        {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()]}
+        {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))]}
     )
     agent = make_agent(client)
     insight = agent.run(request_)
 
     assert insight.status == InsightStatus.complete, insight.self_check.issues
-    assert client.steps() == ["analyze_event", "plan", "personalize"]
+    assert client.steps() == ["analyze_event", "plan", "personalize", "semantic_verify"]
     assert {"products.loans", "products.leasing", "okved_code"} <= set(insight.profile_features_used)
     assert {s.source_id for s in insight.sources} >= {"news_demo_rate", "bank_demo_rate_p3"}
     assert insight.bank_view[0].kind == ClaimKind.assessment
@@ -40,7 +40,7 @@ def test_no_bank_material_broadens_search_then_limits_output(make_agent, request
         {
             "analyze_event": [analysis_reply()],
             "plan": [plan_reply()],
-            "personalize": [draft_reply(with_bank=False)],
+            "personalize": [draft_reply(with_bank=False)], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply(with_bank=False)))],
         }
     )
     agent = make_agent(client, bank=BankIndex([]))
@@ -60,16 +60,17 @@ def test_invented_number_is_revised_with_feedback(make_agent, request_):
             "analyze_event": [analysis_reply()],
             "plan": [plan_reply()],
             "personalize": [draft_reply(bad_number=True)],
+            "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))],
             "revise": [draft_reply()],
         }
     )
     agent = make_agent(client)
     insight = agent.run(request_)
 
-    assert client.steps() == ["analyze_event", "plan", "personalize", "revise"]
+    assert client.steps() == ["analyze_event", "plan", "personalize", "revise", "semantic_verify"]
     assert insight.status == InsightStatus.complete
     assert insight.self_check.iterations == 2
-    assert insight.self_check.adaptations == ["revise:unsupported_number"]
+    assert insight.self_check.adaptations == ["revise:invalid_evidence_span,unsupported_number"]
     assert all("21%" not in c.text for c in insight.why_it_matters)
 
 
@@ -79,6 +80,7 @@ def test_persistent_error_drops_unsupported_claim(make_agent, request_):
             "analyze_event": [analysis_reply()],
             "plan": [plan_reply()],
             "personalize": [draft_reply(bad_number=True)],
+            "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))],
             "revise": [draft_reply(bad_number=True)],
         }
     )
@@ -96,7 +98,7 @@ def test_planner_failure_falls_back_to_rule_plan(make_agent, request_):
         {
             "analyze_event": [analysis_reply()],
             "plan": [LLMError("503")],
-            "personalize": [draft_reply()],
+            "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))],
         }
     )
     agent = make_agent(client)
@@ -110,7 +112,7 @@ def test_planner_failure_falls_back_to_rule_plan(make_agent, request_):
 
 def test_event_analysis_is_shared_between_roles(make_agent, request_):
     client = ScriptedClient(
-        {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()]}
+        {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply())) for _ in range(2)]}
     )
     agent = make_agent(client)
     agent.run(request_)
@@ -118,6 +120,7 @@ def test_event_analysis_is_shared_between_roles(make_agent, request_):
 
     assert client.steps().count("analyze_event") == 1
     assert client.steps().count("personalize") == 2
+    assert client.steps().count("semantic_verify") == 2
 
 
 def test_budget_exhausted_returns_failed_insight(make_agent, request_):
@@ -132,7 +135,7 @@ def test_budget_exhausted_returns_failed_insight(make_agent, request_):
 
 
 def _full_script(**draft):
-    return {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply(**draft)]}
+    return {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply(**draft)], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply(**draft)))]}
 
 
 def test_full_insight_has_outcome_request_ids_and_unique_claim_ids(make_agent, request_):
@@ -163,7 +166,7 @@ def test_nothing_grounded_left_is_a_refusal(make_agent, request_):
     hollow["consequences"] = [
         {"text": "Выдуманное последствие.", "kind": "inference", "source_ids": ["no_such_source"], "profile_features": ["products.loans"]}
     ]
-    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [hollow], "revise": [hollow]}
+    script = {"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [hollow], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))], "revise": [hollow]}
     insight = make_agent(ScriptedClient(script)).run(request_)
 
     assert (insight.status, insight.outcome, insight.error_code) == (InsightStatus.limited, Outcome.refused, None)

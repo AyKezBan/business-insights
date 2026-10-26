@@ -1,10 +1,12 @@
+import hashlib
+import json
 from datetime import UTC, date as Date, datetime, timedelta, timezone
 from decimal import Decimal
 from enum import StrEnum
 from typing import Annotated, Literal
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, field_validator, model_validator
 
 Sha256 = Annotated[str, Field(pattern=r"^[a-f0-9]{64}$")]
 
@@ -266,12 +268,36 @@ class QuestionRequest(BaseModel):
     question: str = Field(min_length=1, max_length=1000)
 
 
+class EvidenceSpan(BaseModel):
+    """Offsets in the exact source body, measured in Unicode code points."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    source_id: str = Field(min_length=1, strict=True)
+    content_sha256: Sha256
+    start: int = Field(ge=0, strict=True)
+    end: int = Field(gt=0, strict=True)
+
+    @model_validator(mode="after")
+    def ordered_bounds(self):
+        if self.end <= self.start:
+            raise ValueError("Evidence span must be nonempty and ordered")
+        return self
+
+    @property
+    def span_id(self) -> str:
+        identity = json.dumps([self.source_id, self.content_sha256, self.start, self.end],
+                              ensure_ascii=False, separators=(",", ":"))
+        return "span:" + hashlib.sha256(identity.encode("utf-8")).hexdigest()
+
+
 class Claim(BaseModel):
     claim_id: str | None = None
     text: str
     kind: ClaimKind
     source_ids: list[str] = Field(default_factory=list)
     profile_features: list[str] = Field(default_factory=list)
+    evidence_spans: list[EvidenceSpan] = Field(default_factory=list)
 
 
 class Impact(Claim):

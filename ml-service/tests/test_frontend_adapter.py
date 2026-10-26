@@ -2,7 +2,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.api import create_app
 from insight_agent.frontend_adapter import BANK_ABSENT, to_frontend_card
 from insight_agent.tools.bank import BankIndex
@@ -12,7 +12,7 @@ UI_CERTAINTY = {"fact", "inference", "hypothesis", "assessment", "recommendation
 
 
 def _insight(make_agent, request_, **draft):
-    client = ScriptedClient({"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply(**draft)]})
+    client = ScriptedClient({"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply(**draft)], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply(**draft)))]})
     bank = BankIndex([]) if draft.get("with_bank") is False else None
     return make_agent(client, bank=bank).run(request_)
 
@@ -71,8 +71,8 @@ def test_unknown_view_is_rejected(make_agent, request_):
 
 def _http(make_agent, request_):
     answer = lambda _m: {"answerable": True, "text": "Ставка сохранится.", "claims": [  # noqa: E731
-        {"text": "Ставка останется на уровне 18%.", "kind": "assessment", "source_ids": ["bank_demo_rate_p3"]}]}
-    client = ScriptedClient({"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()], "answer": [answer]})
+        draft_reply()["bank_view"][0]]}
+    client = ScriptedClient({"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))], "answer": [answer]})
     http = TestClient(create_app(make_agent(client)))
     insight = http.post("/v1/insights", content=request_.model_dump_json(), headers={"content-type": "application/json"}).json()
     return http, insight["insight_id"]

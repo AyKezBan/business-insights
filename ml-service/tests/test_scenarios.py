@@ -2,17 +2,18 @@
 from datetime import date
 from decimal import Decimal
 
-from fakes import FIXTURES, ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import FIXTURES, ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.schemas import ClaimKind, InsightStatus, Products
 from insight_agent.tools.bank import BankIndex
 from insight_agent.trace import load_trace
 
 
-def _script(personalize=None):
+def _script(personalize=None, *, batches=1):
     return {
         "analyze_event": [analysis_reply()],
         "plan": [plan_reply()],
         "personalize": [personalize or draft_reply()],
+        "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()) + semantic_contents(draft_reply(with_bank=False))) for _ in range(batches)],
         "revise": [personalize or draft_reply()],
     }
 
@@ -53,13 +54,14 @@ def test_t02_each_company_prompt_contains_only_its_own_signals(make_agent, reque
 
 def test_t03_changed_product_flag_is_not_served_from_a_cached_card(make_agent, request_):
     prompts = []
-    client = ScriptedClient(_script(_capturing(prompts)))
+    client = ScriptedClient(_script(_capturing(prompts), batches=2))
     agent = make_agent(client)
     agent.run(request_)
     changed = request_.profile.model_copy(update={"products": request_.profile.products.model_copy(update={"loans": False})})
     agent.run(request_.model_copy(update={"profile": changed}))
 
     assert client.steps().count("personalize") == 2
+    assert client.steps().count("semantic_verify") == 2
     assert "products.loans" in prompts[0] and "products.loans" not in prompts[1]
 
 

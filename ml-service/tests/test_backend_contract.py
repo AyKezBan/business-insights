@@ -56,3 +56,15 @@ def test_counterparty_features_keep_the_original_index_of_the_sent_list():
 def test_features_of_unknown_values_are_not_offered():
     bare = CompanyProfile(company_id="U_Y", products=Products(loans=False), foreign_trade=False)
     assert [s.feature for s in derive_signals(bare)] == []
+
+
+def test_java_pinned_exchange_schemas_match_current_ml_protocol():
+    """A stale packaged Java schema must fail even when unknown JSON fields are tolerated."""
+    import json
+    from pathlib import Path
+    from insight_agent.schemas import Answer, Insight, InsightRequest, QuestionRequest, TraceEvent
+    root = Path(__file__).resolve().parents[2]
+    resources = root / "backend-api/src/main/resources/ml-contracts"
+    for name, model in {"insight": Insight, "insight-request": InsightRequest, "answer": Answer,
+                        "question-request": QuestionRequest, "trace-event": TraceEvent}.items():
+        assert json.loads((resources / f"{name}.schema.json").read_text()) == model.model_json_schema(), name

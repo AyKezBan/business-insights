@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import ScriptedClient, analysis_reply, draft_reply, plan_reply, reviewed_semantics, semantic_contents
 from insight_agent.agent.prompts import data_block, injection_markers
 from insight_agent.agent.state import AgentState
 from insight_agent.schemas import InsightRequest, InsightStatus
@@ -72,7 +72,7 @@ def test_naive_as_of_is_treated_as_utc(request_):
 
 
 def test_as_of_is_written_to_the_trace(make_agent, request_):
-    client = ScriptedClient({"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()]})
+    client = ScriptedClient({"analyze_event": [analysis_reply()], "plan": [plan_reply()], "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))]})
     agent = make_agent(client)
     insight = agent.run(request_.model_copy(update={"as_of": datetime(2026, 10, 25, tzinfo=UTC)}))
     start = load_trace(agent.settings.trace_dir, insight.run_id)[0].data
@@ -111,7 +111,7 @@ def test_poisoned_news_is_treated_as_data_and_logged(make_agent, request_):
         seen.append(messages[-1]["content"])
         return analysis_reply()
 
-    client = ScriptedClient({"analyze_event": [capture], "plan": [plan_reply()], "personalize": [draft_reply()]})
+    client = ScriptedClient({"analyze_event": [capture], "plan": [plan_reply()], "personalize": [draft_reply()], "semantic_verify": [reviewed_semantics(semantic_contents(draft_reply()))]})
     agent = make_agent(client)
     poisoned = request_.model_copy(update={"event": request_.event.model_copy(update={"text": request_.event.text + PAYLOAD})})
     insight = agent.run(poisoned)
