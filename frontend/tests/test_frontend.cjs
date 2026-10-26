@@ -122,18 +122,31 @@ async function main() {
     walk(blockedApp.root).find(e=>e.tagName==='button' && e.textContent==='Полезно').onclick();
     assert(blockedApp.doc.getElementById('page').textContent.includes('Не удалось сохранить оценку'));
 
+    const sentBefore = app.requests.length;
     app.location.hash='#/profile'; await app.run('renderRoute()');
     app.doc.getElementById('profile-name').value='Тестовый пользователь';
     app.doc.getElementById('profile-company').value='energy'; app.doc.getElementById('profile-role').value='ceo';
     await app.doc.getElementById('profile-form').onsubmit({preventDefault(){}});
     const saved = JSON.parse(app.storage.get('d09-d10-profile-v1'));
     assert.equal(saved.company_id,'energy'); assert.equal(saved.role,'ceo');
-    const sentBefore = app.requests.length;
-    app.doc.getElementById('login').value='test-login'; app.doc.getElementById('password').value='secret-not-to-store';
-    app.doc.getElementById('login-form').onsubmit({preventDefault(){}});
-    assert.equal(app.requests.length,sentBefore); assert.equal(app.doc.getElementById('password').value,'');
-    assert(!JSON.stringify([...app.storage]).includes('secret-not-to-store'));
-    assert(app.doc.getElementById('login-status').textContent.includes('не отправлены'));
+    assert.equal(app.doc.getElementById('login'), undefined);
+    assert.equal(app.doc.getElementById('password'), undefined);
+    assert.equal(app.doc.getElementById('login-form'), undefined);
+    const profileContent = app.doc.getElementById('page').textContent;
+    assert(profileContent.includes('Персональная аналитика'));
+    assert(profileContent.includes('Выберите компанию и должность'));
+    assert.equal(app.requests.length,sentBefore, 'Opening and saving the local profile must not send requests');
+    const feedLink = walk(app.root).find(e=>e.tagName==='a' && e.textContent==='Перейти к бизнес-событиям →');
+    assert(feedLink, 'Profile must offer a working link to business events');
+    app.location.hash=feedLink.href; await app.run('renderRoute()');
+    assert.equal(app.run('state.ctx.company_id'),'energy');
+    assert.equal(app.run('state.ctx.role'),'ceo');
+    const feedRequest = app.requests.at(-1);
+    assert(feedRequest.url.startsWith('/api/feed?'));
+    const feedParams = new URL(feedRequest.url,base).searchParams;
+    assert.equal(feedParams.get('company_id'),'energy');
+    assert.equal(feedParams.get('role'),'ceo');
+    assert(!app.requests.slice(sentBefore).some(r=>r.options?.method==='POST'), 'Profile navigation must not trigger generation');
 
     const reloaded = setup(source,base,app.storage,'#/insight/rate?company_id=retail&role=cfo&view=overview');
     await reloaded.run('init()');
@@ -145,7 +158,7 @@ async function main() {
     assert.equal(walk(reloaded.root).filter(e=>e.tagName==='details').length,3);
     assert.equal(walk(reloaded.root).filter(e=>e.tagName==='summary' && e.textContent==='На чём основан вывод').length,3);
     assert.equal(walk(reloaded.root).filter(e=>String(e.className||'').startsWith('source-origin ')).length,6);
-    for(const text of ['Факт события','Вывод AI по внешним источникам','Оценка банка','не официальная позиция банка','Синтетические материалы','Не является инвестрекомендацией']) assert(reloaded.text().includes(text));
+    for(const text of ['Факт события','Вывод AI по внешним источникам','Аналитический сценарий по указанному материалу','не официальная позиция банка','Примеры материалов аналитического сценария','Не является инвестрекомендацией']) assert(reloaded.text().includes(text), 'Expected UI text: '+text);
     assert(reloaded.text().includes('Сохранение ставки само по себе не меняет условия договоров'));
     assert(reloaded.text().includes('Быстрое удешевление нового финансирования не гарантировано'));
     assert(reloaded.text().includes('Для энергетики: стоимость нового финансирования'));
@@ -198,7 +211,7 @@ async function main() {
     const omittedSections = reloaded.run(`(() => { const card={...state.card,blocks:state.card.blocks.map(b=>b.kind==='bank'?{...b,sections:b.sections.filter(s=>s.kind!=='risks')}:b.kind==='open'?{...b,sections:b.sections.filter(s=>s.kind!=='risks')}:b.kind==='ai'?{...b,sections:b.sections.filter(s=>s.kind!=='risks')}:b)}; $('page').replaceChildren(); renderCard(card); return $('page').textContent; })()`);
     assert(omittedSections.includes('Вывод AI для компании · не официальная позиция банкаВывод для компании по этой теме недоступен: раздел не предоставлен.Нет данных'));
     assert(omittedSections.includes('Вывод AI по внешним источникамРаздел по этой теме не предоставлен.Нет данных'));
-    assert(omittedSections.includes('Оценка банка · в этой демонстрации учебнаяРаздел по этой теме не предоставлен.Нет данных'));
+    assert(omittedSections.includes('Аналитический сценарий по указанному материалуРаздел по этой теме не предоставлен.Нет данных'));
     const unknownCertainty = reloaded.run(`(() => { const card={...state.card,blocks:state.card.blocks.map(b=>b.kind==='ai'?{...b,sections:b.sections.map(s=>({...s,certainty:'future-type'}))}:b)}; $('page').replaceChildren(); renderCard(card); return $('page').textContent; })()`);
     assert(unknownCertainty.includes('Тип утверждения не указан'));
     reloaded.location.hash='#/feed'; await reloaded.run('renderRoute()');

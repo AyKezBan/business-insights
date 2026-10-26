@@ -211,7 +211,7 @@ async function persistServer(key, value, button, message, target = {}) {
 }
 function heading(title, lead) {
   $('page').append(node('h1', title), node('p', lead, 'lead'));
-  document.title = title + ' · учебный Альфа-Бизнес';
+  document.title = title + ' · Альфа-Бизнес';
 }
 function renderHome() {
   heading('Обзор бизнеса', 'Ключевые события и понятные ориентиры для вашей компании.');
@@ -237,7 +237,7 @@ function renderProfile() {
   for (const company of state.data.companies) { const option = node('option', company.name); option.value = company.id; companySelect.append(option); }
   companySelect.value = state.profile.company_id;
   const companyInfo = node('p', '', 'muted'); companyInfo.id = 'profile-company-info';
-  const describeCompany = () => { const company = state.data.companies.find(c => c.id === companySelect.value); companyInfo.textContent = 'Отрасль: ' + (company.sector || 'не указана') + (api.mode === 'demo' ? '. Данные компании — демонстрационные.' : ''); };
+  const describeCompany = () => { const company = state.data.companies.find(c => c.id === companySelect.value); companyInfo.textContent = 'Отрасль: ' + (company.sector || 'не указана'); };
   describeCompany();
   const roleLabel = node('label', api.mode === 'server' ? 'Аналитическая роль' : 'Должность'); roleLabel.htmlFor = 'profile-role';
   const roleSelect = node('select'); roleSelect.id = 'profile-role';
@@ -270,16 +270,12 @@ function renderProfile() {
     const session = node('section', '', 'panel'); session.append(node('h2', 'Сессия интернет-банка'), node('p', 'Доступ проверяет сервер. Выбор компании не предоставляет дополнительных прав.'));
     grid.append(details, session); $('page').append(grid); status('Профиль пользователя'); return;
   }
-  const auth = node('section', '', 'panel'); auth.append(node('h2', 'Вход в аккаунт'), node('p', 'Форма будущего входа по логину и паролю. Сейчас доступен демонстрационный профиль.', 'muted'));
-  const loginForm = node('form'); loginForm.id = 'login-form';
-  const loginLabel = node('label', 'Логин'); loginLabel.htmlFor = 'login';
-  const login = node('input'); login.id = 'login'; login.name = 'username'; login.autocomplete = 'username'; login.required = true; login.maxLength = 100; login.placeholder = 'Ваш логин';
-  const passwordLabel = node('label', 'Пароль'); passwordLabel.htmlFor = 'password';
-  const password = node('input'); password.id = 'password'; password.name = 'password'; password.type = 'password'; password.autocomplete = 'current-password'; password.required = true; password.maxLength = 256;
-  const enter = node('button', 'Войти', 'primary'); enter.type = 'submit';
-  const message = node('p', '', 'muted'); message.id = 'login-status'; message.setAttribute('role', 'status');
-  loginForm.onsubmit = event => {event.preventDefault(); password.value = ''; message.textContent = 'Вход пока не подключён. Логин и пароль не отправлены и не сохранены. Продолжайте работу с демопрофилем.';};
-  loginForm.append(loginLabel, login, passwordLabel, password, enter, message); auth.append(loginForm); grid.append(details, auth); $('page').append(grid); status('Профиль пользователя');
+  const session = node('section', '', 'panel');
+  session.append(node('h2', 'Персональная аналитика'),
+    node('p', 'Выберите компанию и должность, чтобы видеть события с учётом вашего бизнес-контекста.'),
+    node('p', 'Выбранный профиль сохраняется в этом браузере и используется при переходах между страницами.', 'muted'),
+    link('Перейти к бизнес-событиям →', 'feed', {}, 'primary-link'));
+  grid.append(details, session); $('page').append(grid); status('Профиль пользователя');
 }
 function feedbackPanel(card) {
   if (api.mode === 'server') return serverFeedbackPanel(card);
@@ -475,10 +471,10 @@ function renderCard(card) {
   else factSection.append(node('p', 'Факт события не предоставлен.', 'muted'));
   blocks.append(factSection);
   const themeMap = {consequences: 'Влияние на компанию', risks: 'Риски и неопределённость', recommendations: 'Что проверить дальше'};
-  const origins = {open: 'Вывод AI по внешним источникам', bank: api.mode === 'demo' ? 'Оценка банка · в этой демонстрации учебная' : 'Оценка банка по указанному материалу', ai: 'Вывод AI для компании · не официальная позиция банка'};
+  const origins = {open: 'Вывод AI по внешним источникам', bank: api.mode === 'demo' ? 'Аналитический сценарий по указанному материалу' : 'Оценка банка по указанному материалу', ai: 'Вывод AI для компании · не официальная позиция банка'};
   const bankBlock = card.blocks.find(b => b.kind === 'bank');
   const bankUnavailable = !bankBlock || !bankBlock.sections?.some(part => part.certainty !== 'unavailable');
-  if (bankUnavailable) blocks.append(node('p', api.mode === 'demo' ? 'Для этого события оценка банка недоступна: в демонстрационном наборе нет релевантного материала.' : 'Для этого события оценка банка недоступна: подтверждающий материал не предоставлен.', 'bank-unavailable'));
+  if (bankUnavailable) blocks.append(node('p', 'Для этого события оценка банка недоступна: подтверждающий материал не предоставлен.', 'bank-unavailable'));
   for (const kind of ['consequences', 'risks', 'recommendations']) {
     if (state.ctx.view !== 'overview' && state.ctx.view !== kind) continue;
     const theme = node('section', '', 'theme-section'); theme.append(node('h2', themeMap[kind], 'block-heading'));
@@ -512,7 +508,7 @@ function renderCard(card) {
     for (const text of card.missing_data) warning.append(node('p', missingDataText(text))); blocks.append(warning);
   }
   content.append(blocks, questionPanel(), feedbackPanel(card));
-  const aside = node('aside', '', 'panel aside-panel'); aside.append(node('h2', 'Основания и источники'), node('p', api.mode === 'demo' ? 'Синтетические материалы для проверки интерфейса. Оригинал открывается в новой вкладке.' : 'Первоисточники выводов. Оригинал открывается в новой вкладке.'), sourceLinks(card.sources), node('p', 'Вывод не заменяет проверку договоров и фактических показателей.'));
+  const aside = node('aside', '', 'panel aside-panel'); aside.append(node('h2', 'Основания и источники'), node('p', api.mode === 'demo' ? 'Примеры материалов аналитического сценария. Оригинал открывается в новой вкладке.' : 'Первоисточники выводов. Оригинал открывается в новой вкладке.'), sourceLinks(card.sources), node('p', 'Вывод не заменяет проверку договоров и фактических показателей.'));
   const disclaimer = node('div', '', 'investment-note'); disclaimer.append(node('strong', 'Не является инвестрекомендацией'), node('p', card.disclaimer)); aside.append(disclaimer);
   layout.append(content, aside); $('page').append(layout); status(card.outcome === 'LIMITED' || card.missing_data.length ? 'Карточка готова · есть ограничения данных' : 'Карточка готова');
 }
@@ -632,7 +628,6 @@ async function init() {
     if (generation !== bootstrapGeneration) return;
     if (controller.signal.aborted) throw new Error('Сервис не ответил за 15 секунд. Повторите подключение.');
     if (!result.companies?.length || !result.profile || !result.roles) throw new Error('В сессии нет доступного профиля компании.');
-    const badge=document.querySelector('.demo-pill'); if (badge) badge.textContent=api.mode==='demo' ? 'Учебные данные' : 'Серверный режим';
     const stored = api.mode === 'demo' ? readStored(PROFILE_KEY, result.profile) : serverProfile(result);
     const valid = stored && typeof stored.name === 'string' && stored.name.trim().length > 0 && stored.name.length <= 100 && result.companies.some(c => c.id === stored.company_id) && Object.hasOwn(result.roles, stored.role);
     state.data = result;
