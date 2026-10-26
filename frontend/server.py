@@ -162,7 +162,10 @@ class Handler(BaseHTTPRequestHandler):
         try:
             files = {"/": ("index.html", "text/html"), "/app.js": ("app.js", "text/javascript"),
                      "/integration.js": ("integration.js", "text/javascript"),
+                     "/backend-bindings.js": ("backend-bindings.js", "text/javascript"),
                      "/styles.css": ("styles.css", "text/css")}
+            if url.path == "/config.js":
+                return self.send(b"window.INSIGHTS_CONFIG = {mode: 'demo'};", mime="text/javascript; charset=utf-8")
             if url.path in files:
                 name, mime = files[url.path]
                 return self.send((ROOT / "web" / name).read_bytes(), mime=mime + "; charset=utf-8")

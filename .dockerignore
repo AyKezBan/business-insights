@@ -1,0 +1,8 @@
+*
+!frontend/
+!frontend/web/
+!frontend/web/**
+!infra/
+!infra/nginx/
+!infra/nginx/**
+!infra/frontend.Dockerfile

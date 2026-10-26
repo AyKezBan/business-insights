@@ -117,11 +117,11 @@ async function service(name, input, controller, requestId) {
   try { if (pendingOperations.has(operationKey)) { const result = await pendingOperations.get(operationKey)(controller.signal); pendingOperations.delete(operationKey); return result; } return await api.call(name, input, {signal:controller.signal, requestId, onProgress: () => status('Анализ выполняется. Можно перейти на другой экран.')}); }
   catch (e) { if (e.resume) pendingOperations.set(operationKey,e.resume); guardAccess(e); throw e; }
 }
-async function persistServer(key, value, button, message) {
-  const epoch = state.epoch, context = {...state.ctx}; button.disabled = true;
+async function persistServer(key, value, button, message, target = {}) {
+  const epoch = state.epoch, context = {...(target.context || state.ctx)}; button.disabled = true;
   message.textContent = 'Сохраняем…';
   try {
-    await service('savePreference', {context, key, value, insight_id:state.card?.insight_id}, new AbortController(), crypto.randomUUID());
+    await service('savePreference', {context, key, value, insight_id:target.insight_id || state.card?.insight_id}, new AbortController(), crypto.randomUUID());
     if (epoch !== state.epoch) return false;
     state.preferences = {...state.preferences, [key]:{...state.preferences[key], ...value}};
     message.textContent = 'Сохранено на сервере.'; return true;
@@ -259,7 +259,7 @@ function renderFeed(result) {
       if (JSON.stringify(state.ctx) !== restoreContext) return;
       if (api.mode === 'server') {
         const epoch=state.epoch;
-        for (const event of hidden) { if (epoch!==state.epoch) return; if (!await persistServer(preferenceKey(event.id), {hidden:false}, restore, hiddenBar)) return; }
+        for (const event of hidden) { if (epoch!==state.epoch) return; if (!await persistServer(preferenceKey(event.id), {hidden:false}, restore, hiddenBar, {context:{...state.ctx,event_id:event.id},insight_id:event.insight_id})) return; }
         await renderRoute(); return;
       }
       const updated = {...state.preferences};
@@ -276,7 +276,7 @@ function renderFeed(result) {
     const actions = node('div', '', 'event-actions');
     const hide = node('button', 'Скрыть'); hide.setAttribute('aria-label', 'Скрыть событие «' + event.title + '»');
     const hideKey = preferenceKey(event.id), hideContext = `${state.profile.company_id}:${state.profile.role}`;
-    hide.onclick = async () => { if (`${state.profile.company_id}:${state.profile.role}` !== hideContext) return; if (api.mode === 'server') { const message=node('p','','muted'); card.append(message); if (await persistServer(hideKey,{hidden:true},hide,message)) await renderRoute(); return; } const updated = {...state.preferences, [hideKey]: {...state.preferences[hideKey], hidden: true}}; if (!saveStored(PREFERENCES_KEY, updated)) { showError('Не удалось сохранить скрытие в этом браузере.'); return; } state.preferences = updated; renderRoute(); };
+    hide.onclick = async () => { if (`${state.profile.company_id}:${state.profile.role}` !== hideContext) return; if (api.mode === 'server') { const message=node('p','','muted'); card.append(message); if (await persistServer(hideKey,{hidden:true},hide,message,{context:{...state.ctx,event_id:event.id},insight_id:event.insight_id})) await renderRoute(); return; } const updated = {...state.preferences, [hideKey]: {...state.preferences[hideKey], hidden: true}}; if (!saveStored(PREFERENCES_KEY, updated)) { showError('Не удалось сохранить скрытие в этом браузере.'); return; } state.preferences = updated; renderRoute(); };
     actions.append(link('Разобраться в событии →', 'insight/' + event.id), hide);
     card.append(meta, node('h2', event.title), node('span', 'Требует проверки данных', 'badge'), node('p', event.why), actions); grid.append(card);
   }
@@ -304,7 +304,7 @@ function renderCard(card) {
   const layout = node('div', '', 'card-layout'); const content = node('div'); const blocks = node('article', '', 'panel thematic-analysis');
   const fact = card.blocks.find(b => b.kind === 'fact');
   const factSection = node('section', '', 'block fact'); factSection.append(node('h2', 'Что произошло', 'block-heading'));
-  if (fact) factSection.append(node('span', 'Факт события', 'tag'), node('p', fact.text), claimEvidence(fact, card.sources));
+  if (fact && (!fact.claims || fact.claims.length)) for (const claim of fact.claims || [fact]) factSection.append(node('span', claim.certainty === 'fact' ? 'Факт события' : certaintyLabels[claim.certainty] || 'Тип утверждения не указан', 'tag'), node('p', claim.text), claimEvidence(claim, card.sources));
   else factSection.append(node('p', 'Факт события не предоставлен.', 'muted'));
   blocks.append(factSection);
   const themeMap = {consequences: 'Влияние на компанию', risks: 'Риски и неопределённость', recommendations: 'Что проверить дальше'};
@@ -315,17 +315,23 @@ function renderCard(card) {
   for (const kind of ['consequences', 'risks', 'recommendations']) {
     if (state.ctx.view !== 'overview' && state.ctx.view !== kind) continue;
     const theme = node('section', '', 'theme-section'); theme.append(node('h2', themeMap[kind], 'block-heading'));
-    const aiPart = card.blocks.find(b => b.kind === 'ai')?.sections?.find(section => section.kind === kind);
-    if (aiPart) theme.append(node('p', origins.ai, 'origin-note ai-origin'), node('p', aiPart.text, 'analysis-copy'), node('span', certaintyLabels[aiPart.certainty] || 'Тип утверждения не указан', 'tag'), claimEvidence(aiPart, card.sources));
+    const aiParts = card.blocks.find(b => b.kind === 'ai')?.sections?.filter(section => section.kind === kind) || [];
+    if (aiParts.length) { theme.append(node('p', origins.ai, 'origin-note ai-origin')); for (const aiPart of aiParts) {
+      if (aiPart.label) theme.append(node('p',aiPart.label,'muted'));
+      theme.append(node('p', aiPart.text, 'analysis-copy'), node('span', certaintyLabels[aiPart.certainty] || 'Тип утверждения не указан', 'tag'), claimEvidence(aiPart, card.sources));
+    } }
     else theme.append(node('p', origins.ai, 'origin-note ai-origin'), node('p', 'Вывод для компании по этой теме недоступен: раздел не предоставлен.', 'muted'), node('span', certaintyLabels.unavailable, 'tag'));
     const basis = node('details', '', 'basis-details'); basis.append(node('summary', 'На чём основан вывод'));
     for (const kindOrigin of ['open', 'bank']) {
-      const block = card.blocks.find(b => b.kind === kindOrigin); const part = block?.sections?.find(section => section.kind === kind);
+      const block = card.blocks.find(b => b.kind === kindOrigin); const parts = block?.sections?.filter(section => section.kind === kind) || [];
       const sourceOrigin = node('section', '', 'source-origin ' + kindOrigin);
       sourceOrigin.append(node('p', origins[kindOrigin], 'origin-note'));
-      if (part) {
-        sourceOrigin.append(node('p', part.text, 'origin-copy'));
-        sourceOrigin.append(node('span', certaintyLabels[part.certainty] || 'Тип утверждения не указан', 'tag'), claimEvidence(part, card.sources));
+      if (parts.length) {
+        for (const part of parts) {
+          if (part.label) sourceOrigin.append(node('p',part.label,'muted'));
+          sourceOrigin.append(node('p', part.text, 'origin-copy'));
+          sourceOrigin.append(node('span', certaintyLabels[part.certainty] || 'Тип утверждения не указан', 'tag'), claimEvidence(part, card.sources));
+        }
       } else {
         sourceOrigin.append(node('p', 'Раздел по этой теме не предоставлен.', 'muted'), node('span', certaintyLabels.unavailable, 'tag'));
       }
@@ -371,6 +377,15 @@ async function ask(question, requestId = crypto.randomUUID()) {
     if (result.request_id !== payload.request_id || result.insight_id !== payload.insight_id) throw new Error('Ответ не соответствует запросу или версии карточки.');
     target.replaceChildren(); target.className = 'reply';
     target.append(node('strong', InsightsIntegration.outcomes[result.outcome] || (result.status === 'no_answer' ? 'Достоверный ответ недоступен' : 'Уточнение · есть ограничения')), node('p', question, 'muted'), node('p', result.text), sourceLinks(result.sources));
+    if (result.claims?.length) {
+      const evidence=node('details'); evidence.append(node('summary','Основания ответа'));
+      for (const claim of result.claims) evidence.append(node('p',claim.text),node('span',certaintyLabels[claim.certainty] || 'Тип утверждения не указан','tag'),claimEvidence(claim,result.sources));
+      target.append(evidence);
+    }
+    if (result.missing_data?.length) {
+      const limits=node('div','','limitations'); limits.append(node('strong','Границы ответа'));
+      for (const text of result.missing_data) limits.append(node('p',text)); target.append(limits);
+    }
     status(result.status === 'no_answer' ? 'Недостаточно оснований для ответа' : 'Уточнение готово');
   } catch (e) {
     if (((epoch !== state.epoch || seq !== state.questionSeq) && ![401,403].includes(e.status)) || e.name === 'AbortError') return;

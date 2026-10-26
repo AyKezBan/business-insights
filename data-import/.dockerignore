@@ -1,0 +1,6 @@
+*
+!requirements.txt
+!data_core.py
+!load_postgres.py
+!sql/
+!sql/**
