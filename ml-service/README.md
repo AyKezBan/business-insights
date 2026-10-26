@@ -33,6 +33,7 @@ docker run --rm -p 8000:8000 --env-file ml-service/.env -v "$PWD/ml-service/data
 ## API
 
 - `GET /health`
+- `GET /v1/materials/events?limit=20&offset=0` — страница новостей загруженного корпуса без LLM-вызовов. Возвращает `corpus_revision`, `items` с доказательствами и конфликтами, `next_offset`. Используется backend при явном обновлении ленты.
 - `POST /v1/insights` - инсайт по событию
 - `POST /v1/insights/{insight_id}/questions` - уточняющий вопрос по карточке
 - `GET /v1/runs/{run_id}/trace` - трасса запуска

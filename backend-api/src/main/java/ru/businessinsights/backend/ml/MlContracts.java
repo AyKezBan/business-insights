@@ -14,7 +14,7 @@ import java.util.Map;
  * Wire types for the pinned ML contract.
  */
 public final class MlContracts {
-    public static final String CONTRACT_COMMIT = "7cbd690892addc495fbf9bee144c48931c464170";
+    public static final String CONTRACT_VERSION = "materials-profile-v2";
     public static final String DISCLAIMER = "Аналитика носит информационный характер и не является инвестиционной рекомендацией. "
             + "Выводы с пометкой «вывод модели» и «гипотеза» сформированы AI и не являются позицией Альфа-Банка.";
 
@@ -48,6 +48,9 @@ public final class MlContracts {
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record CompanyProfile(String companyId, String groupId, String okvedCode, String okvedName,
                                  String industry, BigDecimal revenueRub, BigDecimal groupRevenueRub,
+                                 Integer revenueYear, String revenueStatus, String revenueScope,
+                                 Boolean foreignTradeDataAvailable, String paymentPeriod,
+                                 List<String> profileQualityNotes,
                                  String employees, String companyAge, String businessStage,
                                  String ownership, String region, String city, String clientType,
                                  Products products, Boolean foreignTrade, List<String> foreignTradeCountries,
@@ -55,6 +58,7 @@ public final class MlContracts {
                                  BigDecimal selfTransferShare, Map<String, String> userProvided,
                                  List<String> missingFields) {
         public CompanyProfile {
+            profileQualityNotes = immutable(profileQualityNotes);
             products = products == null ? new Products(null, null, null, null, null, null, null) : products;
             foreignTradeCountries = immutable(foreignTradeCountries);
             counterparties = immutable(counterparties);
@@ -67,16 +71,34 @@ public final class MlContracts {
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record SourceRef(String sourceId, SourceKind kind, String title, LocalDate date,
-                            Integer page, String url) {
+                            Integer page, String url, String docId, String contentSha256, String excerpt) {
+    }
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record SourceConflict(String reason, List<String> sourceIds, boolean resolved) {
+        public SourceConflict {
+            sourceIds = immutable(sourceIds);
+        }
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record NewsEvent(String eventId, String title, String text, Instant publishedAt,
-                            SourceRef source, List<SourceRef> relatedSources, List<String> topics) {
+                            SourceRef source, List<SourceRef> relatedSources, List<String> topics,
+                            List<SourceConflict> conflicts) {
         public NewsEvent {
             relatedSources = immutable(relatedSources);
             topics = immutable(topics);
+            conflicts = immutable(conflicts);
+        }
+    }
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record NewsPage(String corpusRevision, List<NewsEvent> items, Integer nextOffset) {
+        public NewsPage {
+            items = immutable(items);
         }
     }
 

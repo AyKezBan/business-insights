@@ -19,7 +19,7 @@ final class PinnedSchemaValidator {
 
     PinnedSchemaValidator(ObjectMapper mapper) {
         Map<String, JsonNode> loaded = new HashMap<>();
-        for (String name : new String[]{"insight-request", "question-request", "insight", "answer", "trace-event"}) {
+        for (String name : new String[]{"insight-request", "question-request", "insight", "answer", "trace-event", "news-page"}) {
             try (InputStream stream = getClass().getResourceAsStream("/ml-contracts/" + name + ".schema.json")) {
                 if (stream == null) {
                     throw new IllegalStateException("Pinned ML schema not found: " + name);
@@ -118,6 +118,9 @@ final class PinnedSchemaValidator {
             if (schema.has("maxLength") && length > schema.get("maxLength").intValue()) {
                 throw invalid(path, "string too long");
             }
+            if (schema.has("pattern") && !java.util.regex.Pattern.compile(schema.get("pattern").asText()).matcher(text).find()) {
+                throw invalid(path, "string does not match pattern");
+            }
             try {
                 if ("date".equals(schema.path("format").asText())) {
                     LocalDate.parse(text);
@@ -127,6 +130,11 @@ final class PinnedSchemaValidator {
                 }
             } catch (DateTimeParseException ex) {
                 throw invalid(path, "invalid date format");
+            }
+        } else if (value.isNumber()) {
+            if (schema.has("minimum") && value.decimalValue().compareTo(schema.get("minimum").decimalValue()) < 0
+                    || schema.has("maximum") && value.decimalValue().compareTo(schema.get("maximum").decimalValue()) > 0) {
+                throw invalid(path, "number out of range");
             }
         }
     }

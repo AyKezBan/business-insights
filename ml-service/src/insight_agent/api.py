@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 
 from insight_agent import __version__
 from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.agent.qa import answer_question
 from insight_agent.config import Settings, get_settings
 from insight_agent.llm import ChatClient, OpenAICompatibleClient
-from insight_agent.schemas import Answer, Insight, InsightRequest, QuestionRequest, TraceEvent
+from insight_agent.schemas import Answer, Insight, InsightRequest, NewsPage, QuestionRequest, TraceEvent
 from insight_agent.tools.bank import BankIndex
 from insight_agent.tools.news import NewsStore
 from insight_agent.trace import load_trace
@@ -49,6 +49,17 @@ def create_app(agent: InsightAgent | None = None) -> FastAPI:
     @app.post("/v1/insights", response_model=Insight)
     def create_insight(request: InsightRequest) -> Insight:
         return agent.run(request)
+
+    @app.get("/v1/materials/events", response_model=NewsPage)
+    def news_events(limit: int = Query(default=20, ge=1, le=100), offset: int = Query(default=0, ge=0, le=1_000_000)) -> NewsPage:
+        # This reads the same immutable corpus snapshot used by analysis; no collection or model calls.
+        ordered = sorted(agent.news.events,
+            key=lambda event: (event.published_at.timestamp() if event.published_at else float("-inf"), event.event_id),
+            reverse=True)
+        items = ordered[offset:offset + limit]
+        next_offset = offset + len(items)
+        return NewsPage(corpus_revision=agent.corpus_snapshot.revision if agent.corpus_snapshot else None,
+            items=items, next_offset=next_offset if next_offset < len(ordered) else None)
 
     @app.post("/v1/insights/{insight_id}/questions", response_model=Answer)
     def ask(insight_id: str, body: QuestionRequest) -> Answer:

@@ -141,6 +141,12 @@ class NewsEvent(BaseModel):
         return self
 
 
+class NewsPage(BaseModel):
+    corpus_revision: str | None = None
+    items: list[NewsEvent]
+    next_offset: int | None = Field(default=None, ge=0)
+
+
 class BankFragment(BaseModel):
     fragment_id: str
     doc_id: str

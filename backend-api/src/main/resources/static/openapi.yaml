@@ -5,23 +5,24 @@ info:
   description: >-
     Prototype inside an authenticated internet-bank context. Public DTOs use camelCase.
     Demo bearer identifies one configured person; person-company links simulate access, not role or real authority.
-    Events are supplied externally. Feed is ordered by ML impact, not a calibrated relevance score.
+    External events can be registered explicitly or read from the prepared ML corpus by an explicit feed refresh.
+    Feed is ordered by explainable relevance weights, then ML impact. Relevance is not a calibrated probability.
     Model text is informational and is not an investment recommendation or an official bank position.
 servers:
   - url: http://localhost:8080
 security:
-  - demoBearer: []
+  - demoBearer: [ ]
 paths:
   /health:
     get:
       operationId: processHealth
-      security: []
+      security: [ ]
       responses:
         '200':
           description: Process responds; does not verify PostgreSQL or ML readiness
           content:
             application/json:
-              schema: {type: object, additionalProperties: {type: string}}
+              schema: { type: object, additionalProperties: { type: string } }
   /api/v1/session:
     get:
       operationId: session
@@ -32,100 +33,196 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [personId, authentication, authorization]
+                required: [ personId, authentication, authorization ]
                 properties:
-                  personId: {type: string}
-                  authentication: {type: string}
-                  authorization: {type: string}
-        default: {$ref: '#/components/responses/Error'}
+                  personId: { type: string }
+                  authentication: { type: string }
+                  authorization: { type: string }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/companies:
     get:
       operationId: listCompanies
       parameters:
-        - {$ref: '#/components/parameters/Limit100'}
-        - {$ref: '#/components/parameters/Offset'}
+        - { $ref: '#/components/parameters/Limit100' }
+        - { $ref: '#/components/parameters/Offset' }
       responses:
         '200':
           description: Linked company references; unavailable profiles retain their status
           content:
             application/json:
-              schema: {type: array, items: {$ref: '#/components/schemas/Company'}}
-        default: {$ref: '#/components/responses/Error'}
+              schema: { type: array, items: { $ref: '#/components/schemas/Company' } }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/companies/{companyId}/profile:
     get:
       operationId: companyProfile
       parameters:
-        - {$ref: '#/components/parameters/CompanyId'}
+        - { $ref: '#/components/parameters/CompanyId' }
       responses:
         '200':
           description: Java assembled facts, provenance, both employee sources and quality
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Profile'}
-        '422': {$ref: '#/components/responses/Error'}
-        default: {$ref: '#/components/responses/Error'}
+              schema: { $ref: '#/components/schemas/Profile' }
+        '422': { $ref: '#/components/responses/Error' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/events:
     post:
       operationId: registerExternalEvent
       description: >-
-        Registers immutable external news. Reusing eventId with different content returns 409.
+        Registers initial external news. Reusing eventId with different content returns 409; use PUT with expectedVersion for corrections.
         Source kind is always news; callers cannot label materials as bank analytics.
         URLs are references and are never fetched by this API. This endpoint does not collect news.
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/Event'}
+            schema: { $ref: '#/components/schemas/Event' }
       responses:
         '200':
           description: Registered event (also returned for identical repeat)
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Event'}
-        '409': {$ref: '#/components/responses/Error'}
-        default: {$ref: '#/components/responses/Error'}
-  /api/v1/analyses:
-    post:
-      operationId: createAnalysis
-      description: Explicit company, role and registered event; no role inference from links.
-      parameters:
-        - {$ref: '#/components/parameters/Idempotency'}
+              schema: { $ref: '#/components/schemas/Event' }
+        '409': { $ref: '#/components/responses/Error' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/events/{eventId}:
+    parameters:
+      - { $ref: '#/components/parameters/EventId' }
+    get:
+      operationId: currentEventVersion
+      responses:
+        '200':
+          description: Current event with its server-assigned version and content fingerprint
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventVersion' }
+        default: { $ref: '#/components/responses/Error' }
+    put:
+      operationId: reviseEvent
+      description: >-
+        Stores a new immutable revision and marks operations for prior revisions stale, including queued/running ones.
+        Identical current content is an idempotent repeat. Changed content requires the current expectedVersion.
+        Historical cards remain accessible by ID. No automatic paid reanalysis occurs.
       requestBody:
         required: true
         content:
           application/json:
-            schema: {$ref: '#/components/schemas/AnalysisInput'}
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ expectedVersion, event ]
+              properties:
+                expectedVersion: { type: integer, format: int64, minimum: 1 }
+                event: { $ref: '#/components/schemas/Event' }
       responses:
-        '202': {$ref: '#/components/responses/Accepted'}
-        '409': {$ref: '#/components/responses/Error'}
-        '503': {$ref: '#/components/responses/Error'}
-        default: {$ref: '#/components/responses/Error'}
+        '200':
+          description: Current revision after correction or identical repeat
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EventVersion' }
+        '409': { $ref: '#/components/responses/Error' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/events/{eventId}/versions:
+    get:
+      operationId: eventHistory
+      parameters:
+        - { $ref: '#/components/parameters/EventId' }
+        - { $ref: '#/components/parameters/Limit100' }
+        - { $ref: '#/components/parameters/Offset' }
+      responses:
+        '200':
+          description: Immutable revisions, newest first, including original evidence and conflicts
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/EventVersion' } }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/companies/{companyId}/insights/refresh:
+    post:
+      operationId: refreshFeed
+      description: >-
+        Explicitly reads a page from GET ML /v1/materials/events, synchronizes event revisions, evaluates company/role
+        relevance and expiry, and queues relevant analyses. This POST can incur model costs through queued operations.
+        Repeated refresh reuses operations for identical profile, role and event revision, including failed operations.
+        Existing operations do not consume maxAnalyses. Deferred candidates can be resubmitted by repeating the page.
+        The returned nextOffset selects the next page of the loaded corpus; restart paging if corpusRevision changes.
+        Reading the feed never starts analysis. Source URLs are never fetched by the backend.
+      parameters:
+        - { $ref: '#/components/parameters/CompanyId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [ role ]
+              properties:
+                role: { $ref: '#/components/schemas/Role' }
+                sourceLimit: { type: integer, minimum: 1, maximum: 100, default: 20 }
+                sourceOffset: { type: integer, minimum: 0, maximum: 1000000, default: 0 }
+                maxAnalyses: { type: integer, minimum: 1, maximum: 16, default: 8 }
+                userProvided:
+                  type: object
+                  maxProperties: 20
+                  additionalProperties: { type: string, minLength: 1, maxLength: 1000 }
+      responses:
+        '202':
+          description: Selection decisions and operation polling URLs; no model result is awaited
+          headers:
+            Retry-After: { schema: { type: integer } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FeedRefresh' }
+        '422': { $ref: '#/components/responses/Error' }
+        '502': { $ref: '#/components/responses/Error' }
+        default: { $ref: '#/components/responses/Error' }
+  /api/v1/analyses:
+    post:
+      operationId: createAnalysis
+      description: >-
+        Explicit company, role and registered event; no role inference from links. Captures the current event version
+        at submission and reads that immutable revision in the worker. Reuse of an idempotency key returns the original
+        operation even after correction; use a new key for a new analysis. Explicit analyses also accept low relevance or expired news.
+      parameters:
+        - { $ref: '#/components/parameters/Idempotency' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AnalysisInput' }
+      responses:
+        '202': { $ref: '#/components/responses/Accepted' }
+        '409': { $ref: '#/components/responses/Error' }
+        '503': { $ref: '#/components/responses/Error' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/operations/{id}:
     get:
       operationId: getOperation
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       responses:
         '200':
           description: Poll until terminal status; Retry-After is set while queued/running
           headers:
-            Retry-After: {schema: {type: integer}, description: Poll delay in seconds}
+            Retry-After: { schema: { type: integer }, description: Poll delay in seconds }
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Operation'}
-        default: {$ref: '#/components/responses/Error'}
+              schema: { $ref: '#/components/schemas/Operation' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/companies/{companyId}/insights:
     get:
       operationId: feed
       description: >-
         Only published SUCCEEDED/LIMITED analyses for this person, company and explicit role.
-        Ordered high, medium, low impact then creation time and UUID descending. Empty items is a valid result.
+        Excludes stale versions and expired news. Returns at most one published card per event, choosing the latest
+        successful/limited analysis before applying hidden-state filtering. Ordered by relevanceScore descending,
+        high/medium/low impact, creation time and UUID descending. Empty items is a valid result.
       parameters:
-        - {$ref: '#/components/parameters/CompanyId'}
-        - {name: role, in: query, required: true, schema: {$ref: '#/components/schemas/Role'}}
-        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
-        - {$ref: '#/components/parameters/Offset'}
-        - {name: includeHidden, in: query, schema: {type: boolean, default: false}}
+        - { $ref: '#/components/parameters/CompanyId' }
+        - { name: role, in: query, required: true, schema: { $ref: '#/components/schemas/Role' } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+        - { $ref: '#/components/parameters/Offset' }
+        - { name: includeHidden, in: query, schema: { type: boolean, default: false } }
       responses:
         '200':
           description: Feed of generated insights; no synthetic fallback
@@ -133,71 +230,71 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [items, limit, offset, order, emptyReason]
+                required: [ items, limit, offset, order, emptyReason ]
                 properties:
-                  items: {type: array, items: {$ref: '#/components/schemas/Insight'}}
-                  limit: {type: integer}
-                  offset: {type: integer}
-                  order: {type: string}
-                  emptyReason: {type: string, nullable: true, enum: [NO_MATCHING_INSIGHTS, null]}
-        default: {$ref: '#/components/responses/Error'}
+                  items: { type: array, items: { $ref: '#/components/schemas/Insight' } }
+                  limit: { type: integer }
+                  offset: { type: integer }
+                  order: { type: string }
+                  emptyReason: { type: string, nullable: true, enum: [ NO_MATCHING_INSIGHTS, null ] }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/insights/{id}:
     get:
       operationId: getInsight
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       responses:
         '200':
           description: Published insight; opening is recorded explicitly via /opened
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Insight'}
-        '409': {$ref: '#/components/responses/Error'}
-        default: {$ref: '#/components/responses/Error'}
+              schema: { $ref: '#/components/schemas/Insight' }
+        '409': { $ref: '#/components/responses/Error' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/insights/{id}/opened:
     post:
       operationId: recordOpen
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       responses:
-        '204': {description: Open state recorded}
-        default: {$ref: '#/components/responses/Error'}
+        '204': { description: Open state recorded }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/insights/{id}/state:
     put:
       operationId: setHidden
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [hidden]
+              required: [ hidden ]
               additionalProperties: false
-              properties: {hidden: {type: boolean}}
+              properties: { hidden: { type: boolean } }
       responses:
-        '204': {description: Personal hidden state saved; hidden=false restores}
-        default: {$ref: '#/components/responses/Error'}
+        '204': { description: Personal hidden state saved; hidden=false restores }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/insights/{id}/feedback:
     put:
       operationId: feedback
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [rating]
+              required: [ rating ]
               additionalProperties: false
               properties:
-                rating: {type: string, enum: [USEFUL, IRRELEVANT, UNSUPPORTED, OTHER]}
-                comment: {type: string, maxLength: 2000, nullable: true}
+                rating: { type: string, enum: [ USEFUL, IRRELEVANT, UNSUPPORTED, OTHER ] }
+                comment: { type: string, maxLength: 2000, nullable: true }
       responses:
-        '204': {description: Latest feedback retained for quality review}
-        default: {$ref: '#/components/responses/Error'}
+        '204': { description: Latest feedback retained for quality review }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/insights/{id}/questions:
     post:
       operationId: askQuestion
@@ -205,75 +302,75 @@ paths:
         New asynchronous operation. ML context may expire after ML restart; this yields a terminal
         ML_CONTEXT_EXPIRED failure. no_answer is a normal NO_RESULT outcome. No automatic POST retries.
       parameters:
-        - {$ref: '#/components/parameters/Id'}
-        - {$ref: '#/components/parameters/Idempotency'}
+        - { $ref: '#/components/parameters/Id' }
+        - { $ref: '#/components/parameters/Idempotency' }
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [question]
+              required: [ question ]
               additionalProperties: false
-              properties: {question: {type: string, minLength: 1, maxLength: 1000}}
+              properties: { question: { type: string, minLength: 1, maxLength: 1000 } }
       responses:
-        '202': {$ref: '#/components/responses/Accepted'}
-        default: {$ref: '#/components/responses/Error'}
+        '202': { $ref: '#/components/responses/Accepted' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/answers/{id}:
     get:
       operationId: getAnswer
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       responses:
         '200':
           description: Answer or explicit no_answer with missing data
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Answer'}
-        '409': {$ref: '#/components/responses/Error'}
-        default: {$ref: '#/components/responses/Error'}
+              schema: { $ref: '#/components/schemas/Answer' }
+        '409': { $ref: '#/components/responses/Error' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/operations/{id}/trace:
     get:
       operationId: getOperationTrace
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       responses:
         '200':
           description: Protected diagnostic snapshot and analysis/question ML steps; may be unavailable
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Trace'}
-        default: {$ref: '#/components/responses/Error'}
+              schema: { $ref: '#/components/schemas/Trace' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/insights/{id}/trace:
     get:
       operationId: getInsightTrace
       description: Alias for operation trace
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       responses:
         '200':
           description: Snapshot and trace
           content:
             application/json:
-              schema: {$ref: '#/components/schemas/Trace'}
-        default: {$ref: '#/components/responses/Error'}
+              schema: { $ref: '#/components/schemas/Trace' }
+        default: { $ref: '#/components/responses/Error' }
   /api/v1/insights/{id}/actions:
     post:
       operationId: recordActionIntent
       description: Records an intent locally; no manager, CRM or third party is contacted.
       parameters:
-        - {$ref: '#/components/parameters/Id'}
+        - { $ref: '#/components/parameters/Id' }
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [action]
+              required: [ action ]
               additionalProperties: false
               properties:
-                action: {type: string, enum: [CONTACT_MANAGER, REQUEST_CALLBACK, REQUEST_ANALYSIS]}
-                comment: {type: string, maxLength: 2000, nullable: true}
+                action: { type: string, enum: [ CONTACT_MANAGER, REQUEST_CALLBACK, REQUEST_ANALYSIS ] }
+                comment: { type: string, maxLength: 2000, nullable: true }
       responses:
         '201':
           description: Intent retained locally
@@ -281,27 +378,28 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [actionId, insightId, action, status, delivery]
+                required: [ actionId, insightId, action, status, delivery ]
                 properties:
-                  actionId: {type: string, format: uuid}
-                  insightId: {type: string, format: uuid}
-                  action: {type: string}
-                  status: {type: string, enum: [RECORDED]}
-                  delivery: {type: string, enum: [LOCAL_ONLY_NO_CRM_DELIVERY]}
-        default: {$ref: '#/components/responses/Error'}
+                  actionId: { type: string, format: uuid }
+                  insightId: { type: string, format: uuid }
+                  action: { type: string }
+                  status: { type: string, enum: [ RECORDED ] }
+                  delivery: { type: string, enum: [ LOCAL_ONLY_NO_CRM_DELIVERY ] }
+        default: { $ref: '#/components/responses/Error' }
 components:
   securitySchemes:
-    demoBearer: {type: http, scheme: bearer, description: BACKEND_DEMO_TOKEN; no token is enabled by default}
+    demoBearer: { type: http, scheme: bearer, description: BACKEND_DEMO_TOKEN; no token is enabled by default }
   parameters:
-    Id: {name: id, in: path, required: true, schema: {type: string, format: uuid}}
-    CompanyId: {name: companyId, in: path, required: true, schema: {type: string, pattern: '^U_[0-9]+$'}}
-    Limit100: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 50}}
-    Offset: {name: offset, in: query, schema: {type: integer, minimum: 0, default: 0}}
+    Id: { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+    CompanyId: { name: companyId, in: path, required: true, schema: { type: string, pattern: '^U_[0-9]+$' } }
+    EventId: { name: eventId, in: path, required: true, schema: { type: string, minLength: 1, maxLength: 200, pattern: '^[A-Za-z0-9_.:-]+$' } }
+    Limit100: { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 50 } }
+    Offset: { name: offset, in: query, schema: { type: integer, minimum: 0, default: 0 } }
     Idempotency:
       name: Idempotency-Key
       in: header
       description: Optional opaque key, scoped to person and operation kind. Same normalized input returns prior operation; different input gives 409. No automatic retries after timeout.
-      schema: {type: string, minLength: 1, maxLength: 100}
+      schema: { type: string, minLength: 1, maxLength: 100 }
   responses:
     Error:
       description: >-
@@ -309,212 +407,261 @@ components:
         422 ambiguous/external profile; 503 DB/dataset/queue/auth configuration unavailable. ML errors appear in operation.error.
       content:
         application/problem+json:
-          schema: {$ref: '#/components/schemas/Problem'}
+          schema: { $ref: '#/components/schemas/Problem' }
     Accepted:
       description: Persisted operation; poll Location. A repeated idempotency key can return a terminal operation.
       headers:
-        Location: {schema: {type: string}}
-        Retry-After: {schema: {type: integer}}
+        Location: { schema: { type: string } }
+        Retry-After: { schema: { type: integer } }
       content:
         application/json:
-          schema: {$ref: '#/components/schemas/Operation'}
+          schema: { $ref: '#/components/schemas/Operation' }
   schemas:
-    Role: {type: string, enum: [owner, ceo, cfo, chief_accountant, treasurer, other_c_level, other]}
+    Role: { type: string, enum: [ owner, ceo, cfo, chief_accountant, treasurer, other_c_level, other ] }
     Level:
       type: string
-      enum: [low, medium, high]
+      enum: [ low, medium, high ]
       description: Qualitative ML estimate; high=material business risk/opportunity, medium=worth analysis, low=limited expected effect. Not a probability or verified relevance score.
-    StringList: {type: array, items: {type: string}}
-    JsonObject: {type: object, additionalProperties: true, description: Versioned diagnostic facts with preserved source identifiers and unknowns}
+    StringList: { type: array, items: { type: string } }
+    JsonObject: { type: object, additionalProperties: true, description: Versioned diagnostic facts with preserved source identifiers and unknowns }
     Company:
       type: object
-      required: [companyId, profileStatus]
+      required: [ companyId, profileStatus ]
       properties:
-        companyId: {type: string}
-        profileStatus: {type: string, enum: [available, ambiguous, external]}
-        clientType: {type: string, nullable: true}
-        okvedName: {type: string, nullable: true}
-        registrationCity: {type: string, nullable: true}
-        registrationRegion: {type: string, nullable: true}
+        companyId: { type: string }
+        profileStatus: { type: string, enum: [ available, ambiguous, external ] }
+        clientType: { type: string, nullable: true }
+        okvedName: { type: string, nullable: true }
+        registrationCity: { type: string, nullable: true }
+        registrationRegion: { type: string, nullable: true }
     Profile:
       type: object
-      required: [companyId, facts, provenance, qualityIssues, sufficientForAnalysis]
+      required: [ companyId, facts, provenance, qualityIssues, sufficientForAnalysis ]
       properties:
-        companyId: {type: string}
-        facts: {$ref: '#/components/schemas/CompanyFacts'}
-        provenance: {$ref: '#/components/schemas/JsonObject'}
-        qualityIssues: {$ref: '#/components/schemas/StringList'}
-        sufficientForAnalysis: {type: boolean, description: At least one usable business feature is known; identifiers/client type alone are insufficient. Does not establish completeness.}
+        companyId: { type: string }
+        facts: { $ref: '#/components/schemas/CompanyFacts' }
+        provenance: { $ref: '#/components/schemas/JsonObject' }
+        qualityIssues: { $ref: '#/components/schemas/StringList' }
+        sufficientForAnalysis: { type: boolean, description: At least one usable business feature is known; identifiers/client type alone are insufficient. Does not establish completeness. }
     CompanyFacts:
       type: object
       description: Unknown values remain null; both raw employee sources and all quality evidence remain in provenance.
       properties:
-        companyId: {type: string}
-        groupId: {type: string, nullable: true}
-        okvedCode: {type: string, nullable: true}
-        okvedName: {type: string, nullable: true}
-        registrationCity: {type: string, nullable: true}
-        registrationRegion: {type: string, nullable: true}
-        revenueRub: {type: number, minimum: 0, nullable: true, description: Reporting year 2025 RUB. Exactly source value 1000 is a placeholder; real zero is preserved.}
-        revenueYear: {type: integer, enum: [2025]}
-        currency: {type: string, enum: [RUB]}
-        consolidatedGroupRevenueRub: {type: number, nullable: true, description: Always null for this incomplete dataset; partial member sum is diagnostic only}
-        clientType: {type: string, nullable: true}
-        employeesResolved: {type: string, nullable: true, description: Null on source conflict; no averaging or arbitrary choice}
-        ftsInformationObserved: {type: boolean, nullable: true, description: Evidence of FTS information only; never inferred false from absence}
-        ftsCountries: {$ref: '#/components/schemas/StringList'}
-        selfTransferShareOfObservedEligiblePayments: {type: number, minimum: 0, maximum: 1, nullable: true, description: Eligible self amount / all eligible incident amount; self counted once, unknown or zero denominator yields null}
+        companyId: { type: string }
+        groupId: { type: string, nullable: true }
+        okvedCode: { type: string, nullable: true }
+        okvedName: { type: string, nullable: true }
+        registrationCity: { type: string, nullable: true }
+        registrationRegion: { type: string, nullable: true }
+        revenueRub: { type: number, minimum: 0, nullable: true, description: Reporting year 2025 RUB. Exactly source value 1000 is a placeholder; real zero is preserved. }
+        revenueYear: { type: integer, enum: [ 2025 ] }
+        currency: { type: string, enum: [ RUB ] }
+        consolidatedGroupRevenueRub: { type: number, nullable: true, description: Always null for this incomplete dataset; partial member sum is diagnostic only }
+        clientType: { type: string, nullable: true }
+        employeesResolved: { type: string, nullable: true, description: Null on source conflict; no averaging or arbitrary choice }
+        ftsInformationObserved: { type: boolean, nullable: true, description: Evidence of FTS information only; never inferred false from absence }
+        ftsCountries: { $ref: '#/components/schemas/StringList' }
+        selfTransferShareOfObservedEligiblePayments: { type: number, minimum: 0, maximum: 1, nullable: true, description: Eligible self amount / all eligible incident amount; self counted once, unknown or zero denominator yields null }
     SourceInput:
       type: object
-      required: [sourceId, title]
+      required: [ sourceId, title ]
       additionalProperties: false
       properties:
-        sourceId: {type: string, minLength: 1, maxLength: 200}
-        title: {type: string, minLength: 1, maxLength: 500}
-        date: {type: string, format: date, nullable: true}
-        page: {type: integer, minimum: 1, nullable: true}
-        url: {type: string, maxLength: 2048, pattern: '^https?://[^\s]+$', nullable: true}
+        sourceId: { type: string, minLength: 1, maxLength: 200 }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        date: { type: string, format: date, nullable: true }
+        page: { type: integer, minimum: 1, nullable: true }
+        url: { type: string, maxLength: 2048, pattern: '^https?://[^\s]+$', nullable: true }
+        docId: { type: string, maxLength: 200, nullable: true }
+        contentSha256: { type: string, pattern: '^[a-f0-9]{64}$', nullable: true }
+        excerpt: { type: string, maxLength: 100000, nullable: true }
+    SourceConflict:
+      type: object
+      additionalProperties: false
+      required: [ reason, sourceIds ]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
+        sourceIds: { type: array, minItems: 1, maxItems: 31, uniqueItems: true, items: { type: string, minLength: 1, maxLength: 200 } }
+        resolved: { type: boolean, default: false }
     Event:
       type: object
-      required: [eventId, title, text, source]
+      required: [ eventId, title, text, source ]
       additionalProperties: false
       properties:
-        eventId: {type: string, minLength: 1, maxLength: 200, pattern: '^[A-Za-z0-9_.:-]+$'}
-        title: {type: string, minLength: 1, maxLength: 500}
-        text: {type: string, minLength: 1, maxLength: 100000}
-        publishedAt: {type: string, format: date-time, nullable: true}
-        source: {$ref: '#/components/schemas/SourceInput'}
-        relatedSources: {type: array, maxItems: 30, items: {$ref: '#/components/schemas/SourceInput'}}
-        topics: {type: array, maxItems: 30, items: {type: string, minLength: 1, maxLength: 100}}
+        eventId: { type: string, minLength: 1, maxLength: 200, pattern: '^[A-Za-z0-9_.:-]+$' }
+        title: { type: string, minLength: 1, maxLength: 500 }
+        text: { type: string, minLength: 1, maxLength: 100000 }
+        publishedAt: { type: string, format: date-time, nullable: true }
+        source: { $ref: '#/components/schemas/SourceInput' }
+        relatedSources: { type: array, maxItems: 30, items: { $ref: '#/components/schemas/SourceInput' } }
+        topics: { type: array, maxItems: 30, items: { type: string, minLength: 1, maxLength: 100 } }
+        conflicts: { type: array, maxItems: 30, items: { $ref: '#/components/schemas/SourceConflict' } }
+    EventVersion:
+      type: object
+      required: [ eventId, version, contentHash, receivedAt, event ]
+      properties:
+        eventId: { type: string }
+        version: { type: integer, format: int64, minimum: 1 }
+        contentHash: { type: string, description: Backend fingerprint of the full event; differs from the source text contentSha256 }
+        receivedAt: { type: string, format: date-time }
+        event: { $ref: '#/components/schemas/Event' }
+    FeedRefresh:
+      type: object
+      required: [ candidates ]
+      properties:
+        corpusRevision: { type: string, nullable: true, description: Loaded corpus revision, null in JSONL mode }
+        nextOffset: { type: integer, nullable: true }
+        candidates:
+          type: array
+          items:
+            type: object
+            required: [ eventId, eventVersion, relevanceScore, reasons, expiresAt, decision ]
+            properties:
+              eventId: { type: string }
+              eventVersion: { type: integer, format: int64, minimum: 1 }
+              relevanceScore: { type: integer, minimum: 0, maximum: 100 }
+              reasons: { $ref: '#/components/schemas/StringList' }
+              expiresAt: { type: string, format: date-time }
+              decision: { type: string, enum: [ ANALYSIS_OPERATION, EXISTING_OPERATION, NOT_RELEVANT, EXPIRED, FUTURE_PUBLICATION, DEFERRED_LIMIT, DEFERRED_QUEUE_FULL ] }
+              operation: { allOf: [ { $ref: '#/components/schemas/Operation' } ], nullable: true }
     AnalysisInput:
       type: object
-      required: [companyId, role, eventId]
+      required: [ companyId, role, eventId ]
       additionalProperties: false
       properties:
-        companyId: {type: string, pattern: '^U_[0-9]+$'}
-        role: {$ref: '#/components/schemas/Role'}
-        eventId: {type: string, minLength: 1, maxLength: 200}
+        companyId: { type: string, pattern: '^U_[0-9]+$' }
+        role: { $ref: '#/components/schemas/Role' }
+        eventId: { type: string, minLength: 1, maxLength: 200 }
         userProvided:
           type: object
           maxProperties: 20
           description: Unverified user assertions, preserved separately without overwriting observed facts. Keys 1..80 and values 1..1000 nonblank characters.
-          additionalProperties: {type: string, minLength: 1, maxLength: 1000}
+          additionalProperties: { type: string, minLength: 1, maxLength: 1000 }
     Problem:
       type: object
-      required: [status, code, message, retryable, requestId]
+      required: [ status, code, message, retryable, requestId ]
       properties:
-        status: {type: integer}
-        code: {type: string}
-        message: {type: string}
-        retryable: {type: boolean}
-        requestId: {type: string}
+        status: { type: integer }
+        code: { type: string }
+        message: { type: string }
+        retryable: { type: boolean }
+        requestId: { type: string }
     Failure:
       type: object
       nullable: true
-      required: [code, message, retryable]
+      required: [ code, message, retryable ]
       properties:
-        code: {type: string}
-        message: {type: string}
-        retryable: {type: boolean, description: Explicit user retry may help; completion can be unknown and a new ML call can incur cost}
+        code: { type: string }
+        message: { type: string }
+        retryable: { type: boolean, description: Explicit user retry may help; completion can be unknown and a new ML call can incur cost }
     Operation:
       type: object
-      required: [operationId, kind, status, createdAt, updatedAt, warnings]
+      required: [ operationId, kind, status, createdAt, updatedAt, warnings ]
       properties:
-        operationId: {type: string, format: uuid}
-        kind: {type: string, enum: [ANALYSIS, QUESTION]}
-        status: {type: string, enum: [QUEUED, RUNNING, SUCCEEDED, LIMITED, NO_RESULT, INSUFFICIENT_DATA, FAILED]}
-        createdAt: {type: string, format: date-time}
-        updatedAt: {type: string, format: date-time}
-        error: {$ref: '#/components/schemas/Failure'}
-        warnings: {$ref: '#/components/schemas/StringList'}
-        insightId: {type: string, format: uuid, nullable: true}
-        parentInsightId: {type: string, format: uuid, nullable: true}
+        operationId: { type: string, format: uuid }
+        kind: { type: string, enum: [ ANALYSIS, QUESTION ] }
+        status: { type: string, enum: [ QUEUED, RUNNING, SUCCEEDED, LIMITED, NO_RESULT, INSUFFICIENT_DATA, FAILED ] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        error: { $ref: '#/components/schemas/Failure' }
+        warnings: { $ref: '#/components/schemas/StringList' }
+        insightId: { type: string, format: uuid, nullable: true }
+        parentInsightId: { type: string, format: uuid, nullable: true }
     Source:
       type: object
-      required: [sourceId, kind, title]
+      required: [ sourceId, kind, title ]
       properties:
-        sourceId: {type: string}
-        kind: {type: string, enum: [news, bank, profile]}
-        title: {type: string}
-        date: {type: string, format: date, nullable: true}
-        page: {type: integer, nullable: true}
-        url: {type: string, nullable: true, description: Safe HTTP(S) URL if supplied; missing URL does not prove a source is accessible}
+        sourceId: { type: string }
+        kind: { type: string, enum: [ news, bank, profile ] }
+        title: { type: string }
+        date: { type: string, format: date, nullable: true }
+        page: { type: integer, nullable: true }
+        url: { type: string, nullable: true, description: Safe HTTP(S) URL if supplied; missing URL does not prove a source is accessible }
+        docId: { type: string, nullable: true }
+        contentSha256: { type: string, pattern: '^[a-f0-9]{64}$', nullable: true }
+        excerpt: { type: string, nullable: true }
     Claim:
       type: object
-      required: [text, kind, origin, sourceIds, profileFeatures]
+      required: [ text, kind, origin, sourceIds, profileFeatures ]
       properties:
-        text: {type: string}
-        kind: {type: string, enum: [fact, assessment, inference, hypothesis, recommendation, unavailable]}
-        origin: {type: string, enum: [FACT, BANK_ANALYSIS, EXTERNAL_ASSESSMENT, MODEL_INFERENCE, HYPOTHESIS, MODEL_RECOMMENDATION, UNAVAILABLE]}
-        sourceIds: {$ref: '#/components/schemas/StringList'}
-        profileFeatures: {$ref: '#/components/schemas/StringList'}
-        level: {type: string, enum: [low, medium, high], nullable: true}
-        horizon: {type: string, nullable: true}
-    ClaimList: {type: array, items: {$ref: '#/components/schemas/Claim'}}
+        text: { type: string }
+        kind: { type: string, enum: [ fact, assessment, inference, hypothesis, recommendation, unavailable ] }
+        origin: { type: string, enum: [ FACT, BANK_ANALYSIS, EXTERNAL_ASSESSMENT, MODEL_INFERENCE, HYPOTHESIS, MODEL_RECOMMENDATION, UNAVAILABLE ] }
+        sourceIds: { $ref: '#/components/schemas/StringList' }
+        profileFeatures: { $ref: '#/components/schemas/StringList' }
+        level: { type: string, enum: [ low, medium, high ], nullable: true }
+        horizon: { type: string, nullable: true }
+    ClaimList: { type: array, items: { $ref: '#/components/schemas/Claim' } }
     Scenario:
       type: object
       properties:
-        name: {type: string}
-        trigger: {type: string}
-        implication: {type: string}
-        plausibility: {$ref: '#/components/schemas/Level'}
-        sourceIds: {$ref: '#/components/schemas/StringList'}
+        name: { type: string }
+        trigger: { type: string }
+        implication: { type: string }
+        plausibility: { $ref: '#/components/schemas/Level' }
+        sourceIds: { $ref: '#/components/schemas/StringList' }
     Insight:
       type: object
-      required: [insightId, companyId, role, eventId, status, mlStatus, headline, whatHappened, whyItMatters, consequences, risks, opportunities, scenarios, actions, bankView, modelVsBank, impactLevel, impactRationale, profileFeaturesUsed, sources, missingData, selfCheck, models, generatedAt, disclaimer, warnings, hidden]
+      required: [ insightId, companyId, role, eventId, status, mlStatus, headline, whatHappened, whyItMatters, consequences, risks, opportunities, scenarios, actions, bankView, modelVsBank, impactLevel, impactRationale, profileFeaturesUsed, sources, missingData, selfCheck, models, generatedAt, disclaimer, warnings, hidden ]
       properties:
-        insightId: {type: string, format: uuid, description: Backend analysis operation UUID, not ML insight_id}
-        companyId: {type: string}
-        role: {$ref: '#/components/schemas/Role'}
-        eventId: {type: string}
-        status: {type: string, enum: [SUCCEEDED, LIMITED]}
-        mlStatus: {type: string, enum: [complete, limited]}
-        headline: {type: string}
-        whatHappened: {$ref: '#/components/schemas/ClaimList'}
-        whyItMatters: {$ref: '#/components/schemas/ClaimList'}
-        consequences: {$ref: '#/components/schemas/ClaimList'}
-        risks: {$ref: '#/components/schemas/ClaimList'}
-        opportunities: {$ref: '#/components/schemas/ClaimList'}
-        scenarios: {type: array, items: {$ref: '#/components/schemas/Scenario'}}
-        actions: {$ref: '#/components/schemas/ClaimList'}
-        bankView: {$ref: '#/components/schemas/ClaimList'}
-        modelVsBank: {$ref: '#/components/schemas/StringList'}
-        impactLevel: {$ref: '#/components/schemas/Level'}
-        impactRationale: {type: string}
-        profileFeaturesUsed: {$ref: '#/components/schemas/StringList'}
-        sources: {type: array, items: {$ref: '#/components/schemas/Source'}}
-        missingData: {$ref: '#/components/schemas/StringList'}
+        insightId: { type: string, format: uuid, description: Backend analysis operation UUID, not ML insight_id }
+        companyId: { type: string }
+        role: { $ref: '#/components/schemas/Role' }
+        eventId: { type: string }
+        eventVersion: { type: integer, format: int64, minimum: 1 }
+        stale: { type: boolean, description: The event was corrected. Historical card is preserved but excluded from the feed }
+        expiresAt: { type: string, format: date-time, nullable: true }
+        relevanceScore: { type: integer, minimum: 0, maximum: 100, description: 'Rule-based company and role relevance, separate from ML impact' }
+        relevanceReasons: { $ref: '#/components/schemas/StringList' }
+        sourceConflicts: { type: array, items: { $ref: '#/components/schemas/SourceConflict' } }
+        status: { type: string, enum: [ SUCCEEDED, LIMITED ] }
+        mlStatus: { type: string, enum: [ complete, limited ] }
+        headline: { type: string }
+        whatHappened: { $ref: '#/components/schemas/ClaimList' }
+        whyItMatters: { $ref: '#/components/schemas/ClaimList' }
+        consequences: { $ref: '#/components/schemas/ClaimList' }
+        risks: { $ref: '#/components/schemas/ClaimList' }
+        opportunities: { $ref: '#/components/schemas/ClaimList' }
+        scenarios: { type: array, items: { $ref: '#/components/schemas/Scenario' } }
+        actions: { $ref: '#/components/schemas/ClaimList' }
+        bankView: { $ref: '#/components/schemas/ClaimList' }
+        modelVsBank: { $ref: '#/components/schemas/StringList' }
+        impactLevel: { $ref: '#/components/schemas/Level' }
+        impactRationale: { type: string }
+        profileFeaturesUsed: { $ref: '#/components/schemas/StringList' }
+        sources: { type: array, items: { $ref: '#/components/schemas/Source' } }
+        missingData: { $ref: '#/components/schemas/StringList' }
         selfCheck:
           type: object
           properties:
-            passed: {type: boolean, description: ML self-check only; not independent factual verification}
-            issues: {type: array, items: {type: object, additionalProperties: true}}
-            iterations: {type: integer}
-            adaptations: {$ref: '#/components/schemas/StringList'}
-        models: {$ref: '#/components/schemas/StringList'}
-        generatedAt: {type: string, format: date-time}
-        disclaimer: {type: string}
-        warnings: {$ref: '#/components/schemas/StringList'}
-        hidden: {type: boolean}
+            passed: { type: boolean, description: ML self-check only; not independent factual verification }
+            issues: { type: array, items: { type: object, additionalProperties: true } }
+            iterations: { type: integer }
+            adaptations: { $ref: '#/components/schemas/StringList' }
+        models: { $ref: '#/components/schemas/StringList' }
+        generatedAt: { type: string, format: date-time }
+        disclaimer: { type: string }
+        warnings: { $ref: '#/components/schemas/StringList' }
+        hidden: { type: boolean }
     Answer:
       type: object
       properties:
-        operationId: {type: string, format: uuid}
-        insightId: {type: string, format: uuid}
-        status: {type: string, enum: [SUCCEEDED, LIMITED, NO_RESULT]}
-        mlStatus: {type: string, enum: [answered, no_answer]}
-        text: {type: string}
-        claims: {$ref: '#/components/schemas/ClaimList'}
-        sources: {type: array, items: {$ref: '#/components/schemas/Source'}}
-        missingData: {$ref: '#/components/schemas/StringList'}
-        disclaimer: {type: string}
-        warnings: {$ref: '#/components/schemas/StringList'}
+        operationId: { type: string, format: uuid }
+        insightId: { type: string, format: uuid }
+        status: { type: string, enum: [ SUCCEEDED, LIMITED, NO_RESULT ] }
+        mlStatus: { type: string, enum: [ answered, no_answer ] }
+        text: { type: string }
+        claims: { $ref: '#/components/schemas/ClaimList' }
+        sources: { type: array, items: { $ref: '#/components/schemas/Source' } }
+        missingData: { $ref: '#/components/schemas/StringList' }
+        disclaimer: { type: string }
+        warnings: { $ref: '#/components/schemas/StringList' }
     Trace:
       type: object
       properties:
-        operationId: {type: string, format: uuid}
-        insightId: {type: string, format: uuid}
-        traceStatus: {type: string, enum: [PENDING, AVAILABLE, UNAVAILABLE]}
-        steps: {type: array, nullable: true, items: {type: object, additionalProperties: true}}
-        profileSnapshot: {type: object, nullable: true, additionalProperties: true}
-        warnings: {$ref: '#/components/schemas/StringList'}
+        operationId: { type: string, format: uuid }
+        insightId: { type: string, format: uuid }
+        traceStatus: { type: string, enum: [ PENDING, AVAILABLE, UNAVAILABLE ] }
+        steps: { type: array, nullable: true, items: { type: object, additionalProperties: true } }
+        profileSnapshot: { type: object, nullable: true, additionalProperties: true }
+        warnings: { $ref: '#/components/schemas/StringList' }

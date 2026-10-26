@@ -6,10 +6,19 @@ import java.time.Duration;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("backend")
-public record BackendProperties(Ml ml, Jobs jobs, Auth auth) {
+public record BackendProperties(Ml ml, Jobs jobs, Auth auth, Feed feed) {
     public BackendProperties {
         if (ml == null || jobs == null || auth == null) {
             throw new IllegalArgumentException("Missing backend configuration");
+        }
+        feed = feed == null ? new Feed(Duration.ofDays(30)) : feed;
+    }
+
+    public record Feed(Duration maxAge) {
+        public Feed {
+            if (maxAge == null || maxAge.isNegative() || maxAge.isZero() || maxAge.compareTo(Duration.ofDays(365)) > 0) {
+                throw new IllegalArgumentException("Invalid backend.feed.max-age");
+            }
         }
     }
 

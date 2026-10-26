@@ -56,6 +56,31 @@ public class BackendController {
         return ResponseEntity.ok(service.event(input));
     }
 
+    @GetMapping("/api/v1/events/{eventId}")
+    public EventVersionView currentEvent(@PathVariable @Size(max = 200) @Pattern(regexp = "[A-Za-z0-9_.:-]+") String eventId) {
+        return service.currentEvent(eventId);
+    }
+
+    @GetMapping("/api/v1/events/{eventId}/versions")
+    public List<EventVersionView> eventHistory(@PathVariable @Size(max = 200) @Pattern(regexp = "[A-Za-z0-9_.:-]+") String eventId,
+                                               @RequestParam(defaultValue = "20") @Min(1) @Max(100) int limit,
+                                               @RequestParam(defaultValue = "0") @Min(0) int offset) {
+        return service.eventHistory(eventId, limit, offset);
+    }
+
+    @PutMapping("/api/v1/events/{eventId}")
+    public EventVersionView reviseEvent(@PathVariable @Size(max = 200) @Pattern(regexp = "[A-Za-z0-9_.:-]+") String eventId,
+                                        @Valid @RequestBody EventRevisionInput input) {
+        return service.reviseEvent(eventId, input);
+    }
+
+    @PostMapping("/api/v1/companies/{companyId}/insights/refresh")
+    public ResponseEntity<FeedRefreshView> refresh(HttpServletRequest req,
+                                                   @PathVariable @Pattern(regexp = "U_\\d+") String companyId,
+                                                   @Valid @RequestBody FeedRefreshInput input) {
+        return ResponseEntity.accepted().header("Retry-After", "2").body(service.refresh(person(req), companyId, input));
+    }
+
     @PostMapping("/api/v1/analyses")
     public ResponseEntity<OperationView> analyze(HttpServletRequest req, @Valid @RequestBody AnalysisInput input,
                                                  @RequestHeader(value = "Idempotency-Key", required = false) @Size(min = 1, max = 100) String key) {

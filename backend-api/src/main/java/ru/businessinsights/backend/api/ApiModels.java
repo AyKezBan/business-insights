@@ -27,7 +27,15 @@ public final class ApiModels {
     public record SourceInput(@NotBlank @Size(max = 200) String sourceId,
                               @NotBlank @Size(max = 500) String title, LocalDate date,
                               @Positive Integer page,
-                              @Pattern(regexp = "https?://[^\\s]+") @Size(max = 2048) String url) {
+                              @Pattern(regexp = "https?://[^\\s]+") @Size(max = 2048) String url,
+                              @Size(max = 200) String docId,
+                              @Pattern(regexp = "[a-f0-9]{64}") String contentSha256,
+                              @Size(max = 100000) String excerpt) {
+    }
+
+    public record SourceConflictInput(@NotBlank @Size(max = 2000) String reason,
+                                      @NotEmpty @Size(max = 31) List<@NotBlank @Size(max = 200) String> sourceIds,
+                                      boolean resolved) {
     }
 
     // Callers provide external news only. Bank evidence comes from the ML bank index.
@@ -36,7 +44,32 @@ public final class ApiModels {
                              @NotBlank @Size(max = 100000) String text, Instant publishedAt,
                              @NotNull @Valid SourceInput source,
                              @Size(max = 30) List<@NotNull @Valid SourceInput> relatedSources,
-                             @Size(max = 30) List<@NotBlank @Size(max = 100) String> topics) {
+                             @Size(max = 30) List<@NotBlank @Size(max = 100) String> topics,
+                             @Size(max = 30) List<@NotNull @Valid SourceConflictInput> conflicts) {
+        public EventInput {
+            relatedSources = relatedSources == null ? List.of() : List.copyOf(relatedSources);
+            topics = topics == null ? List.of() : List.copyOf(topics);
+            conflicts = conflicts == null ? List.of() : List.copyOf(conflicts);
+        }
+    }
+
+    public record EventRevisionInput(@NotNull @Positive Long expectedVersion, @NotNull @Valid EventInput event) {
+    }
+
+    public record EventVersionView(String eventId, long version, String contentHash, Instant receivedAt,
+                                   EventInput event) {
+    }
+
+    public record FeedRefreshInput(@NotNull Role role, @Min(1) @Max(100) Integer sourceLimit,
+                                   @Min(0) @Max(1000000) Integer sourceOffset, @Min(1) @Max(16) Integer maxAnalyses,
+                                   @Size(max = 20) Map<@NotBlank @Size(max = 80) String, @NotBlank @Size(max = 1000) String> userProvided) {
+    }
+
+    public record FeedCandidateView(String eventId, long eventVersion, int relevanceScore, List<String> reasons,
+                                    Instant expiresAt, String decision, OperationView operation) {
+    }
+
+    public record FeedRefreshView(String corpusRevision, Integer nextOffset, List<FeedCandidateView> candidates) {
     }
 
     public record AnalysisInput(@NotBlank @Pattern(regexp = "U_\\d+") String companyId,
@@ -85,7 +118,8 @@ public final class ApiModels {
                                 UUID insightId, UUID parentInsightId) {
     }
 
-    public record SourceView(String sourceId, String kind, String title, LocalDate date, Integer page, String url) {
+    public record SourceView(String sourceId, String kind, String title, LocalDate date, Integer page, String url,
+                             String docId, String contentSha256, String excerpt) {
     }
 
     public record ClaimView(String text, String kind, String origin, List<String> sourceIds,
@@ -107,7 +141,9 @@ public final class ApiModels {
                               List<String> modelVsBank, String impactLevel, String impactRationale,
                               List<String> profileFeaturesUsed, List<SourceView> sources, List<String> missingData,
                               SelfCheckView selfCheck, List<String> models, Instant generatedAt, String disclaimer,
-                              List<String> warnings, boolean hidden) {
+                              List<String> warnings, boolean hidden, long eventVersion, boolean stale,
+                              Instant expiresAt, int relevanceScore, List<String> relevanceReasons,
+                              List<SourceConflictInput> sourceConflicts) {
     }
 
     public record AnswerView(UUID operationId, UUID insightId, String status, String mlStatus, String text,

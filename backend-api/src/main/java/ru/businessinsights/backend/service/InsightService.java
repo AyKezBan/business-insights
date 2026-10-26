@@ -13,6 +13,8 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.time.Instant;
+import java.util.Comparator;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -36,7 +38,6 @@ import ru.businessinsights.backend.store.OperationStore.Operation;
 @Service
 public class InsightService {
     private static final Logger LOG = LoggerFactory.getLogger(InsightService.class);
-    private static final String ML_COMMIT = "7cbd690892addc495fbf9bee144c48931c464170";
     private static final String DATA_COMMIT = "f44b69f0d124e8e4c33e5301b629413618090fa5";
     private final CompanyProfileService profiles;
     private final MlClient ml;
@@ -44,17 +45,21 @@ public class InsightService {
     private final InsightMapper views;
     private final ObjectMapper mapper;
     private final BackendProperties properties;
+    private final EventRelevance relevance;
+    private final jakarta.validation.Validator validator;
     private final ThreadPoolExecutor executor;
     private volatile boolean ready;
 
     public InsightService(CompanyProfileService profiles, MlClient ml, OperationStore store, InsightMapper views,
-                          ObjectMapper mapper, BackendProperties properties) {
+                          ObjectMapper mapper, BackendProperties properties, EventRelevance relevance, jakarta.validation.Validator validator) {
         this.profiles = profiles;
         this.ml = ml;
         this.store = store;
         this.views = views;
         this.mapper = mapper;
         this.properties = properties;
+        this.relevance = relevance;
+        this.validator = validator;
         var config = properties.jobs();
         this.executor = new ThreadPoolExecutor(config.workers(), config.workers(), 0, TimeUnit.MILLISECONDS,
                 new ArrayBlockingQueue<>(config.queueCapacity()), Thread.ofPlatform().name("insight-job-", 0).factory(), new ThreadPoolExecutor.AbortPolicy());
@@ -91,8 +96,30 @@ public class InsightService {
 
     public EventInput event(EventInput input) {
         // Treat source URLs as references: this service never follows caller-supplied URLs.
-        var normalized = new EventInput(input.eventId(), input.title(), input.text(), input.publishedAt(), input.source(),
-                input.relatedSources() == null ? List.of() : input.relatedSources(), input.topics() == null ? List.of() : input.topics());
+        var normalized = validateEvent(input);
+        return store.registerEvent(normalized, hash(store.tree(normalized)));
+    }
+
+    public EventVersionView currentEvent(String id) {
+        return store.currentEvent(id);
+    }
+
+    public List<EventVersionView> eventHistory(String id, int limit, int offset) {
+        return store.eventHistory(id, limit, offset);
+    }
+
+    public EventVersionView reviseEvent(String id, EventRevisionInput input) {
+        if (!id.equals(input.event().eventId())) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "EVENT_ID_MISMATCH", "eventId должен совпадать с адресом события");
+        }
+        EventInput event = validateEvent(input.event());
+        return store.reviseEvent(event, hash(store.tree(event)), input.expectedVersion());
+    }
+
+    private EventInput validateEvent(EventInput normalized) {
+        if (!validator.validate(normalized).isEmpty()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_EVENT", "Событие не соответствует ограничениям API");
+        }
         var ids = new java.util.HashSet<String>();
         ids.add(normalized.source().sourceId());
         for (var s : normalized.relatedSources()) {
@@ -100,19 +127,104 @@ public class InsightService {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "DUPLICATE_SOURCE_ID", "Идентификаторы источников события должны различаться");
             }
         }
-        return store.registerEvent(normalized, hash(store.tree(normalized)));
+        for (var conflict : normalized.conflicts()) {
+            if (!ids.containsAll(conflict.sourceIds()) || new java.util.HashSet<>(conflict.sourceIds()).size() != conflict.sourceIds().size()) {
+                throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_CONFLICT_SOURCES", "Конфликт должен ссылаться на различные источники этого события");
+            }
+        }
+        return normalized;
     }
 
     public OperationView analyze(String person, AnalysisInput input, String key) {
         requireReady();
         requireAccess(person, input.companyId());
-        store.event(input.eventId());
+        var event = store.currentEvent(input.eventId());
         var normalized = new AnalysisInput(input.companyId(), input.role(), input.eventId(), input.userProvided() == null ? Map.of() : input.userProvided());
-        var submission = store.create(person, input.companyId(), input.role().name(), "ANALYSIS", null, input.eventId(), key, hash(store.tree(normalized)), normalized);
+        var selection = new EventRelevance.Selection(0, List.of("Явно выбранное событие"), relevance.expiresAt(event), null);
+        return submitAnalysis(person, normalized, event, selection, key);
+    }
+
+    private OperationView submitAnalysis(String person, AnalysisInput input, EventVersionView event, EventRelevance.Selection selection, String key) {
+        var submission = store.create(person, input.companyId(), input.role().name(), "ANALYSIS", null, input.eventId(),
+                event.version(), selection.score(), selection.reasons(), selection.expiresAt(), key, hash(store.tree(input)), input);
         if (submission.created()) {
             enqueue(submission.operation().id());
         }
         return operation(person, submission.operation().id());
+    }
+
+    public FeedRefreshView refresh(String person, String company, FeedRefreshInput input) {
+        requireAvailable();
+        requireAccess(person, company);
+        Map<String, String> supplied = input.userProvided() == null ? Map.of() : input.userProvided();
+        var snapshot = profiles.loadProfile(company, supplied);
+        if (!snapshot.sufficient()) {
+            throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, "INSUFFICIENT_PROFILE", "Нет пригодных бизнес-признаков для отбора событий");
+        }
+        MlContracts.NewsPage page;
+        try {
+            page = ml.news(input.sourceLimit() == null ? 20 : input.sourceLimit(), input.sourceOffset() == null ? 0 : input.sourceOffset());
+        } catch (MlException e) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "ML_" + e.code().name(), e.getMessage(), e.retryable());
+        }
+        record Candidate(EventVersionView event, EventRelevance.Selection selection) {
+        }
+        var candidates = new ArrayList<Candidate>();
+        Instant now = Instant.now();
+        var incomingEvents = new ArrayList<EventInput>();
+        var eventIds = new java.util.HashSet<String>();
+        for (var incoming : page.items()) {
+            try {
+                var event = validateEvent(apiEvent(incoming));
+                if (!eventIds.add(event.eventId())) {
+                    throw new ApiException(HttpStatus.BAD_REQUEST, "DUPLICATE_EVENT_ID", "Корпус повторяет идентификатор события");
+                }
+                incomingEvents.add(event);
+            } catch (ApiException e) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY, "INVALID_CORPUS_EVENT", e.getMessage());
+            }
+        }
+        for (var event : incomingEvents) {
+            var version = store.synchronizeEvent(event, hash(store.tree(event)));
+            candidates.add(new Candidate(version, relevance.evaluate(snapshot.profile(), input.role(), version, now)));
+        }
+        candidates.sort(Comparator.comparingInt((Candidate c) -> c.selection().score()).reversed()
+                .thenComparing(c -> c.event().eventId()));
+        int remaining = input.maxAnalyses() == null ? 8 : input.maxAnalyses();
+        var results = new ArrayList<FeedCandidateView>();
+        for (var candidate : candidates) {
+            var event = candidate.event();
+            var selection = candidate.selection();
+            String decision = selection.exclusion();
+            OperationView operation = null;
+            if (decision == null) {
+                // Stable across refresh retries; changed profile, role or event revision gets a new key.
+                var identity = store.tree(snapshot.profile()).deepCopy();
+                ((ObjectNode) identity).put("eventId", event.eventId()).put("eventVersion", event.version()).put("role", input.role().name());
+                String key = "feed-" + hash(identity);
+                var existing = store.byKey(person, "ANALYSIS", key);
+                if (existing.isPresent()) {
+                    operation = views.operation(existing.get());
+                    decision = "EXISTING_OPERATION";
+                } else if (remaining <= 0) {
+                    decision = "DEFERRED_LIMIT";
+                } else {
+                    try {
+                        requireReady();
+                        operation = submitAnalysis(person, new AnalysisInput(company, input.role(), event.eventId(), supplied), event, selection, key);
+                        decision = "ANALYSIS_OPERATION";
+                        remaining--;
+                    } catch (ApiException e) {
+                        if (!"QUEUE_FULL".equals(e.code())) {
+                            throw e;
+                        }
+                        decision = "DEFERRED_QUEUE_FULL";
+                    }
+                }
+            }
+            results.add(new FeedCandidateView(event.eventId(), event.version(), selection.score(), selection.reasons(), selection.expiresAt(), decision, operation));
+        }
+        return new FeedRefreshView(page.corpusRevision(), page.nextOffset(), List.copyOf(results));
     }
 
     public OperationView question(String person, UUID insightId, QuestionInput input, String key) {
@@ -120,7 +232,8 @@ public class InsightService {
         Operation parent = requireInsight(person, insightId);
         // Include parent ID in the fingerprint; a key cannot silently move a question to another insight.
         var payload = mapper.createObjectNode().put("question", input.question()).put("parentId", parent.id().toString());
-        var submission = store.create(person, parent.companyId(), parent.role(), "QUESTION", parent.id(), parent.eventId(), key, hash(payload), payload);
+        var submission = store.create(person, parent.companyId(), parent.role(), "QUESTION", parent.id(), parent.eventId(),
+                parent.eventVersion(), parent.relevanceScore(), parent.relevanceReasons(), parent.expiresAt(), key, hash(payload), payload);
         if (submission.created()) {
             enqueue(submission.operation().id());
         }
@@ -135,7 +248,7 @@ public class InsightService {
         requireAccess(person, company);
         List<InsightView> items = store.feed(person, company, role.name(), limit, offset, includeHidden).stream()
                 .map(o -> views.insight(o, store.hidden(o.id(), person))).toList();
-        return new FeedView(items, limit, offset, "impactLevel DESC, createdAt DESC, insightId DESC",
+        return new FeedView(items, limit, offset, "relevanceScore DESC, impactLevel DESC, createdAt DESC, insightId DESC",
                 items.isEmpty() ? "NO_MATCHING_INSIGHTS" : null);
     }
 
@@ -182,11 +295,15 @@ public class InsightService {
     }
 
     private void requireReady() {
-        if (!ready) {
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "BACKEND_STARTING", "Сервис запускается или останавливается", true);
-        }
+        requireAvailable();
         if (executor.getActiveCount() >= executor.getMaximumPoolSize() && executor.getQueue().remainingCapacity() == 0) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "QUEUE_FULL", "Очередь анализа заполнена", true);
+        }
+    }
+
+    private void requireAvailable() {
+        if (!ready) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "BACKEND_STARTING", "Сервис запускается или останавливается", true);
         }
     }
 
@@ -248,11 +365,21 @@ public class InsightService {
     }
 
     private void processAnalysis(Operation op) {
+        if (op.stale() || store.currentEvent(op.eventId()).version() != op.eventVersion()) {
+            var warnings = List.of("EVENT_SUPERSEDED: событие исправлено до начала анализа. Обновите ленту или запросите анализ новой версии");
+            store.finish(op.id(), "NO_RESULT", null, warnings);
+            store.trace(op.id(), null, "UNAVAILABLE", warnings);
+            return;
+        }
         var input = store.convert(op.payload(), AnalysisInput.class);
         var snapshot = profiles.loadProfile(op.companyId(), input.userProvided());
-        var event = store.event(op.eventId());
+        var version = store.eventVersion(op.eventId(), op.eventVersion());
+        var event = version.event();
+        var selection = relevance.evaluate(snapshot.profile(), Role.valueOf(op.role()), version, Instant.now());
+        store.selection(op.id(), selection.score(), selection.reasons(), selection.expiresAt());
         ObjectNode saved = store.tree(snapshot).deepCopy();
-        saved.put("mlContractCommit", ML_COMMIT).put("importContractCommit", DATA_COMMIT).put("role", op.role()).put("eventId", op.eventId());
+        saved.put("mlContractVersion", MlContracts.CONTRACT_VERSION).put("importContractCommit", DATA_COMMIT)
+                .put("role", op.role()).put("eventId", op.eventId()).put("eventVersion", op.eventVersion());
         saved.set("event", store.tree(event));
         store.saveProfile(op.id(), saved);
         var warnings = new ArrayList<String>(snapshot.qualityIssues());
@@ -301,23 +428,31 @@ public class InsightService {
 
     private MlContracts.NewsEvent mlEvent(EventInput event) {
         return new MlContracts.NewsEvent(event.eventId(), event.title(), event.text(), event.publishedAt(), mlSource(event.source()),
-                event.relatedSources().stream().map(this::mlSource).toList(), event.topics());
+                event.relatedSources().stream().map(this::mlSource).toList(), event.topics(), event.conflicts().stream()
+                .map(c -> new MlContracts.SourceConflict(c.reason(), c.sourceIds(), c.resolved())).toList());
     }
 
     private MlContracts.SourceRef mlSource(SourceInput source) {
-        return new MlContracts.SourceRef(source.sourceId(), MlContracts.SourceKind.news, source.title(), source.date(), source.page(), source.url());
+        return new MlContracts.SourceRef(source.sourceId(), MlContracts.SourceKind.news, source.title(), source.date(), source.page(), source.url(),
+                source.docId(), source.contentSha256(), source.excerpt());
+    }
+
+    private EventInput apiEvent(MlContracts.NewsEvent event) {
+        return new EventInput(event.eventId(), event.title(), event.text(), event.publishedAt(), apiSource(event.source()),
+                event.relatedSources().stream().map(this::apiSource).toList(), event.topics(), event.conflicts().stream()
+                .map(c -> new SourceConflictInput(c.reason(), c.sourceIds(), c.resolved())).toList());
+    }
+
+    private SourceInput apiSource(MlContracts.SourceRef source) {
+        if (source.kind() != MlContracts.SourceKind.news) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "INVALID_CORPUS_SOURCE", "Корпус новостей содержит источник другого типа");
+        }
+        return new SourceInput(source.sourceId(), source.title(), source.date(), source.page(), source.url(), source.docId(), source.contentSha256(), source.excerpt());
     }
 
     private List<String> compatibilityWarnings(MlContracts.CompanyProfile p) {
         var warnings = new ArrayList<String>();
-        if (p.revenueRub() != null && p.revenueRub().compareTo(java.math.BigDecimal.valueOf(1000)) < 0) {
-            warnings.add("ML_REVENUE_FILTER: Git-версия ML игнорирует действительные выручки 0..999; Java сохраняет исходное значение");
-        }
-        if (p.groupRevenueRub() == null && p.revenueRub() != null) {
-            warnings.add("ML_GROUP_SCALE: ML может оценить масштаб группы по выручке юрлица; консолидированная выручка неизвестна");
-        }
         if (!p.counterparties().isEmpty()) {
-            warnings.add("ML_PAYMENT_SEMANTICS: названия покупатель/поставщик в ML не доказаны платежами");
             warnings.add("ML_COUNTERPARTY_REFERENCE: ML сортирует контрагентов и меняет индексы признаков; ссылки counterparties[i] требуют согласования");
         }
         if (Boolean.TRUE.equals(p.foreignTrade()) || !p.foreignTradeCountries().isEmpty()) {

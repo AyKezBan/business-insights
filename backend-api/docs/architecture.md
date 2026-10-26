@@ -39,11 +39,11 @@ flowchart TB
     Import -->|"запись набора"| Imported
     Data -->|"только чтение / JDBC"| Imported
     Store -->|"чтение и запись / JDBC"| App
-    Client -->|"HTTP: анализ, вопросы, трассы"| ML
+    Client -->|"HTTP: новости корпуса, анализ, вопросы, трассы"| ML
     Library --> ML
 ```
 
-Java отвечает за чтение БД, расчёт признаков, сборку профиля и сериализацию ML-запроса. Flyway управляет только схемой `backend_api`. Сбор внешних новостей и наполнение банковской библиотеки находятся за границей этого сервиса; Java принимает готовые события.
+Java отвечает за чтение БД, расчёт признаков, сборку профиля и сериализацию ML-запроса. Flyway управляет только схемой `backend_api`. Сбор внешних новостей и наполнение банковской библиотеки находятся за границей этого сервиса. Java принимает готовые события и читает загруженный корпус ML при явном обновлении ленты, выполняет отбор и ставит анализ в очередь. [Правила процесса и версий](feed-refresh.md).
 
 Bearer моделирует авторизованного пользователя. Проверка связи ФЛ–ЮЛ и владельца операции ограничивает доступ, но не удостоверяет реальные полномочия. Роль поступает явно в запросе; источники входного события маркируются как внешние новости, а не как аналитика банка.
 
@@ -156,7 +156,7 @@ stateDiagram-v2
     QUEUED --> FAILED: Отказ постановки или перезапуск
     RUNNING --> SUCCEEDED: Допустимый результат без ограничений
     RUNNING --> LIMITED: Ограниченный результат или предупреждения
-    RUNNING --> NO_RESULT: Вопрос без ответа
+    RUNNING --> NO_RESULT: Вопрос без ответа или событие исправлено до анализа
     RUNNING --> INSUFFICIENT_DATA: Нет пригодных признаков для анализа
     RUNNING --> FAILED: Ошибка, ML failed или перезапуск
     SUCCEEDED --> [*]
@@ -166,7 +166,7 @@ stateDiagram-v2
     FAILED --> [*]
 ```
 
-`NO_RESULT` соответствует ответу ML `no_answer`, `INSUFFICIENT_DATA` — анализу без вызова ML. Лента публикует только анализы `SUCCEEDED` и `LIMITED`; сортировка идёт по влиянию, затем по времени создания. Состояние трассы (`PENDING`, `AVAILABLE`, `UNAVAILABLE`) хранится независимо от результата.
+`NO_RESULT` соответствует ответу ML `no_answer` или прекращению устаревшего анализа до вызова ML. `INSUFFICIENT_DATA` означает недостаточный профиль без вызова ML. Лента публикует только актуальные, непросроченные анализы `SUCCEEDED` и `LIMITED`, по одной последней карточке на событие. Сортировка идёт по релевантности, влиянию и времени создания. Состояние трассы (`PENDING`, `AVAILABLE`, `UNAVAILABLE`) хранится независимо от результата.
 
 Очередь находится в памяти одного экземпляра backend: по умолчанию два worker-потока и 16 мест ожидания. После перезапуска незавершённые операции становятся `FAILED/BACKEND_RESTARTED`. Автоматического повторного ML-вызова нет; при таймауте завершение внешней операции неизвестно.
 
@@ -177,6 +177,8 @@ stateDiagram-v2
 ```mermaid
 erDiagram
     event |o--o{ operation : event_id
+    event ||--|{ event_revision : versions
+    event_revision ||--o{ operation : captured_version
     operation |o--o{ operation : parent_id
     operation ||--o{ insight_state : operation_id
     operation ||--o{ feedback : operation_id
@@ -184,6 +186,13 @@ erDiagram
 
     event {
         text event_id PK
+        text content_hash
+        jsonb payload
+        bigint current_version
+    }
+    event_revision {
+        text event_id PK, FK
+        bigint version PK
         text content_hash
         jsonb payload
     }
@@ -195,6 +204,11 @@ erDiagram
         text kind
         uuid parent_id FK
         text event_id FK
+        bigint event_version FK
+        boolean stale
+        timestamptz expires_at
+        int relevance_score
+        jsonb relevance_reasons
         text request_key
         text request_hash
         text status

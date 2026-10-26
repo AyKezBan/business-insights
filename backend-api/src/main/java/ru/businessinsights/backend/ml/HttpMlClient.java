@@ -73,6 +73,21 @@ public final class HttpMlClient implements MlClient {
     }
 
     @Override
+    public NewsPage news(int limit, int offset) {
+        if (limit < 1 || limit > 100 || offset < 0) {
+            throw new MlException(REQUEST_REJECTED, "Invalid news pagination", false);
+        }
+        JsonNode response = exchange("GET", "/v1/materials/events?limit=" + limit + "&offset=" + offset, null, null);
+        validateResponse("news-page", response);
+        if (response.path("items").size() > limit || response.hasNonNull("next_offset")
+                && (response.path("items").isEmpty() || !response.path("next_offset").canConvertToInt()
+                || response.path("next_offset").intValue() != offset + response.path("items").size())) {
+            throw invalid("Invalid corpus pagination");
+        }
+        return convert(response, NewsPage.class);
+    }
+
+    @Override
     public Insight generate(InsightRequest request) {
         if (request == null || request.profile() == null || request.role() == null || request.event() == null) {
             throw new MlException(REQUEST_REJECTED, "ML request must contain profile, explicit role and event", false);

@@ -44,7 +44,8 @@ public class InsightMapper {
                 strings(r.path("profile_features_used")), sources(r), strings(r.path("missing_data")),
                 new SelfCheckView(r.path("self_check").path("passed").asBoolean(), r.path("self_check").path("issues"),
                         r.path("self_check").path("iterations").asInt(1), strings(r.path("self_check").path("adaptations"))),
-                strings(r.path("models")), mapper.convertValue(r.get("generated_at"), java.time.Instant.class), DISCLAIMER, op.warnings(), hidden);
+                strings(r.path("models")), mapper.convertValue(r.get("generated_at"), java.time.Instant.class), DISCLAIMER, op.warnings(), hidden,
+                op.eventVersion(), op.stale(), op.expiresAt(), op.relevanceScore(), op.relevanceReasons(), conflicts(op));
     }
 
     public AnswerView answer(Operation op) {
@@ -76,9 +77,21 @@ public class InsightMapper {
         var result = new ArrayList<SourceView>();
         for (JsonNode s : r.path("sources")) {
             result.add(new SourceView(text(s, "source_id"), text(s, "kind"), text(s, "title"),
-                    mapper.convertValue(s.get("date"), java.time.LocalDate.class), s.path("page").isIntegralNumber() ? s.path("page").intValue() : null, safeUrl(text(s, "url"))));
+                    mapper.convertValue(s.get("date"), java.time.LocalDate.class), s.path("page").isIntegralNumber() ? s.path("page").intValue() : null, safeUrl(text(s, "url")),
+                    text(s, "doc_id"), text(s, "content_sha256"), text(s, "excerpt")));
         }
         return result;
+    }
+
+    private List<SourceConflictInput> conflicts(Operation op) {
+        if (op.profileSnapshot() == null) {
+            return List.of();
+        }
+        var result = new ArrayList<SourceConflictInput>();
+        for (JsonNode conflict : op.profileSnapshot().path("event").path("conflicts")) {
+            result.add(new SourceConflictInput(text(conflict, "reason"), strings(conflict.path("sourceIds")), conflict.path("resolved").asBoolean()));
+        }
+        return List.copyOf(result);
     }
 
     private Map<String, String> sourceKinds(JsonNode r) {
