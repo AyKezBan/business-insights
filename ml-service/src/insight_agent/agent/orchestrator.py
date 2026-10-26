@@ -596,6 +596,17 @@ class InsightAgent:
         if status == InsightStatus.limited:
             grounded = any(c.kind != ClaimKind.unavailable for c in draft.why_it_matters + draft.consequences)
             outcome = Outcome.limited if grounded else Outcome.refused
+        # BR-01 и BR-02: событие без связи с компанией не становится персональным инсайтом, а приоритет
+        # подтверждается оставшимися персональными основаниями, а не исходной оценкой модели.
+        personal = any(c.kind != ClaimKind.unavailable and c.profile_features
+                       for c in draft.why_it_matters + draft.consequences + draft.risks + draft.opportunities)
+        if draft.company_link == "none" or not personal:
+            status, outcome = InsightStatus.limited, Outcome.refused
+            missing.append("связь события с этой компанией не установлена" if draft.company_link == "none"
+                           else "после проверки не осталось персональных оснований")
+        if (draft.company_link == "none" or not personal) and draft.impact_level != Level.low:
+            draft.impact_level = Level.low
+            missing.append("приоритет понижен до низкого: нет подтверждённых персональных оснований")
 
         facts = [c.model_copy(deep=True) for c in (state.analysis.facts if state.analysis else [])]
         all_claims = facts + draft.why_it_matters + draft.consequences + draft.risks + draft.opportunities

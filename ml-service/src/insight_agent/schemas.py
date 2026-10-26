@@ -342,6 +342,8 @@ class PersonalizationDraft(BaseModel):
     impact_level: Level
     impact_rationale: str
     missing_data: list[str] = Field(default_factory=list)
+    # BR-01: связь события с этой компанией. none - события нет дела до компании, карточка не станет персональным инсайтом.
+    company_link: Literal["clear", "conditional", "none"] = "clear"
 
 
 class CheckIssue(BaseModel):

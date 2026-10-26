@@ -31,6 +31,20 @@ def _sources_block(state: AgentState) -> str:
     return "\n".join(parts)
 
 
+_PRODUCT_NAMES = {"settlement": "расчётно-кассовое обслуживание", "guarantees": "банковские гарантии", "loans": "кредиты",
+                  "leasing": "лизинг", "deposits": "депозиты", "payroll": "зарплатный проект", "factoring": "факторинг"}
+
+
+def _known_negatives(state: AgentState) -> str:
+    """Подтверждённое «нет» отличается от «неизвестно». Это контекст, а не признак: на него нельзя ссылаться в profile_features."""
+    products = state.request.profile.products
+    absent = [label for key, label in _PRODUCT_NAMES.items() if getattr(products, key) is False]
+    if not absent:
+        return "Известных отсутствующих продуктов нет."
+    return ("В Альфа-Банке известно, что НЕТ: " + ", ".join(absent)
+            + " (узкий факт про этот банк; не означает отсутствие таких обязательств или средств в других банках).")
+
+
 def personalize(
     llm: StructuredLLM, model: str, state: AgentState, feedback: list[CheckIssue] | None = None
 ) -> PersonalizationDraft:
@@ -53,6 +67,14 @@ def personalize(
         + "actions - конкретные шаги для этой роли (проверить, пересчитать, обсудить с менеджером банка), "
         "не общие советы. scenarios - 1-2 сценария развития, если есть основания.\n"
         "missing_data - каких данных о компании не хватило для вывода.\n"
+        "company_link: clear - связь события с компанией объяснена её признаками; conditional - связь возможна, но часть данных неизвестна, "
+        "назови, чего не хватает; none - объяснимой связи нет, тогда не придумывай влияние и не завышай impact_level.\n"
+        "Объект вывода - выбранная компания. Группа даёт только дополнительный контекст: влияние через другого участника группы "
+        "объясняй конкретной связью, выручку юрлица не называй выручкой группы, неизвестную консолидацию и долю рынка не рассчитывай.\n"
+        "Показатель используй только вместе с его периодом, единицами, объектом и ограничениями из примечания к признаку. "
+        "Известное отсутствие продукта в Альфа-Банке не доказывает отсутствие долгов или депозитов в других банках; "
+        "страны ФТС не доказывают импорт или экспорт, платежи - роль поставщика или покупателя, NEGATIVEMARK - негативный риск. "
+        "Косвенный признак может обосновать только условный сценарий (kind=hypothesis) с названной связью и недостающими данными.\n"
         f"{UNTRUSTED}\nОтвет - один JSON-объект по схеме: {schema_hint(PersonalizationDraft)}"
     )
     a = state.analysis
@@ -65,7 +87,8 @@ def personalize(
         f"Каналы влияния события: {', '.join(CHANNELS[c] for c in a.impact_channels) if a else ''}\n"
         f"Совпавшие каналы компании: {matched_channels(state)}\n\n"
         f"Признаки компании (profile_features):\n{data_block('profile', signals)}\n"
-        f"Нет данных о компании: {state.missing_profile or 'нет пропусков'}\n\n"
+        f"Нет данных о компании: {state.missing_profile or 'нет пропусков'}\n"
+        f"{_known_negatives(state)}\n\n"
         f"Источники (source_ids):\n{_sources_block(state)}"
     )
     messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
