@@ -154,6 +154,45 @@ class OperationStorePersistenceTest {
         return eventId;
     }
 
+    @Test
+    void typedEvidenceSpansSurviveJsonbRestartAndPublicInsightAndAnswerMapping() throws Exception {
+        String eventId = registerEvent("span-preservation");
+        var result = (com.fasterxml.jackson.databind.node.ObjectNode) evidenceResult(eventId, "U_7", "cfo");
+        var claim = (com.fasterxml.jackson.databind.node.ObjectNode) result.path("what_happened").get(0);
+        claim.put("text", "🧪 Не изменилось.");
+        var span = claim.putArray("evidence_spans").addObject().put("source_id", "external:opaque:source")
+                .put("content_sha256", "a".repeat(64)).put("start", 2).put("end", 18);
+        result.putArray("risks").add(claim.deepCopy().put("level", "low"));
+        var typed = mapper.treeToValue(result, ru.businessinsights.backend.ml.MlContracts.Insight.class);
+        var submitted = store.create("F_7", "U_7", "cfo", "ANALYSIS", null, eventId,
+                "span-analysis", "span-analysis-hash", mapper.createObjectNode());
+        store.start(submitted.operation().id());
+        store.finish(submitted.operation().id(), "SUCCEEDED", typed, List.of());
+        var restarted = new OperationStore(database.jdbc(), mapper);
+        var saved = restarted.find(submitted.operation().id()).orElseThrow();
+        assertEquals(span, saved.result().at("/what_happened/0/evidence_spans/0"));
+        assertEquals(span, saved.result().at("/risks/0/evidence_spans/0"));
+        var view = mapper.valueToTree(new InsightMapper(mapper).insight(saved, restarted.interaction(saved.id(), "F_7")));
+        assertEquals("external:opaque:source", view.at("/whatHappened/0/evidenceSpans/0/sourceId").asText());
+        assertEquals("a".repeat(64), view.at("/risks/0/evidenceSpans/0/contentSha256").asText());
+        assertEquals(2, view.at("/whatHappened/0/evidenceSpans/0/start").asInt());
+        assertEquals(18, view.at("/whatHappened/0/evidenceSpans/0/end").asInt());
+        assertEquals("🧪 Не изменилось.", view.at("/whatHappened/0/text").asText());
+
+        var answer = mapper.createObjectNode().put("insight_id", "ins_fixture").put("run_id", "run_qa")
+                .put("status", "answered").put("text", "🧪 Не изменилось.");
+        answer.putArray("claims").add(claim); answer.set("sources", result.path("sources"));
+        var question = store.create("F_7", "U_7", "cfo", "QUESTION", saved.id(), eventId,
+                "span-question", "span-question-hash", mapper.createObjectNode());
+        store.start(question.operation().id());
+        store.finish(question.operation().id(), "SUCCEEDED", mapper.treeToValue(answer, ru.businessinsights.backend.ml.MlContracts.Answer.class), List.of());
+        var savedAnswer = new OperationStore(database.jdbc(), mapper).find(question.operation().id()).orElseThrow();
+        assertEquals(span, savedAnswer.result().at("/claims/0/evidence_spans/0"));
+        var answerView = mapper.valueToTree(new InsightMapper(mapper).answer(savedAnswer));
+        assertEquals(view.at("/whatHappened/0/evidenceSpans"), answerView.at("/claims/0/evidenceSpans"));
+        assertEquals("🧪 Не изменилось.", answerView.at("/claims/0/text").asText());
+    }
+
     private JsonNode evidenceResult(String eventId, String company, String role) throws Exception {
         var fixture = (com.fasterxml.jackson.databind.node.ObjectNode) mapper.readTree("""
                 {"insight_id":"ins_fixture","run_id":"run_fixture","event_id":"logical-event",

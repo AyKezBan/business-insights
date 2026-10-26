@@ -36,7 +36,18 @@
       valid_until:dto.validUntil, rights_url:dto.rightsUrl, translation_attribution:dto.translationAttribution};
   }
   function part(claim, kind, label) {
-    return {kind, claim_id:claim.claimId, text:claim.text, certainty:claim.kind, source_ids:list(claim.sourceIds), feature_refs:list(claim.profileFeatures), origin:claim.origin, level:claim.level, horizon:claim.horizon, ...(label ? {label} : {})};
+    const spans=claim.evidenceSpans===undefined ? [] : claim.evidenceSpans;
+    if (!Array.isArray(spans)) throw new Error('Сервис вернул некорректные фрагменты оснований.');
+    const evidence_spans=spans.map(span=>{
+      if (!span || typeof span!=='object' || Array.isArray(span) || Object.keys(span).length!==4
+          || !['sourceId','contentSha256','start','end'].every(key=>Object.hasOwn(span,key))
+          || typeof span.sourceId!=='string' || !span.sourceId || typeof span.contentSha256!=='string' || !/^[a-f0-9]{64}$/.test(span.contentSha256)
+          || !Number.isSafeInteger(span.start) || !Number.isSafeInteger(span.end) || span.start<0 || span.end<=span.start)
+        throw new Error('Сервис вернул некорректный фрагмент основания.');
+      // Offsets are Unicode code points in the exact source body; the display text is already rendered by ML.
+      return {source_id:span.sourceId,content_sha256:span.contentSha256,start:span.start,end:span.end};
+    });
+    return {kind, claim_id:claim.claimId, text:claim.text, certainty:claim.kind, source_ids:list(claim.sourceIds), feature_refs:list(claim.profileFeatures), evidence_spans, origin:claim.origin, level:claim.level, horizon:claim.horizon, ...(label ? {label} : {})};
   }
   function cardView(dto, ctx) {
     checkContext(dto, ctx, ctx.event_id);

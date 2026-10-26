@@ -14,7 +14,7 @@ import java.util.Map;
  * Wire types for the pinned ML contract.
  */
 public final class MlContracts {
-    public static final String CONTRACT_COMMIT = "b34b724b048b0f59ac0b65f88944c84a662bfc00";
+    public static final String CONTRACT_COMMIT = "e330ae5b7751a81f6deab0446149a4666e8ef7c4";
     public static final String DISCLAIMER = "Аналитика носит информационный характер и не является инвестиционной рекомендацией. "
             + "Выводы с пометкой «вывод модели» и «гипотеза» сформированы AI и не являются позицией Альфа-Банка.";
 
@@ -124,21 +124,32 @@ public final class MlContracts {
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    public record EvidenceSpan(String sourceId, String contentSha256, long start, long end) {
+        public EvidenceSpan {
+            if (sourceId == null || sourceId.isEmpty() || contentSha256 == null || !contentSha256.matches("[a-f0-9]{64}")
+                    || start < 0 || end <= start) throw new IllegalArgumentException("Invalid evidence span");
+        }
+    }
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record Claim(String text, ClaimKind kind, List<String> sourceIds, List<String> profileFeatures, String claimId) {
+    public record Claim(String text, ClaimKind kind, List<String> sourceIds, List<String> profileFeatures, String claimId,
+                        List<EvidenceSpan> evidenceSpans) {
         public Claim {
             sourceIds = immutable(sourceIds);
             profileFeatures = immutable(profileFeatures);
+            evidenceSpans = immutable(evidenceSpans);
         }
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record Impact(String text, ClaimKind kind, List<String> sourceIds, List<String> profileFeatures,
-                         Level level, String horizon, String claimId) {
+                         Level level, String horizon, String claimId, List<EvidenceSpan> evidenceSpans) {
         public Impact {
             sourceIds = immutable(sourceIds);
             profileFeatures = immutable(profileFeatures);
+            evidenceSpans = immutable(evidenceSpans);
         }
     }
 

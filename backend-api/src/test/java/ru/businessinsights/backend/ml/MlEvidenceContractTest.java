@@ -24,7 +24,7 @@ class MlEvidenceContractTest {
     }
     @Test void allPinnedFieldsHaveTypedRecordComponents() throws Exception {
         var schema = JSON.readTree(getClass().getResourceAsStream("/ml-contracts/insight.schema.json"));
-        for (Class<?> type : List.of(MlContracts.SourceRef.class, MlContracts.Claim.class, MlContracts.Impact.class, MlContracts.Insight.class)) {
+        for (Class<?> type : List.of(MlContracts.SourceRef.class, MlContracts.EvidenceSpan.class, MlContracts.Claim.class, MlContracts.Impact.class, MlContracts.Insight.class)) {
             var fields = new java.util.HashSet<String>();
             for (var component : type.getRecordComponents())
                 fields.add(com.fasterxml.jackson.databind.PropertyNamingStrategies.SnakeCaseStrategy.INSTANCE.translate(component.getName()));
@@ -57,7 +57,7 @@ class MlEvidenceContractTest {
         assertEquals("2026-10-25T12:30:00Z", view.at("/sources/0/firstSeenAt").asText());
         assertEquals("2026-10-26T08:00:00Z", view.at("/sources/0/retrievedAt").asText());
         assertEquals("limited", view.path("outcome").asText());
-        assertEquals("revision-context", view.path("corpusRevision").asText());
+        assertEquals("a".repeat(64), view.path("corpusRevision").asText());
         assertEquals(1, view.path("conflicts").size());
     }
     @Test void profileMetadataAndDecimalSurviveWireRoundTrip() throws Exception {
@@ -90,5 +90,24 @@ class MlEvidenceContractTest {
         var output = JSON.valueToTree(JSON.treeToValue(input, MlContracts.Answer.class));
         for (String field : List.of("company_id", "event_id", "corpus_revision", "event_content_sha256", "as_of"))
             assertEquals(input.get(field), output.get(field), field);
+    }
+
+    @Test void impactAndAnswerCarryTypedSpansAndLegacyClaimsDefaultToEmptyList() throws Exception {
+        var claim = JSON.readTree("""
+                {"claim_id":"claim:🧪/opaque","text":"🧪 Условие сохранено.","kind":"fact","source_ids":["source:🧪/opaque"],
+                 "evidence_spans":[{"source_id":"source:🧪/opaque","content_sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","start":2,"end":23}]}
+                """);
+        var impactInput = claim.deepCopy(); ((ObjectNode) impactInput).put("level", "low");
+        var impact = JSON.readTree(JSON.writeValueAsBytes(JSON.treeToValue(impactInput, MlContracts.Impact.class)));
+        assertEquals(claim.path("evidence_spans"), impact.path("evidence_spans"));
+        assertEquals(claim.path("text"), impact.path("text"));
+        var answerInput = JSON.createObjectNode().put("insight_id", "ins_1").put("run_id", "run_a1")
+                .put("status", "answered").put("text", "🧪 Условие сохранено.");
+        answerInput.putArray("claims").add(claim);
+        var answer = JSON.readTree(JSON.writeValueAsBytes(JSON.treeToValue(answerInput, MlContracts.Answer.class)));
+        assertEquals(claim.path("evidence_spans"), answer.at("/claims/0/evidence_spans"));
+        var legacy = JSON.valueToTree(JSON.treeToValue(JSON.readTree("{\"text\":\"Legacy\",\"kind\":\"unavailable\"}"), MlContracts.Claim.class));
+        assertTrue(legacy.path("evidence_spans").isArray());
+        assertTrue(legacy.path("evidence_spans").isEmpty());
     }
 }

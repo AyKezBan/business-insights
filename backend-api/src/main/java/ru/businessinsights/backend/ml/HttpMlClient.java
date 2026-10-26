@@ -291,11 +291,13 @@ public final class HttpMlClient implements MlClient {
 
     private void validateReferences(JsonNode result, JsonNode profile) {
         Set<String> sourceIds = new HashSet<>();
+        var sources = new java.util.HashMap<String, JsonNode>();
         for (JsonNode source : result.path("sources")) {
             String id = source.path("source_id").asText();
             if (id.isBlank() || !sourceIds.add(id)) {
                 throw invalid("ML response has empty or duplicate source IDs");
             }
+            sources.put(id, source);
         }
         for (JsonNode conflict : result.path("conflicts")) {
             for (JsonNode ref : conflict.path("source_ids")) {
@@ -304,10 +306,19 @@ public final class HttpMlClient implements MlClient {
         }
         for (String section : List.of("what_happened", "why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view", "claims", "scenarios")) {
             for (JsonNode claim : result.path(section)) {
+                Set<String> cited = new HashSet<>();
                 for (JsonNode ref : claim.path("source_ids")) {
                     if (!sourceIds.contains(ref.asText())) {
                         throw invalid("ML assertion references an absent source");
                     }
+                    cited.add(ref.asText());
+                }
+                for (JsonNode span : claim.path("evidence_spans")) {
+                    JsonNode source = sources.get(span.path("source_id").asText());
+                    if (source == null || !cited.contains(span.path("source_id").asText()))
+                        throw invalid("ML evidence span references an uncited source");
+                    if (source.hasNonNull("content_sha256") && !source.get("content_sha256").equals(span.get("content_sha256")))
+                        throw invalid("ML evidence span differs from its source version");
                 }
                 if (profile != null) {
                     for (JsonNode feature : claim.path("profile_features")) {

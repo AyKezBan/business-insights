@@ -34,6 +34,13 @@
           },
           "title": "Profile Features",
           "type": "array"
+        },
+        "evidence_spans": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "title": "Evidence Spans",
+          "type": "array"
         }
       },
       "required": [
@@ -54,6 +61,40 @@
       ],
       "title": "ClaimKind",
       "type": "string"
+    },
+    "EvidenceSpan": {
+      "additionalProperties": false,
+      "description": "Offsets in the exact source body, measured in Unicode code points.",
+      "properties": {
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "content_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Content Sha256",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_id",
+        "content_sha256",
+        "start",
+        "end"
+      ],
+      "title": "EvidenceSpan",
+      "type": "object"
     },
     "SourceKind": {
       "enum": [
@@ -436,6 +477,45 @@
       ],
       "default": null,
       "title": "Event Id"
+    },
+    "corpus_revision": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Corpus Revision"
+    },
+    "event_content_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Event Content Sha256"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "As Of"
     },
     "status": {
       "title": "Status",

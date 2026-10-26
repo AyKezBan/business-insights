@@ -200,6 +200,7 @@ async function main() {
   assert(ui.text().includes('Скрыто событий: 1'));
   await walk(ui.root).find(e=>e.tagName==='button' && e.textContent==='Показать скрытые').onclick();
   assert(walk(ui.root).some(e=>e.tagName==='button' && e.textContent==='Скрыть'));
+  await require('./test_evidence_spans.cjs').main();
   await require('./test_profile_context.cjs').main();
   console.log('PASS: Java DTOs, context isolation, all claims and sources, hidden/feedback, async answer continuation, errors, and zero automatic generation.');
 }

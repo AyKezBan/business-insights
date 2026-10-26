@@ -102,8 +102,11 @@ public final class ApiModels {
                              String rawPublication, String sourceTimezone, Integer sourceUtcOffsetSeconds, String timezoneProvenance) {
     }
 
+    public record EvidenceSpanView(String sourceId, String contentSha256, long start, long end) {}
+
     public record ClaimView(String text, String kind, String origin, List<String> sourceIds,
-                            List<String> profileFeatures, String level, String horizon, String claimId) {
+                            List<String> profileFeatures, String level, String horizon, String claimId,
+                            List<EvidenceSpanView> evidenceSpans) {
     }
 
     public record ConflictView(String reason, List<String> sourceIds, boolean resolved) {}

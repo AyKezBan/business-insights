@@ -529,6 +529,16 @@ components:
         validUntil: {type: string, format: date, nullable: true}
         firstSeenAt: {type: string, format: date-time, nullable: true}
         retrievedAt: {type: string, format: date-time, nullable: true}
+    EvidenceSpan:
+      type: object
+      additionalProperties: false
+      description: Exact source-body range [start,end) in Unicode code points; sourceId is opaque and end must exceed start
+      required: [sourceId, contentSha256, start, end]
+      properties:
+        sourceId: {type: string, minLength: 1}
+        contentSha256: {type: string, pattern: '^[a-f0-9]{64}$'}
+        start: {type: integer, format: int64, minimum: 0}
+        end: {type: integer, format: int64, minimum: 1}
     Claim:
       type: object
       required: [text, kind, origin, sourceIds, profileFeatures]
@@ -538,6 +548,10 @@ components:
         origin: {type: string, enum: [FACT, BANK_ANALYSIS, EXTERNAL_ASSESSMENT, MODEL_INFERENCE, HYPOTHESIS, MODEL_RECOMMENDATION, UNAVAILABLE]}
         sourceIds: {$ref: '#/components/schemas/StringList'}
         profileFeatures: {$ref: '#/components/schemas/StringList'}
+        evidenceSpans:
+          type: array
+          default: []
+          items: {$ref: '#/components/schemas/EvidenceSpan'}
         level: {type: string, enum: [low, medium, high], nullable: true}
         horizon: {type: string, nullable: true}
         claimId: {type: string, nullable: true}

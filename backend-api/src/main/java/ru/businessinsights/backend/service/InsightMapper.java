@@ -87,9 +87,18 @@ public class InsightMapper {
                 case "unavailable" -> "UNAVAILABLE";
                 default -> "MODEL_INFERENCE";
             };
-            result.add(new ClaimView(text(c, "text"), kind, origin, ids, strings(c.path("profile_features")), text(c, "level"), text(c, "horizon"), text(c, "claim_id")));
+            result.add(new ClaimView(text(c, "text"), kind, origin, ids, strings(c.path("profile_features")), text(c, "level"), text(c, "horizon"), text(c, "claim_id"), evidenceSpans(c)));
         }
         return result;
+    }
+
+    private List<EvidenceSpanView> evidenceSpans(JsonNode claim) {
+        var spans = new ArrayList<EvidenceSpanView>();
+        for (JsonNode span : claim.path("evidence_spans")) {
+            var typed = mapper.convertValue(span, ru.businessinsights.backend.ml.MlContracts.EvidenceSpan.class);
+            spans.add(new EvidenceSpanView(typed.sourceId(), typed.contentSha256(), typed.start(), typed.end()));
+        }
+        return List.copyOf(spans);
     }
 
     private List<SourceView> sources(JsonNode r) {
