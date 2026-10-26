@@ -1,4 +1,5 @@
 import hashlib
+from collections.abc import Callable
 import json
 import re
 import threading
@@ -378,7 +379,8 @@ class StructuredLLM:
             "duration_ms": int((time.monotonic() - self._started) * 1000),
         }
 
-    def generate(self, step: str, model: str, messages: list[dict], schema: type[T], retries: int = 1) -> T:
+    def generate(self, step: str, model: str, messages: list[dict], schema: type[T], retries: int = 1,
+                 normalize: Callable[[dict], dict] | None = None) -> T:
         ensure_allowed(model)
         attempt_messages = list(messages)
         last_error = ""
@@ -434,7 +436,8 @@ class StructuredLLM:
                                 estimated_tokens=estimated_tokens)
                     break
                 try:
-                    result = schema.model_validate(extract_json(resp.text))
+                    data = extract_json(resp.text)
+                    result = schema.model_validate(normalize(data) if normalize else data)
                 except (ValueError, ValidationError) as exc:
                     last_error = (_validation_diagnostic(schema, exc)
                                   if isinstance(exc, ValidationError) else "Ответ не содержит корректный JSON-объект")

@@ -47,6 +47,32 @@ def quote_options(texts: dict[str, str], *, bank_ids=(), limit=6000) -> str:
     return json.dumps(options, ensure_ascii=False)
 
 
+def span_hash_normalizer(texts: dict[str, str]):
+    """Хеш в evidence_span - производная величина источника, а не утверждение модели.
+
+    Модель часто искажает 64 hex-символа при копировании. Подставляем настоящий хеш текста по source_id; границы
+    фрагмента и совпадение его текста по-прежнему проверяются отдельно (spans.py), поэтому проверка не ослабляется.
+    """
+    digests = {sid: hashlib.sha256(text.encode()).hexdigest() for sid, text in texts.items()}
+
+    def walk(node):
+        if isinstance(node, dict):
+            sid = node.get("source_id")
+            if isinstance(sid, str) and "content_sha256" in node and sid in digests:
+                node["content_sha256"] = digests[sid]
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    def normalize(data: dict) -> dict:
+        walk(data)
+        return data
+
+    return normalize
+
+
 def event_fingerprint(event: NewsEvent, *, source_texts: dict[str, str] | None = None) -> str:
     data = {"event": event.model_dump(mode="json"), "texts": source_texts or {}}
     return hashlib.sha256(json.dumps(data, ensure_ascii=False, sort_keys=True).encode()).hexdigest()

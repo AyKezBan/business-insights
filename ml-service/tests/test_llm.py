@@ -128,3 +128,18 @@ def test_provider_request_caps_the_output_length():
     client._http = httpx.Client(base_url="https://gateway.example/v1", transport=httpx.MockTransport(handler))
     client.chat("gemma-4-26b-a4b", [{"role": "user", "content": "x"}], json_mode=True)
     assert seen["max_tokens"] == 1234
+
+
+def test_normalizer_restores_a_garbled_span_hash_but_not_the_offsets():
+    import hashlib
+
+    from insight_agent.agent.evidence import span_hash_normalizer
+
+    text = "Ключевая ставка 14,00%."
+    real = hashlib.sha256(text.encode()).hexdigest()
+    data = {"claims": [{"evidence_spans": [{"source_id": "s1", "content_sha256": "deadbeef", "start": 2, "end": 9},
+                                             {"source_id": "unknown", "content_sha256": "keep", "start": 0, "end": 1}]}]}
+    fixed = span_hash_normalizer({"s1": text})(data)
+    first, second = fixed["claims"][0]["evidence_spans"]
+    assert first["content_sha256"] == real and (first["start"], first["end"]) == (2, 9)
+    assert second["content_sha256"] == "keep"  # неизвестный источник не угадываем

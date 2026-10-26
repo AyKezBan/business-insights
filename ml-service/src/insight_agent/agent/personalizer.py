@@ -1,5 +1,5 @@
 from insight_agent.agent.planner import matched_channels
-from insight_agent.agent.evidence import pack_sources, quote_options
+from insight_agent.agent.evidence import pack_sources, quote_options, span_hash_normalizer
 from insight_agent.agent.prompts import (
     KIND_RULES,
     LEVEL_DEFINITIONS,
@@ -98,4 +98,5 @@ def personalize(
             {"role": "assistant", "content": state.draft.model_dump_json()},
             {"role": "user", "content": f"Проверка нашла проблемы. Исправь их и верни полный JSON заново:\n{issues}"},
         ]
-    return llm.generate("personalize" if not feedback else "revise", model, messages, PersonalizationDraft)
+    return llm.generate("personalize" if not feedback else "revise", model, messages, PersonalizationDraft,
+                        normalize=span_hash_normalizer(state.source_texts()))
