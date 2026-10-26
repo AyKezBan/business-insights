@@ -3,6 +3,11 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT"
+# Bake checkout provenance at build time; do not relabel existing images at runtime.
+if [ "${GIT_SHA+x}" != x ]; then
+  GIT_SHA=$(git rev-parse HEAD 2>/dev/null) || GIT_SHA=unknown
+fi
+export GIT_SHA
 command=${1:-help}
 [ "$#" -eq 0 ] || shift
 case "$command" in

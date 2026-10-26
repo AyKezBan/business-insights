@@ -215,3 +215,73 @@ def test_stack_optional_start_and_stop_commands(tmp_path, command, expected):
                                capture_output=True, text=True)
     assert completed.returncode == 0
     assert capture.read_text().splitlines() == ['compose', *expected]
+
+
+@pytest.mark.parametrize('override', [None, 'explicit-release-revision'])
+def test_stack_exports_anchored_build_revision_and_preserves_override(tmp_path, override):
+    root = Path(__file__).resolve().parents[2]
+    capture = tmp_path / 'revision'
+    docker = tmp_path / 'docker'
+    docker.write_text('#!/bin/sh\nprintf "%s" "${GIT_SHA-unset}" > "$CAPTURE"\n')
+    docker.chmod(0o755)
+    env = {'PATH': str(tmp_path) + os.pathsep + os.environ['PATH'], 'CAPTURE': str(capture)}
+    if override is not None:
+        env['GIT_SHA'] = override
+    completed = subprocess.run([str(root / 'stack'), 'materials-up'], cwd=tmp_path, env=env,
+                               capture_output=True, text=True)
+    assert completed.returncode == 0
+    expected = override or subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root,
+                                                   text=True).strip()
+    assert capture.read_text() == expected
+
+
+@pytest.mark.parametrize('command', ['materials-watch', 'help', 'init'])
+def test_archive_wrapper_needs_no_git_and_uses_unknown_build_revision(tmp_path, command):
+    import shutil
+    root = Path(__file__).resolve().parents[2]
+    archive = tmp_path / 'archive'
+    archive.mkdir()
+    shutil.copy2(root / 'stack', archive / 'stack')
+    (archive / '.env.example').write_text('POSTGRES_PASSWORD=\nBACKEND_DEMO_TOKEN=\n')
+    binaries = tmp_path / 'bin'
+    binaries.mkdir()
+    # Deliberately omit git; these are the existing wrapper's non-Git prerequisites.
+    for name in ('dirname', 'cat'):
+        (binaries / name).symlink_to(shutil.which(name))
+    (binaries / 'python3').symlink_to(sys.executable)
+    docker = binaries / 'docker'
+    docker.write_text('#!/bin/sh\nprintf "%s" "${GIT_SHA-unset}" > "$CAPTURE"\n')
+    docker.chmod(0o755)
+    capture = tmp_path / 'revision'
+    env = {'PATH': str(binaries), 'CAPTURE': str(capture), 'LOCAL_UID': '1000', 'LOCAL_GID': '1000'}
+    completed = subprocess.run([str(archive / 'stack'), command], cwd=tmp_path, env=env,
+                               capture_output=True, text=True)
+    assert completed.returncode == 0
+    assert completed.stderr == ''
+    if command == 'materials-watch':
+        assert capture.read_text() == 'unknown'
+    elif command == 'help':
+        assert 'Usage:' in completed.stdout
+    else:
+        assert (archive / '.env').is_file()
+
+
+@pytest.mark.parametrize('override,expected', [(None, 'unknown'), ('synthetic-release', 'synthetic-release')])
+def test_materials_compose_bakes_build_revision_without_runtime_override(override, expected):
+    import shutil
+    docker = shutil.which('docker')
+    if docker is None:
+        pytest.skip('Docker Compose CLI required for offline config resolution')
+    root = Path(__file__).resolve().parents[2]
+    env = {'PATH': os.environ['PATH'], 'POSTGRES_PASSWORD': 'synthetic-poller-check',
+           'BACKEND_DEMO_TOKEN': 'synthetic-poller-token-check'}
+    if override is not None:
+        env['GIT_SHA'] = override
+    completed = subprocess.run([docker, 'compose', '--env-file', '/dev/null', '-f', 'compose.yaml',
+        '-f', 'infra/compose.materials.yaml', '--profile', 'jobs', 'config', '--format', 'json'],
+        cwd=root, env=env, capture_output=True, text=True)
+    assert completed.returncode == 0, completed.stderr
+    services = json.loads(completed.stdout)['services']
+    for name in ('ml', 'materials', 'materials-poller'):
+        assert services[name]['build'].get('args', {}).get('GIT_SHA') == expected
+        assert 'GIT_SHA' not in services[name].get('environment', {})

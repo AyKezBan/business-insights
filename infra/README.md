@@ -79,6 +79,8 @@ Jobs используют существующую CLI без изменений
 
 ## Регулярное обновление материалов (необязательно)
 
+При сборке с materials overlay wrapper передаёт `GIT_SHA` из HEAD своего checkout в build args ML, materials job и poller; Dockerfile сохраняет его внутри образа для traces. Явный override задаётся как `GIT_SHA=<revision> ./stack materials-up`; без Git (например, в архиве) используется `unknown`, команды help/init продолжают работать. При прямом вызове Compose передайте `GIT_SHA` самостоятельно. Runtime environment не подменяет SHA уже собранного образа: старый образ сохраняет свою версию до пересборки.
+
 После bootstrap корпуса, готовности `sync` из T05 и runtime/catalog T07/T09 явно запустите `./stack materials-watch`. Команда собирает и запускает только `materials-poller` из профиля `jobs`; `materials-up` сохраняет прежний ручной режим. Poller выполняет существующую команду `python -m insight_agent.materials.cli sync --sources cbr_press,fns_news,eia_today --limit-per-source 5 --store /app/materials` сразу, затем через 900 секунд после завершения предыдущей попытки. Он не вызывает LLM и не отправляет события в backend сам.
 
 Коды 1/2 и неизвестные ошибки увеличивают паузу до 1800/3600 секунд, код 0 сбрасывает её; частичный результат 3 остаётся виден и даёт обычную паузу 900 секунд. Только код 0 сбрасывает накопленный backoff. `MATERIALS_POLL_INTERVAL_SECONDS` меняет обычную паузу (положительная, не более 3600), `MATERIALS_POLL_TIMEOUT_SECONDS` — предел одной попытки (по умолчанию 600 секунд). После timeout дочерняя CLI получает terminate и до 10 секунд на остановку, затем kill. SIGTERM/SIGINT прерывают ожидание и останавливают только собственную CLI; новая попытка после stop не начинается.
