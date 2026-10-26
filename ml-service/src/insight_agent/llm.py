@@ -71,6 +71,7 @@ class LLMResponse:
     model: str
     prompt_tokens: int
     completion_tokens: int
+    cost: Decimal | None = None  # стоимость вызова, как её сообщил шлюз (usage.cost), руб.
 
     @property
     def total_tokens(self) -> int:
@@ -139,6 +140,7 @@ class OpenAICompatibleClient:
     def __init__(self, base_url: str, api_key: str, timeout: float = 60.0, max_output_tokens: int | None = 4096):
         self._api_key = api_key
         self._max_output_tokens = max_output_tokens
+        self._key_cache: tuple[float, KeyStatus] | None = None
         self._http = httpx.Client(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key}"},
@@ -191,14 +193,48 @@ class OpenAICompatibleClient:
             model=returned_model,
             prompt_tokens=incurred.prompt_tokens,
             completion_tokens=incurred.completion_tokens,
+            cost=_reported_cost(usage),
         )
+
+    def key_status(self) -> "KeyStatus | None":
+        """Расход и лимит общего ключа по данным шлюза (LiteLLM /key/info). Кеш 20 с; при сбое отдаёт последнее известное."""
+        now = time.monotonic()
+        if self._key_cache and now - self._key_cache[0] < 20:
+            return self._key_cache[1]
+        root = str(self._http.base_url).rstrip("/")
+        root = root[:-3] if root.endswith("/v1") else root
+        try:
+            info = self._http.get(root + "/key/info", timeout=10).json()["info"]
+            status = KeyStatus(Decimal(str(info["spend"])),
+                               Decimal(str(info["max_budget"])) if info.get("max_budget") is not None else None,
+                               info.get("budget_reset_at"))
+        except Exception:  # noqa: BLE001 - недоступность информации о ключе не должна ломать анализ
+            return self._key_cache[1] if self._key_cache else None
+        self._key_cache = (now, status)
+        return status
+
+
+@dataclass(frozen=True)
+class KeyStatus:
+    spend: Decimal
+    max_budget: Decimal | None
+    reset_at: str | None = None
+
+
+def _reported_cost(usage: dict) -> Decimal | None:
+    value = usage.get("cost")
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < 0:
+        return None
+    return Decimal(str(value))
 
 
 class DailyBudget:
     """Суточный лимит: токены (в памяти) и, если задан ledger, рубли (в файле)."""
 
-    def __init__(self, limit_tokens: int, ledger: RubleLedger | None = None, prices: PriceTable | None = None):
+    def __init__(self, limit_tokens: int, ledger: RubleLedger | None = None, prices: PriceTable | None = None,
+                 key_gauge: Callable[[], KeyStatus | None] | None = None):
         self.limit = limit_tokens
+        self.key_gauge = key_gauge
         self.ledger = ledger
         self.prices = prices or PriceTable()
         self._day = date.today()
@@ -211,17 +247,28 @@ class DailyBudget:
                 self._day, self._used = date.today(), 0
             if self._used + tokens > self.limit:
                 raise DailyBudgetExceeded("Исчерпан дневной лимит токенов")
+        # Лимит общего ключа проверяется по данным шлюза: расход остальных участников сервис иначе не видит.
+        status = self.key_gauge() if self.key_gauge else None
+        if status and status.max_budget is not None:
+            upper = self.prices.upper_bound(model, tokens) if model else Decimal(0)
+            if status.spend + upper > status.max_budget:
+                raise DailyBudgetExceeded(f"Исчерпан бюджет общего ключа: {status.spend} из {status.max_budget} руб.")
         if self.ledger and model:
             return self.ledger.reserve(self.prices.upper_bound(model, tokens))
         return None
 
     def add(self, tokens: int, *, reservation: Reservation | None = None, model: str | None = None,
-            prompt_tokens: int = 0, completion_tokens: int = 0, estimated: bool = False) -> Decimal | None:
+            prompt_tokens: int = 0, completion_tokens: int = 0, estimated: bool = False,
+            reported_cost: Decimal | None = None) -> Decimal | None:
         with self._lock:
             self._used += tokens
         if self.ledger and model:
-            cost = (self.prices.upper_bound(model, tokens) if estimated
-                    else self.prices.cost(model, prompt_tokens, completion_tokens))
+            if estimated:
+                cost = self.prices.upper_bound(model, tokens)
+            elif reported_cost is not None:
+                cost = reported_cost  # фактическая стоимость от шлюза точнее любого тарифа
+            else:
+                cost = self.prices.cost(model, prompt_tokens, completion_tokens)
             self.ledger.settle(reservation, cost)
             return cost
         return None
@@ -258,9 +305,10 @@ class RunBudget:
         self._reservation = self.daily.reserve(estimate, model)
 
     def add(self, tokens: int, *, model: str | None = None, prompt_tokens: int = 0,
-            completion_tokens: int = 0, estimated: bool = False) -> Decimal | None:
+            completion_tokens: int = 0, estimated: bool = False, reported_cost: Decimal | None = None) -> Decimal | None:
         cost = self.daily.add(tokens, reservation=self._reservation, model=model,
-                              prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, estimated=estimated)
+                              prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, estimated=estimated,
+                              reported_cost=reported_cost)
         self._reservation = None
         self.used += tokens
         self.calls += 1
@@ -421,7 +469,8 @@ class StructuredLLM:
                 cost = self.budget.add(estimated_tokens or resp.total_tokens, model=current,
                                        prompt_tokens=resp.prompt_tokens if resp else 0,
                                        completion_tokens=resp.completion_tokens if resp else 0,
-                                       estimated=bool(estimated_tokens))
+                                       estimated=bool(estimated_tokens),
+                                       reported_cost=resp.cost if resp else None)
                 if current not in self.models_used:
                     self.models_used.append(current)
                 try:

@@ -51,7 +51,8 @@ def _dump(value):
     if hasattr(value, "model_dump"):
         return value.model_dump(mode="json")
     if is_dataclass(value):
-        return asdict(value)
+        # Decimal (usage.cost) не сериализуется в JSON: сохраняем строкой, не теряя точности.
+        return {k: (str(v) if isinstance(v, Decimal) else v) for k, v in asdict(value).items()}
     return value
 
 

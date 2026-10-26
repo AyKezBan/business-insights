@@ -27,7 +27,7 @@ def build_agent(settings: Settings, client: ChatClient | None = None) -> Insight
     registry = CorpusRegistry(settings.materials_dir, settings.materials_public_base_url,
                               settings.materials_cache_size) if settings.materials_dir is not None else None
     bundle = registry.current() if registry else None
-    return InsightAgent(
+    agent = InsightAgent(
         client,
         settings,
         bundle.bank if bundle else BankIndex.from_jsonl(settings.bank_fragments_path),
@@ -35,6 +35,19 @@ def build_agent(settings: Settings, client: ChatClient | None = None) -> Insight
         corpus_snapshot=bundle.snapshot if bundle else None,
         corpus_registry=registry,
     )
+    gauge = getattr(client, "key_status", None)
+    if callable(gauge):
+        agent.daily.key_gauge = gauge
+    return agent
+
+
+def _key_health(agent) -> dict:
+    status = agent.daily.key_gauge() if agent.daily.key_gauge else None
+    return {
+        "key_spend_rub": str(status.spend) if status else None,
+        "key_max_budget_rub": str(status.max_budget) if status and status.max_budget is not None else None,
+        "key_budget_reset_at": status.reset_at if status else None,
+    }
 
 
 def create_app(agent: InsightAgent | None = None) -> FastAPI:
@@ -53,6 +66,7 @@ def create_app(agent: InsightAgent | None = None) -> FastAPI:
             "daily_tokens_used": agent.daily.used,
             "open_research": agent.research is not None,
             "daily_spent_rub": str(agent.daily.ledger.spent) if agent.daily.ledger else None,
+            **_key_health(agent),
             "daily_limit_rub": str(agent.daily.ledger.limit) if agent.daily.ledger else None,
             "corpus_revision": agent.corpus_snapshot.revision if agent.corpus_snapshot else None,
             "verified_bank_fragments": sum(f.review_status == "verified" for f in agent.bank.fragments),

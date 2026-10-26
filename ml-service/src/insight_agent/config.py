@@ -20,10 +20,12 @@ class Settings(BaseSettings):
     llm_daily_budget_rub: Decimal = Decimal(500)
     llm_budget_warn_rub: Decimal = Decimal(350)
     llm_budget_stop_optional_rub: Decimal = Decimal(450)
-    llm_price_default_in_rub_per_1k: Decimal = Decimal("0.5")
-    llm_price_default_out_rub_per_1k: Decimal = Decimal("1.5")
+    # Верхняя оценка для резерва: по наблюдаемой стоимости шлюза (около 0,013 руб. за 1000 токенов) с запасом.
+    # Фактический расход берётся из usage.cost ответа шлюза.
+    llm_price_default_in_rub_per_1k: Decimal = Decimal("0.02")
+    llm_price_default_out_rub_per_1k: Decimal = Decimal("0.04")
     llm_prices_json: str = ""
-    budget_timezone: str = "Europe/Moscow"
+    budget_timezone: str = "UTC"  # шлюз сбрасывает суточный лимит ключа в 00:00 UTC
     budget_state_path: Path | None = None
 
     agent_max_iterations: int = 3
