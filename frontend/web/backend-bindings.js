@@ -107,7 +107,7 @@
         return {person_id:session.personId,profile:{name:session.personId,company_id:companies[0].companyId,role:'cfo'},
           companies:companies.map(c=>({id:c.companyId,name:'Компания '+c.companyId,sector:c.okvedName || 'Не указана',
             ...(Array.isArray(c.roles) ? {roles:c.roles.filter(role=>Object.hasOwn(roles,role))} : {})})),roles,views,
-          notice:'Демонстрационный доступ по связям ФЛ–ЮЛ. Роль выбирается явно и не подтверждает полномочия. Показаны сохранённые результаты анализа; открытие ленты не запускает генерацию.'};
+          notice:'Доступны компании текущего пользователя. Аналитическая роль задаёт контекст анализа. В ленте показаны сохранённые результаты; новый анализ можно запустить из каталога материалов.'};
       },
       async materialCatalog(ctx, options) {
         const items=[], seen=new Set(); let token=null, total=null, offset=0;
