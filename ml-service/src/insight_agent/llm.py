@@ -80,8 +80,63 @@ class ChatClient(Protocol):
     def chat(self, model: str, messages: list[dict], *, json_mode: bool) -> LLMResponse: ...
 
 
+class _ProviderError(LLMError):
+    """Controlled diagnostics plus trustworthy usage from an unusable reply."""
+
+    def __init__(self, message: str, response: LLMResponse | None = None, *, rejected: bool = False):
+        super().__init__(message)
+        self.response = response
+        self.rejected = rejected
+
+
+def _valid_tokens(value: object) -> bool:
+    return type(value) is int and value >= 0
+
+
+_JSON_STRING = re.compile(r'"(?:[^"\\]|\\.)*"')
+
+
+def _redact_response_secret(text: str, secret: str) -> str:
+    if not secret:
+        return text
+
+    def redact_value(value):
+        if isinstance(value, str):
+            return value.replace(secret, "[REDACTED]")
+        if isinstance(value, list):
+            return [redact_value(item) for item in value]
+        if isinstance(value, dict):
+            return {redact_value(key): redact_value(item) for key, item in value.items()}
+        return value
+
+    try:
+        structured = extract_json(text)
+    except ValueError:
+        pass
+    else:
+        redacted = redact_value(structured)
+        if redacted != structured:
+            # Use the same parsed object as schema validation, regardless of fences
+            # or surrounding prose. Preserve untouched responses byte-for-byte.
+            text = json.dumps(redacted, ensure_ascii=False)
+
+    def redact_string(match: re.Match) -> str:
+        try:
+            decoded = json.loads(match.group())
+        except ValueError:
+            return match.group()
+        # Decode each JSON string (values AND keys), including Unicode escapes.
+        # Token-wise handling also protects repair feedback for malformed objects.
+        if secret in decoded:
+            return json.dumps(decoded.replace(secret, "[REDACTED]"), ensure_ascii=False)
+        return match.group()
+
+    return _JSON_STRING.sub(redact_string, text).replace(secret, "[REDACTED]")
+
+
 class OpenAICompatibleClient:
     def __init__(self, base_url: str, api_key: str, timeout: float = 60.0):
+        self._api_key = api_key
         self._http = httpx.Client(
             base_url=base_url.rstrip("/"),
             headers={"Authorization": f"Bearer {api_key}"},
@@ -92,20 +147,46 @@ class OpenAICompatibleClient:
         body: dict = {"model": model, "messages": messages, "temperature": 0.2}
         if json_mode:
             body["response_format"] = {"type": "json_object"}
-        resp = self._http.post("/chat/completions", json=body)
-        if resp.status_code == 400 and json_mode:
-
-            body.pop("response_format")
+        try:
             resp = self._http.post("/chat/completions", json=body)
+            if resp.status_code == 400 and json_mode:
+                body.pop("response_format")
+                resp = self._http.post("/chat/completions", json=body)
+        except Exception:
+            # Transport exceptions can contain URLs, credentials and request data.
+            raise _ProviderError("LLM: ошибка транспорта; расход неизвестен") from None
         if resp.status_code >= 400:
-            raise LLMError(f"LLM вернул {resp.status_code}: {resp.text[:300]}")
-        payload = resp.json()
-        usage = payload.get("usage") or {}
+            # Upstream bodies are untrusted and never belong in public diagnostics.
+            raise _ProviderError(f"LLM вернул HTTP {resp.status_code}", rejected=True)
+        try:
+            payload = resp.json()
+        except ValueError:
+            raise _ProviderError("LLM: некорректный JSON ответа; расход неизвестен") from None
+        if not isinstance(payload, dict):
+            raise _ProviderError("LLM: некорректная структура ответа; расход неизвестен")
+        usage = payload.get("usage")
+        if not isinstance(usage, dict) or not all(
+            _valid_tokens(usage.get(key)) for key in ("prompt_tokens", "completion_tokens")
+        ):
+            raise _ProviderError("LLM: отсутствует достоверный расход токенов")
+        incurred = LLMResponse("", model, usage["prompt_tokens"], usage["completion_tokens"])
+        choices = payload.get("choices")
+        if (not isinstance(choices, list) or not choices or not isinstance(choices[0], dict)
+                or not isinstance(choices[0].get("message"), dict)
+                or not isinstance(choices[0]["message"].get("content"), str)
+                or not isinstance(payload.get("model", model), str)):
+            raise _ProviderError("LLM: некорректная структура ответа", incurred)
+        # Redact before validation, repair prompts, diagnostics or truncation.
+        text = choices[0]["message"]["content"]
+        returned_model = payload.get("model", model)
+        if self._api_key:
+            text = _redact_response_secret(text, self._api_key)
+            returned_model = returned_model.replace(self._api_key, "[REDACTED]")
         return LLMResponse(
-            text=payload["choices"][0]["message"]["content"] or "",
-            model=payload.get("model", model),
-            prompt_tokens=int(usage.get("prompt_tokens", 0)),
-            completion_tokens=int(usage.get("completion_tokens", 0)),
+            text=text,
+            model=returned_model,
+            prompt_tokens=incurred.prompt_tokens,
+            completion_tokens=incurred.completion_tokens,
         )
 
 
@@ -131,11 +212,12 @@ class DailyBudget:
         return None
 
     def add(self, tokens: int, *, reservation: Reservation | None = None, model: str | None = None,
-            prompt_tokens: int = 0, completion_tokens: int = 0) -> Decimal | None:
+            prompt_tokens: int = 0, completion_tokens: int = 0, estimated: bool = False) -> Decimal | None:
         with self._lock:
             self._used += tokens
         if self.ledger and model:
-            cost = self.prices.cost(model, prompt_tokens, completion_tokens)
+            cost = (self.prices.upper_bound(model, tokens) if estimated
+                    else self.prices.cost(model, prompt_tokens, completion_tokens))
             self.ledger.settle(reservation, cost)
             return cost
         return None
@@ -160,6 +242,8 @@ class RunBudget:
         self.used = 0
         self.calls = 0
         self.cost = Decimal(0)
+        self.estimated_tokens = 0
+        self.estimated_cost = Decimal(0)
         self._reservation: Reservation | None = None
 
     def check(self, estimate: int, model: str | None = None) -> None:
@@ -170,14 +254,17 @@ class RunBudget:
         self._reservation = self.daily.reserve(estimate, model)
 
     def add(self, tokens: int, *, model: str | None = None, prompt_tokens: int = 0,
-            completion_tokens: int = 0) -> Decimal | None:
+            completion_tokens: int = 0, estimated: bool = False) -> Decimal | None:
         cost = self.daily.add(tokens, reservation=self._reservation, model=model,
-                              prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
+                              prompt_tokens=prompt_tokens, completion_tokens=completion_tokens, estimated=estimated)
         self._reservation = None
         self.used += tokens
         self.calls += 1
         if cost is not None:
             self.cost += cost
+        if estimated:
+            self.estimated_tokens += tokens
+            self.estimated_cost += cost or Decimal(0)
         return cost
 
     def check_terminal(self) -> None:
@@ -230,6 +317,8 @@ class StructuredLLM:
             "tokens": self.budget.used,
             "calls": self.budget.calls,
             "cost_rub": str(self.budget.cost),
+            "estimated_tokens": self.budget.estimated_tokens,
+            "estimated_cost_rub": str(self.budget.estimated_cost),
             "duration_ms": int((time.monotonic() - self._started) * 1000),
         }
 
@@ -240,28 +329,61 @@ class StructuredLLM:
         models = [model] + ([self.fallback_model] if self.fallback_model and self.fallback_model != model else [])
         for current in models:
             for attempt in range(retries + 1):
-                self.budget.check(_estimate_tokens(attempt_messages), current)
+                estimate = _estimate_tokens(attempt_messages)
+                self.budget.check(estimate, current)
                 started = time.monotonic()
+                failure = None
+                estimated_tokens = 0
                 try:
                     resp = self.client.chat(current, attempt_messages, json_mode=True)
-                except (LLMError, httpx.HTTPError) as exc:
+                    if (not isinstance(resp, LLMResponse) or not isinstance(resp.text, str)
+                            or not _valid_tokens(resp.prompt_tokens) or not _valid_tokens(resp.completion_tokens)):
+                        raise _ProviderError("LLM: некорректный ответ клиента; расход неизвестен")
+                except _ProviderError as exc:
+                    failure = str(exc)
+                    resp = exc.response
+                    if resp is None and not exc.rejected:
+                        estimated_tokens = estimate
+                except LLMError:
+                    # Explicit client rejections retain their release/fallback contract.
+                    failure, resp = "LLM: ошибка клиента", None
+                except Exception:
+                    failure, resp = "LLM: непредвиденная ошибка клиента; расход неизвестен", None
+                    estimated_tokens = estimate
+                except BaseException:
                     self.budget.release()
-                    last_error = str(exc)
+                    raise
+                if failure and resp is None and not estimated_tokens:
+                    self.budget.release()
+                    last_error = failure
                     self._trace(step, current, attempt_messages, None, error=last_error, started=started)
                     break
-                cost = self.budget.add(resp.total_tokens, model=current, prompt_tokens=resp.prompt_tokens,
-                                       completion_tokens=resp.completion_tokens)
+                # Unknown usage consumes the full reservation at the higher configured
+                # token price. It is an explicit estimate, never claimed as actual usage.
+                cost = self.budget.add(estimated_tokens or resp.total_tokens, model=current,
+                                       prompt_tokens=resp.prompt_tokens if resp else 0,
+                                       completion_tokens=resp.completion_tokens if resp else 0,
+                                       estimated=bool(estimated_tokens))
                 if current not in self.models_used:
                     self.models_used.append(current)
                 try:
                     self.budget.check_terminal()
                 except BudgetExceeded as exc:
-                    self._trace(step, current, attempt_messages, resp, error=str(exc), started=started, cost=cost)
-                    raise
+                    self._trace(step, current, attempt_messages, resp, error=str(exc), started=started, cost=cost,
+                                estimated_tokens=estimated_tokens)
+                    raise exc from None
+                if failure:
+                    last_error = failure
+                    self._trace(step, current, attempt_messages, resp, error=last_error, started=started, cost=cost,
+                                estimated_tokens=estimated_tokens)
+                    break
                 try:
                     result = schema.model_validate(extract_json(resp.text))
                 except (ValueError, ValidationError) as exc:
-                    last_error = str(exc)[:800]
+                    # Pydantic messages, locations and custom contexts may contain raw
+                    # values. Even include_input=False is insufficient for custom errors.
+                    last_error = (f"Ответ не соответствует схеме (ошибок: {exc.error_count()})"
+                                  if isinstance(exc, ValidationError) else "Ответ не содержит корректный JSON-объект")
                     self._trace(step, current, attempt_messages, resp, error=last_error, started=started, cost=cost)
                     attempt_messages = messages + [
                         {"role": "assistant", "content": resp.text},
@@ -278,7 +400,7 @@ class StructuredLLM:
         raise LLMError(f"Шаг {step}: не удалось получить корректный ответ ({last_error})")
 
     def _trace(self, step, model, messages, resp: LLMResponse | None, *, started: float, error: str | None = None,
-               cost: Decimal | None = None):
+               cost: Decimal | None = None, estimated_tokens: int = 0):
         prompt = "\n".join(m["content"] for m in messages)
         self.tracer.emit(
             "llm_call",
@@ -287,6 +409,8 @@ class StructuredLLM:
                 "call_id": uuid4().hex,
                 "model": model,
                 "cost_rub": str(cost) if cost is not None else None,
+                "usage_accounting": "reserved_estimate" if estimated_tokens else "reported" if resp else "unavailable",
+                "estimated_tokens": estimated_tokens or None,
                 "prompt_sha256": hashlib.sha256(prompt.encode()).hexdigest()[:16],
                 "prompt_chars": len(prompt),
                 "prompt_tokens": resp.prompt_tokens if resp else None,
