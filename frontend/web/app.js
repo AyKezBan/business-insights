@@ -508,7 +508,7 @@ function renderCard(card) {
     for (const text of card.missing_data) warning.append(node('p', missingDataText(text))); blocks.append(warning);
   }
   content.append(blocks, questionPanel(), feedbackPanel(card));
-  const aside = node('aside', '', 'panel aside-panel'); aside.append(node('h2', 'Основания и источники'), node('p', api.mode === 'demo' ? 'Синтетические материалы для проверки интерфейса. Оригинал открывается в новой вкладке.' : 'Первоисточники выводов. Оригинал открывается в новой вкладке.'), sourceLinks(card.sources), node('p', 'Вывод не заменяет проверку договоров и фактических показателей.'));
+  const aside = node('aside', '', 'panel aside-panel'); aside.append(node('h2', 'Основания и источники'), node('p', api.mode === 'demo' ? 'Примеры материалов аналитического сценария. Оригинал открывается в новой вкладке.' : 'Первоисточники выводов. Оригинал открывается в новой вкладке.'), sourceLinks(card.sources), node('p', 'Вывод не заменяет проверку договоров и фактических показателей.'));
   const disclaimer = node('div', '', 'investment-note'); disclaimer.append(node('strong', 'Не является инвестрекомендацией'), node('p', card.disclaimer)); aside.append(disclaimer);
   layout.append(content, aside); $('page').append(layout); status(card.outcome === 'LIMITED' || card.missing_data.length ? 'Карточка готова · есть ограничения данных' : 'Карточка готова');
 }
