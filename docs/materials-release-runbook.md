@@ -24,6 +24,8 @@ git rev-parse HEAD
 | `MATERIALS_PUBLIC_BASE_URL` | Browser-facing HTTP(S) origin; пустое значение даёт `http://127.0.0.1:WEB_PORT` |
 | `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL_*` | Разрешённый шлюз/ключ/модели для явно запущенной генерации |
 
+Для медленной модели можно явно увеличить ограниченное время генерации в `.env`: `LLM_TIMEOUT_SECONDS=120`, `AGENT_MAX_SECONDS=480`, `ML_REQUEST_TIMEOUT=600s`. Таймаут backend должен быть больше лимита ML run. По умолчанию остаются 60/120/180 секунд. Увеличенная задержка отражается в длительности вызовов в trace. Повтор запроса не превращает неудачную предыдущую попытку в PASS.
+
 Создайте **свои** каталоги store/review заранее; bind mounts с `create_host_path: false` не создают отсутствующие пути. На Linux job пишет под UID/GID вызывающего пользователя; serving ML uid1000 должен читать store и все его parent directories. CSV/PDF/review монтируются read-only, store для jobs — read-write. Отдельный `ml-service/.env` для root Compose не нужен. Не выводите раскрытый `docker compose config` и не переносите значения ключа в команды или Git.
 
 ```sh
