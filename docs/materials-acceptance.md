@@ -2,20 +2,20 @@
 
 **Статус: проверка выпуска продолжается.** Реализация T01–T11 интегрирована; T12 включает проверки, которые нельзя подтвердить числом unit-тестов. Результаты 24 октября сохранены в [историческом отчёте](materials-acceptance-2026-10-24.md).
 
-Ветка `feature/materials-finalization` включает актуальный `develop=5b2762b`, ML `416f24f` и DevOps PR [#7](https://github.com/AyKezBan/business-insights/pull/7) (`b177c7d`). Общие ветки и чужие PR не изменялись. Итоговый код Java/UI/semantic core: `927ed6a`, UI labels `68249b4`. После независимого финального ревью исправляются два воспроизведённых сбоя границы провайдера; кандидат `995b05a` ожидает scoped re-review.
+Ветка `feature/materials-finalization` включает актуальный `develop=5b2762b`, ML `416f24f` и DevOps PR [#7](https://github.com/AyKezBan/business-insights/pull/7) (`b177c7d`). Общие ветки и чужие PR не изменялись. Итоговый код Java/UI/semantic core: `927ed6a`, UI labels `68249b4`. Оба замечания финального ревью исправлены в `c052328`, scoped re-review APPROVED. Безопасные schema-repair hints `0c64431` и настройка времени `6fb33f2` тоже независимо APPROVED; интегрированный код проверен на `9e540255420aa7066af82d7b1abd6f4fd8606e2e`.
 
 ## Проверено на интеграционной ветке
 
 | Проверка | Фактический результат |
 | --- | --- |
-| ML | 862 passed, 0 skipped; один прежний warning Starlette/httpx. После исправления провайдера нужен финальный прогон |
+| ML | 928 passed, 0 skipped; один прежний warning Starlette/httpx |
 | Java + PostgreSQL 17 | 131 passed, 0 skipped; миграции, сохранение операций, CAS каталога и очередь с закреплённым профилем |
 | Импорт | 7 passed, 0 skipped, включая PostgreSQL |
-| UI | 20 Python tests + все 6 Node suites; после `68249b4` повторены обе затронутые Node suites |
+| UI | 20 Python tests + все 6 Node suites; все повторены на `9e54025` |
 | Контракты | Все 12 схем байтово совпадают с экспортом Pydantic |
 | CI | Офлайн fixtures без ключа и платных вызовов; guard отклоняет пустые отчёты, failures и skips; 5 тестов guard проходят |
 | Совместимость | Исходный v1 snapshot открывается; все 98 файлов до/после чтения имеют прежние SHA256 |
-| Приватность Git | Проверены 316 tracked files: 0 совпадений настоящего ключа, 0 файлов приватных каталогов |
+| Приватность Git | Повторный scan выполняется перед каждым push; ранее проверены 316 tracked files: 0 совпадений настоящего ключа, 0 файлов приватных каталогов |
 
 Первоначальные ошибки Java/importer были вызваны неверно выбранным паролем локальной тестовой БД. После чтения конфигурации выделенного тестового PostgreSQL обе проверки выполнены полностью. Это не пропущенные тесты и не изменение продукта ради проверки.
 
@@ -43,13 +43,13 @@
 
 До смысловых вызовов зафиксированы [rubric v2](../ml-service/eval/release-rubric-2026-10-26.json), [3 синтетических профиля](../ml-service/eval/release-profiles-2026-10-26.json), 3 новых события / 9 пар и 9 вопросов. Исключены все 12 ранее использованных статей ЦБ. Manifest SHA256 `585f4f6f6cf32ab8c926d39a43d23dd8a652e7956f700331a487d9ae58f7434c`, corpus revision `0a418f6801bacdd23565be55b0a4b55f3ddb31d526437542915c3fcfe2bafd1b`, generation 3. Более новый current не заменяет этот frozen snapshot.
 
-**9+9: NOT_RUN**, до завершения ревью защиты провайдера. Маленький connectivity probe Gemma успешен: 1 запрос, 82 токена, 1.245 сек. Это не semantic acceptance. Raw `usage.cost=0.00047240427936`, валюта не объявлена; локальная оценка 0.0470 RUB. Неизменившийся сразу после запроса общий counter не доказывает бесплатность.
+**9+9: IN_PROGRESS / не принят.** Три сохранённых попытки первой пары пока завершились failed: transport timeout 60 сек; два ответа без обязательного Impact.level; затем несоответствие типам и отсутствие level после повторной попытки. Остальные восемь пар ещё не выполнены. Полные журналы и расходы сохранены; ни одна failed попытка не переименована в PASS. Безопасные подсказки проверены на новых синтетических регрессиях; сейчас отдельно проверяется полный синтетический pipeline с разрешённым fallback. Промпты по смыслу источника и фактическая rubric не подстраивались под held-out статью. Маленький connectivity probe Gemma успешен: 1 запрос, 82 токена, 1.245 сек. Это не semantic acceptance. Raw `usage.cost=0.00047240427936`, валюта не объявлена; локальная оценка 0.0470 RUB. Неизменившийся сразу после запроса общий counter не доказывает бесплатность.
 
 Пользователь разрешил продолжать без ожидания тарифной таблицы и отменил прежний локальный session cap 100 RUB. Сохранены общий лимит шлюза 500, reset 03:00 МСК, ограничения времени/токенов и явный запуск live runner. Локальные цены — оценка для guard, не тариф шлюза. Raw usage, возможный общий counter delta и локальная оценка учитываются раздельно. [Явный runner и журнал повторов](../ml-service/eval/RELEASE_RUNNER.md).
 
 | Gate | Статус / граница |
 | --- | --- |
-| G01 integration | PASS на проверенном кандидате; финальный provider-fix прогон ожидается |
+| G01 integration | PASS на `9e54025`: ML928, Java131, import7, UI20 + 6 Node suites, 0 skips |
 | G02 publishers | PASS: реальные ЦБ + ФНС + EIA, метаданные сохранены |
 | G03 normalization | PASS: offline transport/adapters/rights/date/units cases |
 | G04 lifecycle | PASS: controlled regressions + actual synthetic stack refresh/restart/history |
@@ -57,7 +57,7 @@
 | G06 retrieval | PASS: 10/10 + 12/12 + 6/6 |
 | G07 Java preservation | PASS: actual PostgreSQL/typed/context/CAS/frozen queue |
 | G08 browser | PARTIAL: synthetic stack PASS; real-source cards/multiple profiles/original PDF rendering не закрыты |
-| G09 semantic / A10 | NOT_RUN: обязательны независимая оценка всех 9 разборов и минимум 9 QA, 0 ошибок/failed, полезность всех пар |
+| G09 semantic / A10 | IN_PROGRESS / не принят: 3 failed retakes первой пары; нужны 9 полезных разборов и ≥9 QA с независимой оценкой всех полей, 0 ошибок/failed |
 | G10 reproduction / A13 | NOT_RUN: запуск вторым человеком по общей инструкции не подтверждён |
 
 Draft допустим при незакрытых внешних gates по согласованному плану; **Ready допускается только при PASS всех обязательных gates**. Владелец G08/G09 — C0; G10 — второй участник команды. Проверки агентами и синтетические сценарии не выдаются за приёмку человеком.
