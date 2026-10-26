@@ -1,0 +1,110 @@
+name: Offline fixture CI
+
+on:
+  pull_request:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: offline-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fixtures:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # No repository secrets, private corpus, or model/ingestion services are used.
+    # Package installation still downloads public dependencies.
+    env:
+      LLM_API_KEY: ""
+      LLM_BASE_URL: http://127.0.0.1:9/v1
+      OPEN_RESEARCH_ENABLED: "false"
+      PYTHONPATH: ${{ github.workspace }}/ml-service/src
+      BI_TEST_DATABASE_URL: postgresql://postgres:ci-fixtures-only@127.0.0.1:5432/ci_import
+      BI_JDBC_TEST_URL: jdbc:postgresql://127.0.0.1:5432/postgres
+      BI_JDBC_TEST_USER: postgres
+      BI_JDBC_TEST_PASSWORD: ci-fixtures-only
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: ci-fixtures-only
+          POSTGRES_DB: ci_import
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d ci_import"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: |
+            ml-service/requirements.lock
+            data-import/requirements.txt
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: backend-api/pom.xml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install public Python dependencies
+        run: |
+          python -m pip install -r ml-service/requirements.lock -r data-import/requirements.txt
+          python -m pip install --no-deps -e ml-service
+      - name: Verify CI report guard
+        run: python -m unittest discover -s infra/ci/tests -v
+      - name: ML fixture suite
+        working-directory: ml-service
+        run: python -m pytest -q --junitxml="$RUNNER_TEMP/ml-tests.xml"
+      - name: Check exported schemas without changing tracked contracts
+        shell: bash
+        run: |
+          schema_dir=$(mktemp -d)
+          python -m insight_agent.export_schemas "$schema_dir"
+          python - "$schema_dir" <<'PY'
+          from pathlib import Path
+          import sys
+          committed = {p.name: p.read_bytes() for p in Path('contracts/ml').glob('*.schema.json')}
+          exported = {p.name: p.read_bytes() for p in Path(sys.argv[1]).glob('*.schema.json')}
+          changed = sorted(name for name in committed.keys() | exported.keys() if committed.get(name) != exported.get(name))
+          if not committed or changed:
+              raise SystemExit(f'Exported schema drift: {changed or "no committed schemas"}')
+          print(f'{len(committed)} schemas match the exporter byte for byte')
+          PY
+      - name: Importer fixture unit and PostgreSQL integration suites
+        working-directory: data-import
+        run: python -m pytest -q tests --junitxml="$RUNNER_TEMP/import-tests.xml"
+      - name: Java unit and disposable PostgreSQL integration suites
+        run: mvn -B -ntp -f backend-api/pom.xml -DfailIfNoTests=true clean test
+      - name: Frontend Python suite
+        working-directory: frontend
+        run: python -m pytest -q tests --junitxml="$RUNNER_TEMP/frontend-tests.xml"
+      - name: Frontend Node suites
+        working-directory: frontend
+        run: |
+          for suite in tests/test_*.cjs; do
+            node "$suite"
+          done
+      - name: Reject missing, failed, or skipped Python tests
+        run: |
+          python infra/ci/check_test_reports.py "$RUNNER_TEMP/ml-tests.xml"
+          python infra/ci/check_test_reports.py "$RUNNER_TEMP/import-tests.xml" --require-class tests.test_postgres.PostgresTests
+          python infra/ci/check_test_reports.py "$RUNNER_TEMP/frontend-tests.xml"
+      - name: Require actual Java PostgreSQL tests without skips
+        run: |
+          python infra/ci/check_test_reports.py backend-api/target/surefire-reports/TEST-*.xml \
+            --require-class ru.businessinsights.backend.testsupport.OperationStorePersistenceTest \
+            --require-class ru.businessinsights.backend.service.MaterialCatalogLifecycleTest \
+            --require-class ru.businessinsights.backend.service.QueuedInputSnapshotTest

@@ -1,0 +1,912 @@
+{
+  "$defs": {
+    "CheckIssue": {
+      "properties": {
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "severity": {
+          "title": "Severity",
+          "type": "string"
+        },
+        "message": {
+          "title": "Message",
+          "type": "string"
+        },
+        "location": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Location"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "message"
+      ],
+      "title": "CheckIssue",
+      "type": "object"
+    },
+    "Claim": {
+      "properties": {
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "profile_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Profile Features",
+          "type": "array"
+        },
+        "evidence_spans": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "title": "Evidence Spans",
+          "type": "array"
+        }
+      },
+      "required": [
+        "text",
+        "kind"
+      ],
+      "title": "Claim",
+      "type": "object"
+    },
+    "ClaimKind": {
+      "enum": [
+        "fact",
+        "assessment",
+        "inference",
+        "hypothesis",
+        "recommendation",
+        "unavailable"
+      ],
+      "title": "ClaimKind",
+      "type": "string"
+    },
+    "EvidenceSpan": {
+      "additionalProperties": false,
+      "description": "Offsets in the exact source body, measured in Unicode code points.",
+      "properties": {
+        "source_id": {
+          "minLength": 1,
+          "title": "Source Id",
+          "type": "string"
+        },
+        "content_sha256": {
+          "pattern": "^[a-f0-9]{64}$",
+          "title": "Content Sha256",
+          "type": "string"
+        },
+        "start": {
+          "minimum": 0,
+          "title": "Start",
+          "type": "integer"
+        },
+        "end": {
+          "exclusiveMinimum": 0,
+          "title": "End",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "source_id",
+        "content_sha256",
+        "start",
+        "end"
+      ],
+      "title": "EvidenceSpan",
+      "type": "object"
+    },
+    "Impact": {
+      "properties": {
+        "claim_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Claim Id"
+        },
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ClaimKind"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        },
+        "profile_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Profile Features",
+          "type": "array"
+        },
+        "evidence_spans": {
+          "items": {
+            "$ref": "#/$defs/EvidenceSpan"
+          },
+          "title": "Evidence Spans",
+          "type": "array"
+        },
+        "level": {
+          "$ref": "#/$defs/Level"
+        },
+        "horizon": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Horizon"
+        }
+      },
+      "required": [
+        "text",
+        "kind",
+        "level"
+      ],
+      "title": "Impact",
+      "type": "object"
+    },
+    "InsightStatus": {
+      "enum": [
+        "complete",
+        "limited",
+        "failed"
+      ],
+      "title": "InsightStatus",
+      "type": "string"
+    },
+    "Level": {
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "title": "Level",
+      "type": "string"
+    },
+    "Outcome": {
+      "enum": [
+        "full",
+        "limited",
+        "refused",
+        "none"
+      ],
+      "title": "Outcome",
+      "type": "string"
+    },
+    "Scenario": {
+      "properties": {
+        "name": {
+          "title": "Name",
+          "type": "string"
+        },
+        "trigger": {
+          "title": "Trigger",
+          "type": "string"
+        },
+        "implication": {
+          "title": "Implication",
+          "type": "string"
+        },
+        "plausibility": {
+          "$ref": "#/$defs/Level"
+        },
+        "source_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Source Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "name",
+        "trigger",
+        "implication",
+        "plausibility"
+      ],
+      "title": "Scenario",
+      "type": "object"
+    },
+    "SelfCheckReport": {
+      "properties": {
+        "passed": {
+          "title": "Passed",
+          "type": "boolean"
+        },
+        "issues": {
+          "items": {
+            "$ref": "#/$defs/CheckIssue"
+          },
+          "title": "Issues",
+          "type": "array"
+        },
+        "iterations": {
+          "default": 1,
+          "title": "Iterations",
+          "type": "integer"
+        },
+        "adaptations": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Adaptations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "passed"
+      ],
+      "title": "SelfCheckReport",
+      "type": "object"
+    },
+    "SourceKind": {
+      "enum": [
+        "news",
+        "bank",
+        "profile"
+      ],
+      "title": "SourceKind",
+      "type": "string"
+    },
+    "SourceRef": {
+      "properties": {
+        "source_id": {
+          "title": "Source Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/SourceKind"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Date"
+        },
+        "page": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Page"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Url"
+        },
+        "doc_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Doc Id"
+        },
+        "content_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[a-f0-9]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Sha256"
+        },
+        "excerpt": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Excerpt"
+        },
+        "publisher_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publisher Id"
+        },
+        "adapter_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adapter Id"
+        },
+        "material_type": {
+          "anyOf": [
+            {
+              "enum": [
+                "news_article",
+                "public_analysis",
+                "publisher_annotation",
+                "indicator"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Material Type"
+        },
+        "completeness": {
+          "anyOf": [
+            {
+              "enum": [
+                "full",
+                "partial"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Completeness"
+        },
+        "language": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Language"
+        },
+        "published_date": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published Date"
+        },
+        "published_precision": {
+          "anyOf": [
+            {
+              "enum": [
+                "timestamp",
+                "date",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Published Precision"
+        },
+        "raw_publication": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Raw Publication"
+        },
+        "source_timezone": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Timezone"
+        },
+        "source_utc_offset_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMaximum": 86400,
+              "exclusiveMinimum": -86400,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Utc Offset Seconds"
+        },
+        "timezone_provenance": {
+          "anyOf": [
+            {
+              "enum": [
+                "explicit_offset",
+                "source_policy",
+                "unknown"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Timezone Provenance"
+        },
+        "first_seen_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "First Seen At"
+        },
+        "retrieved_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Retrieved At"
+        },
+        "statement_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Statement Type"
+        },
+        "target_period": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Target Period"
+        },
+        "valid_until": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Valid Until"
+        },
+        "rights_url": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rights Url"
+        },
+        "translation_attribution": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Translation Attribution"
+        }
+      },
+      "required": [
+        "source_id",
+        "kind",
+        "title"
+      ],
+      "title": "SourceRef",
+      "type": "object"
+    },
+    "UserRole": {
+      "enum": [
+        "owner",
+        "ceo",
+        "cfo",
+        "chief_accountant",
+        "treasurer",
+        "other_c_level",
+        "other"
+      ],
+      "title": "UserRole",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "insight_id": {
+      "title": "Insight Id",
+      "type": "string"
+    },
+    "run_id": {
+      "title": "Run Id",
+      "type": "string"
+    },
+    "event_id": {
+      "title": "Event Id",
+      "type": "string"
+    },
+    "company_id": {
+      "title": "Company Id",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/UserRole"
+    },
+    "version": {
+      "default": 1,
+      "title": "Version",
+      "type": "integer"
+    },
+    "status": {
+      "$ref": "#/$defs/InsightStatus"
+    },
+    "outcome": {
+      "$ref": "#/$defs/Outcome",
+      "default": "none"
+    },
+    "error_code": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Error Code"
+    },
+    "request_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Request Id"
+    },
+    "parent_run_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Run Id"
+    },
+    "cache_hit": {
+      "default": false,
+      "title": "Cache Hit",
+      "type": "boolean"
+    },
+    "corpus_revision": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Corpus Revision"
+    },
+    "event_content_sha256": {
+      "anyOf": [
+        {
+          "pattern": "^[a-f0-9]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Event Content Sha256"
+    },
+    "as_of": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "As Of"
+    },
+    "headline": {
+      "title": "Headline",
+      "type": "string"
+    },
+    "what_happened": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "What Happened",
+      "type": "array"
+    },
+    "why_it_matters": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Why It Matters",
+      "type": "array"
+    },
+    "consequences": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Consequences",
+      "type": "array"
+    },
+    "risks": {
+      "items": {
+        "$ref": "#/$defs/Impact"
+      },
+      "title": "Risks",
+      "type": "array"
+    },
+    "opportunities": {
+      "items": {
+        "$ref": "#/$defs/Impact"
+      },
+      "title": "Opportunities",
+      "type": "array"
+    },
+    "scenarios": {
+      "items": {
+        "$ref": "#/$defs/Scenario"
+      },
+      "title": "Scenarios",
+      "type": "array"
+    },
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "bank_view": {
+      "items": {
+        "$ref": "#/$defs/Claim"
+      },
+      "title": "Bank View",
+      "type": "array"
+    },
+    "model_vs_bank": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Model Vs Bank",
+      "type": "array"
+    },
+    "impact_level": {
+      "$ref": "#/$defs/Level"
+    },
+    "impact_rationale": {
+      "title": "Impact Rationale",
+      "type": "string"
+    },
+    "profile_features_used": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Profile Features Used",
+      "type": "array"
+    },
+    "sources": {
+      "items": {
+        "$ref": "#/$defs/SourceRef"
+      },
+      "title": "Sources",
+      "type": "array"
+    },
+    "missing_data": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Missing Data",
+      "type": "array"
+    },
+    "self_check": {
+      "$ref": "#/$defs/SelfCheckReport"
+    },
+    "models": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Models",
+      "type": "array"
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "disclaimer": {
+      "default": "Аналитика носит информационный характер и не является инвестиционной рекомендацией. Выводы с пометкой «вывод модели» и «гипотеза» сформированы AI и не являются позицией Альфа-Банка.",
+      "title": "Disclaimer",
+      "type": "string"
+    }
+  },
+  "required": [
+    "insight_id",
+    "run_id",
+    "event_id",
+    "company_id",
+    "role",
+    "status",
+    "headline",
+    "what_happened",
+    "why_it_matters",
+    "consequences",
+    "risks",
+    "opportunities",
+    "scenarios",
+    "actions",
+    "bank_view",
+    "model_vs_bank",
+    "impact_level",
+    "impact_rationale",
+    "profile_features_used",
+    "sources",
+    "missing_data",
+    "self_check",
+    "models",
+    "generated_at"
+  ],
+  "title": "Insight",
+  "type": "object"
+}

@@ -1,0 +1,15 @@
+{
+  "properties": {
+    "question": {
+      "maxLength": 1000,
+      "minLength": 1,
+      "title": "Question",
+      "type": "string"
+    }
+  },
+  "required": [
+    "question"
+  ],
+  "title": "QuestionRequest",
+  "type": "object"
+}

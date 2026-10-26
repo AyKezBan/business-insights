@@ -1,0 +1,588 @@
+{
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p1:s654:756cfb4e57a983de": {
+    "content_sha256": "756cfb4e57a983deef11ee8db63233c10f0a6be9dbcbbb5043c72afbfb9f640f",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p1:s951:f3b843a51f4c5f50": {
+    "content_sha256": "f3b843a51f4c5f50e5d90ad869855df34dbcdb3591886a25594fc5c3cfa27f65",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p1:s2674:05ae54155acc9ade": {
+    "content_sha256": "05ae54155acc9adebc18186c62470f8d3a7a9ae1f3973db2ffaa36be5a041bc6",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s735:18d258f76aa1eb54": {
+    "content_sha256": "18d258f76aa1eb540b33165c32a2ed11e0e0d8609f2b4b66171e9e6a9747bcec",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s845:2e3cd37799956f6f": {
+    "content_sha256": "2e3cd37799956f6f41003eb1d7d354c5f992276f8fa1f36dd7b566fbe4abc3a6",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s933:34a49226b89e7e08": {
+    "content_sha256": "34a49226b89e7e082d92b76cda1a9ba81b43c765b160e2e2d75bbaf1fed71a18",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s1683:3ed23d7849df3f67": {
+    "content_sha256": "3ed23d7849df3f678e93d5728dadea170e8b5b04489a90de511954bd30919871",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s2753:0ebbdca4bd9157a6": {
+    "content_sha256": "0ebbdca4bd9157a63403f97c93933d22ce30dbfce7567ff372edc70cf53cdb43",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s2853:7933d6091d5c1140": {
+    "content_sha256": "7933d6091d5c11407f7b2bff5ea8774749f37c101c3e59721cb88c75c7c249cd",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-3c64c1e43f3b46a795f9581967f2dbc8efb0994cb77ab82e95da180830e9ff8c:p2:s3102:138aa3c1cd06a08d": {
+    "content_sha256": "138aa3c1cd06a08d675b9902539dd5f6eb0b0f147708080c4ddd1f00aef72e71",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s132:54d92acad98c48d7": {
+    "content_sha256": "54d92acad98c48d7919a17fec0ba8f42c15c84d84cf147c540c7713b46553ed5",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s1154:66b186290c6e87d5": {
+    "content_sha256": "66b186290c6e87d50fccf8a34db2bd828a0d544312cf46fabe2a22aa4103160b",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s1445:6b593f0803090369": {
+    "content_sha256": "6b593f0803090369f685ef7fef835ffef4148cb0139b7f1f6cc9c8ccd0bfb733",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s1955:de59881e94b21b2e": {
+    "content_sha256": "de59881e94b21b2e6747c9d006b5b1fd6fedd5448aa26afcde48671d72144d72",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s2438:0ee191944d8cb6fe": {
+    "content_sha256": "0ee191944d8cb6fe652b6c78a5f18418aff229f376a99ea74863e8cf3e38440d",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s2646:ce00528d06b07414": {
+    "content_sha256": "ce00528d06b07414d7ff801f64d64a5d0b211275e09f163a76210429dba82266",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s4173:e86969ad8c240f67": {
+    "content_sha256": "e86969ad8c240f67a88c98160c6f173411bacd508f175bcda4a7d57c30db9a7a",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s4327:78ac4e6578ef99e9": {
+    "content_sha256": "78ac4e6578ef99e9811c4bd84eb222edded3c976ef63d08d3179adf84b38de1f",
+    "statement_type": "forecast",
+    "target_period": "Заседание 23 октября 2026",
+    "valid_until": "2026-10-23",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s4466:87c1c54cc107f8f1": {
+    "content_sha256": "87c1c54cc107f8f16020f555900514b7220ea3270dba531d45c3c6933ad3bd0e",
+    "statement_type": "forecast",
+    "target_period": "Конец 2026",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": [
+      "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s2386:13fee173b5bb88f4"
+    ]
+  },
+  "bank-92a96805f2b720f76bd0c52d2491044812b38401ab62d0f4a9157b4ca81c49bb:p1:s4617:7df03de45b1b46ab": {
+    "content_sha256": "7df03de45b1b46ab557ae9a8be6e1079d498f01bffd48cd25dd52065a64f052f",
+    "statement_type": "forecast",
+    "target_period": "Конец 2027",
+    "valid_until": "2027-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p1:s79:8aa8f45d69668c03": {
+    "content_sha256": "8aa8f45d69668c03d798634026e57949ece93d34af7e7fd1b37778f88bf21d62",
+    "statement_type": "forecast",
+    "target_period": "4К26",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p1:s2243:0a8b12eced476543": {
+    "content_sha256": "0a8b12eced4765432666a8b5ebe2c7f479ac35c03b1e988cca2fe3f68c97fa8b",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p1:s2884:6b5749e12d45e3c5": {
+    "content_sha256": "6b5749e12d45e3c5a5d682d0e8b302920c9df07e04c104d07a90070eebd1b175",
+    "statement_type": "forecast",
+    "target_period": "2026 и конец 2026",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s1846:1ee328ee7da58fe0": {
+    "content_sha256": "1ee328ee7da58fe03282492cbcf162da8e279ae33b309ab9126b7cb3f4046a25",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s2386:13fee173b5bb88f4": {
+    "content_sha256": "13fee173b5bb88f49204016f30d0e1a4c7d903f729dee57ce5670f3c8080dafe",
+    "statement_type": "forecast",
+    "target_period": "Конец 2026",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s3378:216819c9227e2f52": {
+    "content_sha256": "216819c9227e2f525f034b66032dcfd0f58f0223cd509f71cf749443b9798168",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p3:s1227:d617f7b9e9b615de": {
+    "content_sha256": "d617f7b9e9b615de64fd0b44438ccf85834e52d020e1349b79b1c9d15372f2c3",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p2:s2780:d658ff84778880cd": {
+    "content_sha256": "d658ff84778880cdb4b0419c183774688da656e783c839c9e19fdaf58ec4d1f9",
+    "statement_type": "reported_fact",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p2:s2910:e453e8329399d7bb": {
+    "content_sha256": "e453e8329399d7bb46fd843d0a683c83c09b603c10750aa55c8c0fa808bf6a34",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s498:066fc62479988182": {
+    "content_sha256": "066fc62479988182671974ab25eb61945bd5fd25217fc358491891d3ddfaf2c5",
+    "statement_type": "forecast",
+    "target_period": "2026",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s755:93ba779c3c3c5321": {
+    "content_sha256": "93ba779c3c3c5321543ceeda440c4e54ade2534cc55bb55cf1d2c146e8af7bda",
+    "statement_type": "forecast",
+    "target_period": "2026",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s935:c10f7083d4436b5c": {
+    "content_sha256": "c10f7083d4436b5ccfb620afab5cd412d6840f966c090ccc362ce7b70424036b",
+    "statement_type": "forecast",
+    "target_period": "2026",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s1471:e7627bad6d8aeacc": {
+    "content_sha256": "e7627bad6d8aeacc99a8ac9a8569a3c2d972015a7cb60ba465060ff053052b52",
+    "statement_type": "forecast",
+    "target_period": "Конец 2026",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-84899553fadf3e49abac7074c7b7d2afc2fa5c70b7fde0bf4c3eabe3d7402266:p3:s3410:4252bf087d1a0882": {
+    "content_sha256": "4252bf087d1a0882a72e90240573b7c3bcf0577476d599f35a43d1c7c108c007",
+    "statement_type": "forecast",
+    "target_period": "Конец 2026 и конец 2027",
+    "valid_until": "2026-12-31",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-807ee9925cf7d15ecffc72ad7142f9a83d342cd19690e12dd3b90aa2ba8ea1c6:p2:s1664:7eaf17ae3e7d3e96": {
+    "content_sha256": "7eaf17ae3e7d3e96671bc30b1a1f150fd8c254a56753c67c9252747dba352b31",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p2:s633:2a971521be585088": {
+    "content_sha256": "2a971521be58508813d06e9c6183605f0ec472684b62758b10c8314b38d7c5bc",
+    "statement_type": "reported_fact",
+    "target_period": "2026-H1",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p3:s1687:43f3a758f3e5e965": {
+    "content_sha256": "43f3a758f3e5e9656bfa76109f756c3c94d4bb881f923cdab21d43f6be8137a2",
+    "statement_type": "forecast",
+    "target_period": "2026-07-24; forecast revision for average rates in 2026 and 2027",
+    "valid_until": "2026-07-24",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p3:s2631:93af0d22ac8f2176": {
+    "content_sha256": "93af0d22ac8f2176997d23980e4223641e57381477888aaa61da737e94d3d1bb",
+    "statement_type": "bank_assessment",
+    "target_period": "2026-Q3",
+    "valid_until": "2026-09-30",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p3:s3595:a6e8c04ecc71ec84": {
+    "content_sha256": "a6e8c04ecc71ec8430d931f0fd7369985b88ac7dadafbd5eaab87fd2ed9b1ea0",
+    "statement_type": "bank_assessment",
+    "target_period": "2026-Q3 assessment; investment holding horizon at least 5 years",
+    "valid_until": "2026-09-30",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p5:s1024:1338b62dc41f5c2b": {
+    "content_sha256": "1338b62dc41f5c2ba9edf40342b4311969619a26381ac87db106dabe598cc5a8",
+    "statement_type": "reported_fact",
+    "target_period": "2026-06-19",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p5:s1647:7029e06db50513ca": {
+    "content_sha256": "7029e06db50513ca16b8a416b6311d90c401bb4f8bf075d8de659f4f316b0cc7",
+    "statement_type": "reported_fact",
+    "target_period": "Reported as of 2026-07-22",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s169:1c1a732c187004d4": {
+    "content_sha256": "1c1a732c187004d46cd88fab2b80d04e8c5c1e2fccbbf66cb4aebd94ee9572ef",
+    "statement_type": "reported_fact",
+    "target_period": "2026 year to mid-July (page describes H1 performance)",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s570:fa37f03ab1fc5eb8": {
+    "content_sha256": "fa37f03ab1fc5eb8da6a268db3683904abcc42f06ac045053d7604717b2fa0f1",
+    "statement_type": "reported_fact",
+    "target_period": "2026 year to mid-July",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s795:eb34254bd8682a47": {
+    "content_sha256": "eb34254bd8682a4710e3480be17d82d5be0da72918ee7a8725f0b65621f089e6",
+    "statement_type": "bank_assessment",
+    "target_period": "2026-Q3",
+    "valid_until": "2026-09-30",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s1044:f6a18d1b2f3facb1": {
+    "content_sha256": "f6a18d1b2f3facb1f15155c49f7f8f219d70a76622edbbcd93c38e3f5c803955",
+    "statement_type": "bank_assessment",
+    "target_period": "2026-Q3",
+    "valid_until": "2026-09-30",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p6:s1210:c47e17743bbf5019": {
+    "content_sha256": "c47e17743bbf50196366e141c227d81aed0818988423284d0a1335753600b5df",
+    "statement_type": "reported_fact",
+    "target_period": "2026 first incomplete seven months, to mid-July",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p12:s329:63d9295e29e547a0": {
+    "content_sha256": "63d9295e29e547a0701f6ad68c8d804d6811b9830417b0aed0022d34f3c9ce1d",
+    "statement_type": "bank_assessment",
+    "target_period": "2026 April-May; analysis published 2026-07-22",
+    "valid_until": "2026-09-30",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p12:s2778:dd7f9cc0e6516e3f": {
+    "content_sha256": "dd7f9cc0e6516e3fed3a696ab270a77f4e9940f9bacde3f4e9de244ecbd2f2da",
+    "statement_type": "reported_fact",
+    "target_period": "2026 June risk-balance assessment reported 2026-07-22",
+    "valid_until": "2026-09-30",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p13:s196:adc707157ddea9bf": {
+    "content_sha256": "adc707157ddea9bfd70f99fc99d361243fce60887b87f83c974ab7b7f15bd5e4",
+    "statement_type": "reported_fact",
+    "target_period": "Announcement reported as of 2026-07-22",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p17:s190:f04351524854ad12": {
+    "content_sha256": "f04351524854ad1286b2705ae04f87efdd46efd1854e1cb049f3789bacc83c5f",
+    "statement_type": "reported_fact",
+    "target_period": "2025-07 to 2026-06 (trailing 12 months shown on page)",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p17:s350:c3d46c0b7326f404": {
+    "content_sha256": "c3d46c0b7326f404b13b743862d6595d10d79b33a1401de3dea4bb295bdcc4bc",
+    "statement_type": "reported_fact",
+    "target_period": "2026-H1 versus 2025-H2",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p17:s558:beb69d9fb9570d79": {
+    "content_sha256": "beb69d9fb9570d79b5effa1c41857b67ac4673b4cd881ed684310743642a5a46",
+    "statement_type": "reported_fact",
+    "target_period": "2026 January-May",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p17:s1226:be00d6ab7dd1a805": {
+    "content_sha256": "be00d6ab7dd1a805cc4d9063ca7a278bbe43f07980cc72d3e469fa08e0988080",
+    "statement_type": "reported_fact",
+    "target_period": "2026-01-01",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p18:s553:def7c50452e17f97": {
+    "content_sha256": "def7c50452e17f97f5c2177588778a772c0ecb3ad68231d9799fc4e1b49df92a",
+    "statement_type": "reported_fact",
+    "target_period": "2026 June versus 2026-Q1",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-6c3a4882ee784b608880693d8ba2b62d0ba2236e34b404179adaab909c6dd046:p18:s932:d80c4f98e99f5323": {
+    "content_sha256": "d80c4f98e99f532304adb831ec9d3b3fa067d4df57a1ddea8f8908b28d632bfc",
+    "statement_type": "bank_assessment",
+    "target_period": "2026 June correction; Q3-2026 analysis",
+    "valid_until": "2026-09-30",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s127:a561a9dd3cf97b9e": {
+    "content_sha256": "a561a9dd3cf97b9e801277ab5444418fd0d4a501adf197ac543b9c776f2a5be3",
+    "statement_type": "reported_fact",
+    "target_period": "25-31 августа 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s268:cbbc3619cf7c0d17": {
+    "content_sha256": "cbbc3619cf7c0d1776fe0e7697d93fd467381fad896853a7cbeedf49ce7597c9",
+    "statement_type": "reported_fact",
+    "target_period": "На 31 августа 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s367:e3888ca4c686fde5": {
+    "content_sha256": "e3888ca4c686fde53ddc713d41203c80231e71506dffbb8057c89a90a6688a3c",
+    "statement_type": "reported_fact",
+    "target_period": "На 31 августа 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s512:d78b3e82a5cff698": {
+    "content_sha256": "d78b3e82a5cff698fdec020b8c97e8696e2ea971fc69bbe1b5c5167528c49892",
+    "statement_type": "reported_fact",
+    "target_period": "25-31 августа 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s557:6308b4ce4f5aee2e": {
+    "content_sha256": "6308b4ce4f5aee2e10579c3bcbfd82e6ea0f06e44a5584a35b3c6bde87d7e1cb",
+    "statement_type": "bank_assessment",
+    "target_period": "25-31 августа 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s635:b17eed2cac38f4eb": {
+    "content_sha256": "b17eed2cac38f4ebc341bd5bc6993ecaa652b2ad5c750b8c9f888f5aebf9c656",
+    "statement_type": "reported_fact",
+    "target_period": "25-31 августа 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s1317:809480848ffecbc9": {
+    "content_sha256": "809480848ffecbc987267ce7de122d49ef9a7c4daeb71fcc04073ad679982dce",
+    "statement_type": "bank_assessment",
+    "target_period": "Конец августа 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s2191:caea4ac880d5c880": {
+    "content_sha256": "caea4ac880d5c880dceeeb5bd5d090a598271625190b6a0d02c7df048b203e2b",
+    "statement_type": "forecast",
+    "target_period": "Август 2026",
+    "valid_until": "2026-08-31",
+    "review_status": "rejected",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s1909:43b06ac37281a615": {
+    "content_sha256": "43b06ac37281a615d95cfe7fa8717657d5085ba246e72d5d67626d0359c53957",
+    "statement_type": "bank_assessment",
+    "target_period": null,
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-09d5537f6a52f5f8f2d9518ed9171e794382972ce38cbdc4bd3099b2db129d0c:p1:s2121:ad2ad92effc9f364": {
+    "content_sha256": "ad2ad92effc9f36414527caee54e6ec3925e5f01158cd5b819d1fb0cda6c74b0",
+    "statement_type": "forecast",
+    "target_period": "1–7 сентября 2026",
+    "valid_until": "2026-09-07",
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s342:9b3aebd71953dbdd": {
+    "content_sha256": "9b3aebd71953dbdd7ef3a316555e58c6d8f74acb56ac9a8237a9e922bee17f68",
+    "statement_type": "reported_fact",
+    "target_period": "Неделя, завершившаяся 11 сентября 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s632:bc686e2544bd6f58": {
+    "content_sha256": "bc686e2544bd6f5876efe1178cd1edf0a0d6420adfb732de8a865eee77177553",
+    "statement_type": "reported_fact",
+    "target_period": "Заседание ЦБ 11 сентября 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s1641:573027ccd74ffc4b": {
+    "content_sha256": "573027ccd74ffc4b562df1d89d7ba03ddeb66343e8d272e7b911bb4501d01c15",
+    "statement_type": "reported_fact",
+    "target_period": "Заседание ЦБ 11 сентября 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s1872:6c27aaa672b1b622": {
+    "content_sha256": "6c27aaa672b1b622db3de6257bc41b346172b3b9fc636c4c66d3a737e490d37c",
+    "statement_type": "bank_assessment",
+    "target_period": "Неделя, завершившаяся 11 сентября 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s2728:077f327ad43c4ad1": {
+    "content_sha256": "077f327ad43c4ad1319af18108bbba815df9c8cba44a6b85516c8cafa77a7983",
+    "statement_type": "reported_fact",
+    "target_period": "9 сентября 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s3136:ccf3c606cbb25064": {
+    "content_sha256": "ccf3c606cbb25064887cb50fdeb6d27d435ed94f1a2991ffcf7408eead9777fe",
+    "statement_type": "reported_fact",
+    "target_period": "Аукцион 9 сентября 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p1:s3430:2ce3f9b68df53411": {
+    "content_sha256": "2ce3f9b68df534118d98ec507e1b5a610cbe53ae40ce5a63c3d09a796df3a5ff",
+    "statement_type": "reported_fact",
+    "target_period": "Аукцион 9 сентября 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  },
+  "bank-87dc17520e2a744f95580ee2ec42461d0ee6ebf19e752622a49c49600cb1b055:p3:s148:b1db8dee789da58d": {
+    "content_sha256": "b1db8dee789da58d0f8b6ff9e957f3a728479d99039840354a6a210e7715fd5c",
+    "statement_type": "reported_fact",
+    "target_period": "9 сентября 2026",
+    "valid_until": null,
+    "review_status": "verified",
+    "supersedes": []
+  }
+}

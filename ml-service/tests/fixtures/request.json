@@ -1,0 +1,32 @@
+{
+  "profile": {
+    "company_id": "U_DEMO_001",
+    "group_id": "group_demo_1",
+    "okved_code": "25.61",
+    "okved_name": "Обработка металлов и нанесение покрытий на металлы",
+    "revenue_rub": 2400000000,
+    "employees": "101-250",
+    "company_age": "8-15",
+    "business_stage": "Оптимизация",
+    "ownership": "ЧАСТНАЯ СОБСТВЕННОСТЬ",
+    "region": "Свердловская область",
+    "city": "г. Екатеринбург",
+    "client_type": "CLIENT",
+    "products": {"settlement": true, "loans": true, "leasing": true, "deposits": false, "payroll": true, "guarantees": false, "factoring": false},
+    "foreign_trade": true,
+    "foreign_trade_countries": ["КИТАЙ", "ТУРЦИЯ"],
+    "counterparties": [
+      {"company_id": "U_DEMO_900", "direction": "outgoing", "share_of_flow": 0.35, "okved_code": "24.10", "okved_name": "Производство чугуна, стали и ферросплавов", "same_group": false}
+    ],
+    "group_member_okveds": ["46.72"]
+  },
+  "role": "cfo",
+  "event": {
+    "event_id": "evt_demo_rate",
+    "title": "Банк России повысил ключевую ставку до 18%",
+    "text": "Совет директоров Банка России повысил ключевую ставку на 100 б.п., до 18% годовых. Регулятор указал на сохраняющееся инфляционное давление и допустил дальнейшее ужесточение. Следующее заседание запланировано через шесть недель.",
+    "published_at": "2026-10-23T13:30:00Z",
+    "source": {"source_id": "news_demo_rate", "kind": "news", "title": "Демо-лента: решение по ставке", "date": "2026-10-23", "url": "https://example.org/demo/rate"},
+    "topics": ["ключевая ставка"]
+  }
+}

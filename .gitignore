@@ -1,0 +1,48 @@
+# Секреты
+.env
+.env.*
+!.env.example
+
+# IDE и Obsidian
+.idea/
+.vscode/
+.obsidian/
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+*.pyc
+
+# Java
+target/
+build/
+.gradle/
+
+# Frontend
+node_modules/
+dist/
+
+# Логи
+*.log
+
+# Исходные CSV импорта (хранятся локально)
+/data-import/source-data/*.csv
+
+# MacOS
+.DS_Store
+
+# Prepared materials and private raw sources (mounted locally)
+/materials/
+/ml-service/materials/
+/ml-service/data/
+
+/materials-review/
+
+# Исходные CSV импорта (хранятся локально)
+/data-import/source-data/*.csv
+
+# Local stack smoke artifacts and credentials
+/.local/
+/materials-input/

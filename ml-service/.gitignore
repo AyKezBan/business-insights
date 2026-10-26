@@ -1,0 +1,8 @@
+# данные кейса и всё, что из них получено
+data/
+traces/
+*.pdf
+*.csv
+*.docx
+*.ipynb
+*.egg-info/

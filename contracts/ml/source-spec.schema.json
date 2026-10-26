@@ -1,0 +1,147 @@
+{
+  "$defs": {
+    "SourceLimits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_bytes": {
+          "default": 2097152,
+          "exclusiveMinimum": 0,
+          "maximum": 2097152,
+          "title": "Max Bytes",
+          "type": "integer"
+        },
+        "timeout": {
+          "default": 10.0,
+          "exclusiveMinimum": 0,
+          "maximum": 10,
+          "title": "Timeout",
+          "type": "number"
+        },
+        "max_redirects": {
+          "default": 4,
+          "maximum": 4,
+          "minimum": 0,
+          "title": "Max Redirects",
+          "type": "integer"
+        },
+        "min_interval": {
+          "default": 2.0,
+          "minimum": 2,
+          "title": "Min Interval",
+          "type": "number"
+        },
+        "concurrency": {
+          "const": 1,
+          "default": 1,
+          "title": "Concurrency",
+          "type": "integer"
+        },
+        "retries": {
+          "default": 1,
+          "maximum": 1,
+          "minimum": 0,
+          "title": "Retries",
+          "type": "integer"
+        },
+        "retry_after_cap": {
+          "default": 30.0,
+          "maximum": 30,
+          "minimum": 0,
+          "title": "Retry After Cap",
+          "type": "number"
+        }
+      },
+      "title": "SourceLimits",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "source_id": {
+      "title": "Source Id",
+      "type": "string"
+    },
+    "publisher_id": {
+      "title": "Publisher Id",
+      "type": "string"
+    },
+    "hosts": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Hosts",
+      "type": "array"
+    },
+    "allowed_paths": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Allowed Paths",
+      "type": "array"
+    },
+    "discovery_url": {
+      "title": "Discovery Url",
+      "type": "string"
+    },
+    "parser_version": {
+      "title": "Parser Version",
+      "type": "string"
+    },
+    "language": {
+      "title": "Language",
+      "type": "string"
+    },
+    "material_type": {
+      "enum": [
+        "news_article",
+        "public_analysis",
+        "publisher_annotation",
+        "indicator"
+      ],
+      "title": "Material Type",
+      "type": "string"
+    },
+    "date_policy": {
+      "enum": [
+        "explicit_offset",
+        "day_only",
+        "source_timezone"
+      ],
+      "title": "Date Policy",
+      "type": "string"
+    },
+    "source_timezone": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Source Timezone"
+    },
+    "rights_url": {
+      "title": "Rights Url",
+      "type": "string"
+    },
+    "limits": {
+      "$ref": "#/$defs/SourceLimits"
+    }
+  },
+  "required": [
+    "source_id",
+    "publisher_id",
+    "hosts",
+    "allowed_paths",
+    "discovery_url",
+    "parser_version",
+    "language",
+    "material_type",
+    "date_policy",
+    "rights_url"
+  ],
+  "title": "SourceSpec",
+  "type": "object"
+}

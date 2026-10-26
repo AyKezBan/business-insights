@@ -1,0 +1,63 @@
+#!/bin/sh
+# Always anchor Compose paths to this checkout, independent of caller's cwd.
+set -eu
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$ROOT"
+# Bake checkout provenance at build time; do not relabel existing images at runtime.
+if [ "${GIT_SHA+x}" != x ]; then
+  GIT_SHA=$(git rev-parse HEAD 2>/dev/null) || GIT_SHA=unknown
+fi
+export GIT_SHA
+command=${1:-help}
+[ "$#" -eq 0 ] || shift
+case "$command" in
+  init)
+    python3 - <<'PY'
+from pathlib import Path
+import os
+import secrets
+path = Path('.env')
+text = Path('.env.example').read_text()
+text = text.replace('POSTGRES_PASSWORD=\n', 'POSTGRES_PASSWORD=' + secrets.token_hex(24) + '\n')
+text = text.replace('BACKEND_DEMO_TOKEN=\n', 'BACKEND_DEMO_TOKEN=' + secrets.token_hex(24) + '\n')
+try:
+    fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+except FileExistsError:
+    print('.env already exists; unchanged.')
+else:
+    with os.fdopen(fd, 'w') as stream:
+        stream.write(text)
+    print('Created .env with random local credentials. Set DATA_DIR and optional LLM_API_KEY.')
+PY
+    ;;
+  up) docker compose -f compose.yaml up -d --build --wait --wait-timeout 240 "$@" ;;
+  down) docker compose -f compose.yaml -f infra/compose.materials.yaml --profile jobs down "$@" ;;
+  status) docker compose -f compose.yaml -f infra/compose.materials.yaml --profile jobs ps -a "$@" ;;
+  logs) docker compose -f compose.yaml -f infra/compose.materials.yaml --profile jobs logs --tail 100 "$@" ;;
+  config) docker compose -f compose.yaml config --quiet "$@" ;;
+  build) docker compose -f compose.yaml build "$@" ;;
+  import) docker compose -f compose.yaml run --rm import-data "$@" ;;
+  materials-up) docker compose -f compose.yaml -f infra/compose.materials.yaml up -d --build --wait --wait-timeout 240 "$@" ;;
+  materials-watch)
+    export LOCAL_UID=${LOCAL_UID:-$(id -u)} LOCAL_GID=${LOCAL_GID:-$(id -g)}
+    docker compose -f compose.yaml -f infra/compose.materials.yaml --profile jobs up -d --build --no-deps materials-poller "$@"
+    ;;
+  materials)
+    export LOCAL_UID=${LOCAL_UID:-$(id -u)} LOCAL_GID=${LOCAL_GID:-$(id -g)}
+    docker compose -f compose.yaml -f infra/compose.materials.yaml run --rm --no-deps materials "$@"
+    ;;
+  smoke) exec python3 infra/smoke/run.py "$@" ;;
+  help|--help|-h)
+    cat <<'HELP'
+Usage: ./stack init | up | down | status | logs | config | build | import
+       ./stack materials-up
+       ./stack materials-watch
+       ./stack materials check --store /app/materials
+       ./stack smoke
+Set DATA_DIR and local credentials with ./stack init then edit .env.
+Only http://127.0.0.1:8088 is published. down keeps data; -v deletes this project's volumes.
+Smoke uses a unique disposable project and scripted ML, never a live model.
+HELP
+    ;;
+  *) echo 'Unknown command. Use ./stack help.' >&2; exit 2 ;;
+esac

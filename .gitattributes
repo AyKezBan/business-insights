@@ -1,0 +1,7 @@
+# Shell entrypoints and hashed material fixtures must retain identical bytes on Windows and Linux.
+stack text eol=lf
+*.sh text eol=lf
+*.json text eol=lf
+*.jsonl text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
