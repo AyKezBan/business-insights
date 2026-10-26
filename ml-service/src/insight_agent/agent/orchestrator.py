@@ -60,6 +60,7 @@ BROAD_MIN_SCORE = 0.3
 MAX_REMEMBERED = 500
 # Токенов, которые надо оставить на смысловую проверку после исправлений: без неё все утверждения считаются непроверенными.
 VERIFY_RESERVE_TOKENS = 35_000
+VERIFY_RESERVE_SECONDS = 150
 
 
 class RequestIdConflict(ValueError):
@@ -443,6 +444,12 @@ class InsightAgent:
                 if iterations > 1 and s.agent_max_tokens_per_run - llm.budget.used < VERIFY_RESERVE_TOKENS:
                     self._skip_optional(state, tracer, "revise",
                                         "лимит токенов запуска: оставлен запас на смысловую проверку, дальнейшие исправления пропущены")
+                    iterations -= 1
+                    break
+                if (iterations > 1 and llm.budget.deadline is not None
+                        and llm.budget.deadline - time.monotonic() < VERIFY_RESERVE_SECONDS):
+                    self._skip_optional(state, tracer, "revise",
+                                        "лимит времени запуска: оставлен запас на смысловую проверку, дальнейшие исправления пропущены")
                     iterations -= 1
                     break
                 state.draft = self._retry_once(tracer, "personalize",
