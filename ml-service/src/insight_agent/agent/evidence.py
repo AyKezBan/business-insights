@@ -47,19 +47,24 @@ def quote_options(texts: dict[str, str], *, bank_ids=(), limit=6000) -> str:
     return json.dumps(options, ensure_ascii=False)
 
 
-def span_hash_normalizer(texts: dict[str, str]):
+def span_hash_normalizer(texts: dict[str, str], whole_text_ids=()):
     """Хеш в evidence_span - производная величина источника, а не утверждение модели.
 
-    Модель часто искажает 64 hex-символа при копировании. Подставляем настоящий хеш текста по source_id; границы
-    фрагмента и совпадение его текста по-прежнему проверяются отдельно (spans.py), поэтому проверка не ослабляется.
+    Модель часто искажает 64 hex-символа при копировании. Подставляем настоящий хеш текста по source_id; для
+    банковских фрагментов (цитата только целиком) так же задаются границы. Совпадение текста с источником по-прежнему
+    проверяется отдельно (spans.py), поэтому проверка не ослабляется.
     """
     digests = {sid: hashlib.sha256(text.encode()).hexdigest() for sid, text in texts.items()}
+    whole = {sid for sid in whole_text_ids if sid in texts and texts[sid]}
 
     def walk(node):
         if isinstance(node, dict):
             sid = node.get("source_id")
             if isinstance(sid, str) and "content_sha256" in node and sid in digests:
                 node["content_sha256"] = digests[sid]
+                if sid in whole and "start" in node and "end" in node:
+                    # Банковский фрагмент допустим только целиком (quote_options): границы модель копирует с ошибками.
+                    node["start"], node["end"] = 0, len(texts[sid])
             for value in node.values():
                 walk(value)
         elif isinstance(node, list):

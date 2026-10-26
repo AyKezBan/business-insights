@@ -99,4 +99,4 @@ def personalize(
             {"role": "user", "content": f"Проверка нашла проблемы. Исправь их и верни полный JSON заново:\n{issues}"},
         ]
     return llm.generate("personalize" if not feedback else "revise", model, messages, PersonalizationDraft,
-                        normalize=span_hash_normalizer(state.source_texts()))
+                        normalize=span_hash_normalizer(state.source_texts(), set(state.bank)))

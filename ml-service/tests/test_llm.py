@@ -143,3 +143,13 @@ def test_normalizer_restores_a_garbled_span_hash_but_not_the_offsets():
     first, second = fixed["claims"][0]["evidence_spans"]
     assert first["content_sha256"] == real and (first["start"], first["end"]) == (2, 9)
     assert second["content_sha256"] == "keep"  # неизвестный источник не угадываем
+
+
+def test_normalizer_sets_whole_fragment_bounds_only_for_bank_sources():
+    from insight_agent.agent.evidence import span_hash_normalizer
+
+    data = {"s": [{"source_id": "bank1", "content_sha256": "x", "start": 5, "end": 9},
+                  {"source_id": "news1", "content_sha256": "x", "start": 5, "end": 9}]}
+    fixed = span_hash_normalizer({"bank1": "Ключевая ставка", "news1": "Новость тут"}, {"bank1"})(data)
+    bank, news = fixed["s"]
+    assert (bank["start"], bank["end"]) == (0, len("Ключевая ставка")) and (news["start"], news["end"]) == (5, 9)

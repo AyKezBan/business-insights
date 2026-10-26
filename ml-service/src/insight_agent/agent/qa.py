@@ -73,7 +73,7 @@ def answer_question(agent: InsightAgent, insight_id: str, question: str) -> Answ
         draft = llm.generate(
             "answer", agent.settings.llm_model_reasoning,
             [{"role": "system", "content": system}, {"role": "user", "content": user}], AnswerDraft,
-            normalize=span_hash_normalizer(state.source_texts()),
+            normalize=span_hash_normalizer(state.source_texts(), set(state.bank)),
         )
     except (BudgetExceeded, LLMError) as exc:
         tracer.emit("error", "answer", {"error": str(exc)})
