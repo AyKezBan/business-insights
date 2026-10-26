@@ -1,8 +1,10 @@
 # Проверка материалов, очереди и пользовательского сценария
 
-Текущий статус: offline Java/JSONB/frontend проверки выполнены; публикация всего сценария и
-смысловая приёмка требуют финального общего SHA и отдельного browser/live evidence. Synthetic transport
-не подтверждает смысловую корректность реального LLM. Paid live session проводит C0 после budget gate.
+Запуск и диагностические команды находятся в [release-runbook](materials-release-runbook.md).
+Фактические статусы смотрите в [приёмке](materials-acceptance.md): этот документ задаёт проверяемый
+сценарий и сам по себе не подтверждает PASS общего выпуска. Offline Java/JSONB/frontend checks и
+synthetic transport не подтверждают смысловую корректность реального LLM. Paid live session
+проводит coordinator после budget gate.
 
 Проверенный T07 runtime используется в интеграции. Локальный сценарий с настоящими Uvicorn,
 Java и PostgreSQL проверяет wire, очередь, историческую revision и перезапуск через явный
