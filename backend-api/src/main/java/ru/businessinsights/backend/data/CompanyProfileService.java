@@ -127,8 +127,7 @@ public class CompanyProfileService {
                 text(company, "eco_mark_label"), text(company, "okfs_name"), text(company, "region"), text(company, "city"),
                 text(company, "cl_type"), products, fts, strings(company.get("fts_countries")), flows.counterparties(),
                 List.copyOf(memberOkveds), flows.selfShare(), supplied, List.copyOf(missing),
-                ((Number) metadata.get("revenue_year")).intValue(), revenue != null ? "known" :
-                        "observed".equals(text(company, "revenue_status")) ? "invalid" : text(company, "revenue_status"),
+                ((Number) metadata.get("revenue_year")).intValue(), revenueStatus(company, revenue),
                 "company", bool(company, "fts_flag"), paymentPeriod, List.copyOf(issues));
         boolean sufficient = sufficient(profile);
         ObjectNode provenance = provenance(metadata, company, group, links, fns, spark, employees, flows, supplied);
@@ -325,6 +324,17 @@ public class CompanyProfileService {
         BigDecimal revenue = decimal(company, "revenue_company");
         return "observed".equals(text(company, "revenue_status")) && revenue != null && revenue.signum() >= 0
                 && revenue.compareTo(PLACEHOLDER) != 0 ? revenue : null;
+    }
+
+    private static String revenueStatus(Map<String, Object> company, BigDecimal revenue) {
+        if (revenue != null) {
+            return "known";
+        }
+        BigDecimal raw = decimal(company, "revenue_company");
+        if (raw != null && raw.compareTo(PLACEHOLDER) == 0 || "placeholder".equals(text(company, "revenue_status"))) {
+            return "placeholder";
+        }
+        return raw == null && "missing".equals(text(company, "revenue_status")) ? "missing" : "invalid";
     }
 
     private static BigDecimal decimal(Map<String, Object> row, String field) {

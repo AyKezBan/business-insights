@@ -33,8 +33,9 @@ def main():
     log = run / 'commands.log'
 
     def command(args, *, ok=True):
-        result = subprocess.run(args, cwd=ROOT, env=env, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        with log.open('a') as stream:
+        result = subprocess.run(args, cwd=ROOT, env=env, text=True, encoding='utf-8', errors='replace',
+                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        with log.open('a', encoding='utf-8') as stream:
             stream.write('\n$ ' + ' '.join(args) + '\n' + result.stdout)
         if ok and result.returncode:
             raise RuntimeError(f'Command failed ({result.returncode}); inspect {log}')
@@ -57,7 +58,8 @@ def main():
             (run / folder).mkdir()
         env.update(MATERIALS_STORE=str(run / 'materials'), PDF_DIR=str(run / 'pdf'),
                    MATERIALS_REVIEW_DIR=str(run / 'review'),
-                   LOCAL_UID=str(os.getuid()), LOCAL_GID=str(os.getgid()))
+                   LOCAL_UID=str(os.getuid() if hasattr(os, 'getuid') else 1000),
+                   LOCAL_GID=str(os.getgid() if hasattr(os, 'getgid') else 1000))
         (run / 'review/news.jsonl').write_text(json.dumps({
             'url': 'https://www.cbr.ru/press/synthetic-smoke-only',
             'title': '[SYNTHETIC SMOKE] Rate fixture', 'text': 'Synthetic rate test, not a real news item.',
@@ -106,7 +108,7 @@ def main():
             csv.write_bytes(original)
         report['checks'].append('changed-import-refused')
 
-        tables = ['operation', 'event', 'insight_state', 'feedback', 'action_intent']
+        tables = ['operation', 'event', 'event_revision', 'material_catalog_head', 'insight_state', 'feedback', 'action_intent']
         digest_sql = ' UNION ALL '.join(
             f"SELECT '{table}', md5(string_agg(to_jsonb(t)::text, '' ORDER BY to_jsonb(t)::text)) FROM backend_api.{table} t"
             for table in tables)
@@ -130,7 +132,7 @@ def main():
     finally:
         # Names are generated here, never accepted from user/env. Delete only this smoke project.
         dc('down', '--volumes', '--remove-orphans', ok=False)
-        (run / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
+        (run / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
         print(f'Smoke report: {run / "report.json"}', flush=True)
 
 

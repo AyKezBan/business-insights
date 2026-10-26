@@ -14,6 +14,8 @@ import java.util.Map;
  * Wire types for the pinned ML contract.
  */
 public final class MlContracts {
+    public static final String CONTRACT_VERSION = "materials-feed-v3";
+    // Historical baseline retained for existing saved provenance.
     public static final String CONTRACT_COMMIT = "e330ae5b7751a81f6deab0446149a4666e8ef7c4";
     public static final String DISCLAIMER = "Аналитика носит информационный характер и не является инвестиционной рекомендацией. "
             + "Выводы с пометкой «вывод модели» и «гипотеза» сформированы AI и не являются позицией Альфа-Банка.";
@@ -86,6 +88,13 @@ public final class MlContracts {
             this(sourceId, kind, title, date, page, url, null, null, null, null, null, null, null, null, null, null,
                     null, null, null, null, null, null, null, null, null, null, null);
         }
+        public SourceRef(String sourceId, SourceKind kind, String title, LocalDate date,
+                         Integer page, String url, String docId, String contentSha256, String excerpt) {
+            this(sourceId, kind, title, date, page, url, docId, contentSha256, excerpt,
+                    null, null, null, null, null, null,
+                    null, null, null, null, null, null,
+                    null, null, null, null, null, null);
+        }
     }
 
     @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
@@ -102,10 +111,22 @@ public final class MlContracts {
                          List<SourceRef> relatedSources, List<String> topics) {
             this(eventId, title, text, publishedAt, source, relatedSources, topics, List.of(), null, null);
         }
+        public NewsEvent(String eventId, String title, String text, Instant publishedAt, SourceRef source,
+                         List<SourceRef> relatedSources, List<String> topics, List<SourceConflict> conflicts) {
+            this(eventId, title, text, publishedAt, source, relatedSources, topics, conflicts, null, null);
+        }
         public NewsEvent {
             relatedSources = immutable(relatedSources);
             topics = immutable(topics);
             conflicts = immutable(conflicts);
+        }
+    }
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record NewsPage(String corpusRevision, List<NewsEvent> items, Integer nextOffset) {
+        public NewsPage {
+            items = immutable(items);
         }
     }
 

@@ -61,11 +61,18 @@ public class MaterialCatalogRepository {
                     throw conflict("CATALOG_CONTENT_CONFLICT", "Одна revision содержит разные версии события");
             }
             EventInput publicEvent = new EventInput(event.eventId(), event.title(), event.text(), event.publishedAt(), source(event.source()),
-                    event.relatedSources().stream().map(MaterialCatalogRepository::source).toList(), event.topics());
+                    event.relatedSources().stream().map(MaterialCatalogRepository::source).toList(), event.topics(),
+                    event.conflicts().stream().map(c -> new ru.businessinsights.backend.api.ApiModels.SourceConflictInput(
+                            c.reason(), c.sourceIds(), c.resolved())).toList());
             int published = jdbc.update("""
                     INSERT INTO backend_api.event(event_id,content_hash,payload,published_at,catalog_store_id,catalog_generation,corpus_revision,event_content_sha256,ml_payload)
                     VALUES(?,?,?::jsonb,?,?,?,?,?,?::jsonb)
-                    ON CONFLICT(event_id) DO UPDATE SET content_hash=EXCLUDED.content_hash,payload=EXCLUDED.payload,published_at=EXCLUDED.published_at,
+                    ON CONFLICT(event_id) DO UPDATE SET
+                        current_version=backend_api.event.current_version + CASE
+                            WHEN backend_api.event.event_content_sha256 IS DISTINCT FROM EXCLUDED.event_content_sha256 THEN 1 ELSE 0 END,
+                        received_at=CASE WHEN backend_api.event.event_content_sha256 IS DISTINCT FROM EXCLUDED.event_content_sha256
+                            THEN now() ELSE backend_api.event.received_at END,
+                        content_hash=EXCLUDED.content_hash,payload=EXCLUDED.payload,published_at=EXCLUDED.published_at,
                         catalog_store_id=EXCLUDED.catalog_store_id,catalog_generation=EXCLUDED.catalog_generation,corpus_revision=EXCLUDED.corpus_revision,
                         event_content_sha256=EXCLUDED.event_content_sha256,ml_payload=EXCLUDED.ml_payload
                     WHERE backend_api.event.catalog_store_id=EXCLUDED.catalog_store_id
@@ -74,6 +81,14 @@ public class MaterialCatalogRepository {
                     """, event.eventId(), material.eventContentSha256(), write(publicEvent), event.publishedAt() == null ? null : java.sql.Timestamp.from(event.publishedAt()),
                     incoming.storeId(), incoming.generation(), incoming.revision(), material.eventContentSha256(), write(event));
             if (published != 1) throw conflict("CATALOG_CONTENT_CONFLICT", "Событие уже закреплено за другим неизменным содержимым или происхождением");
+            jdbc.update("""
+                    INSERT INTO backend_api.event_revision(event_id,version,content_hash,payload,published_at,received_at)
+                    SELECT event_id,current_version,content_hash,payload,published_at,received_at
+                    FROM backend_api.event WHERE event_id=?
+                    ON CONFLICT(event_id,version) DO NOTHING
+                    """, event.eventId());
+            jdbc.update("UPDATE backend_api.operation SET stale=true,updated_at=now() WHERE event_id=? AND event_version < (SELECT current_version FROM backend_api.event WHERE event_id=?)",
+                    event.eventId(), event.eventId());
         }
         if (!replay) jdbc.update("UPDATE backend_api.material_catalog_head SET store_id=?,generation=?,revision=? WHERE singleton", incoming.storeId(), incoming.generation(), incoming.revision());
         return incoming;
@@ -90,7 +105,8 @@ public class MaterialCatalogRepository {
     private static CatalogToken token(ResultSet rs) throws SQLException {
         return rs.getString("store_id") == null ? null : new CatalogToken(rs.getString("store_id"), rs.getLong("generation"), rs.getString("revision"));
     }
-    private static SourceInput source(SourceRef source) { return new SourceInput(source.sourceId(), source.title(), source.date(), source.page(), source.url()); }
+    private static SourceInput source(SourceRef source) { return new SourceInput(source.sourceId(), source.title(), source.date(), source.page(), source.url(),
+            source.docId(), source.contentSha256(), source.excerpt()); }
     private String write(Object value) {
         try { return json.writeValueAsString(value); } catch (JsonProcessingException e) { throw new IllegalStateException("Cannot serialize material catalog", e); }
     }

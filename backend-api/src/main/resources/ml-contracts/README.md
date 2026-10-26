@@ -1,12 +1,14 @@
-JSON Schema generated from ML protocol commit `e330ae5b7751a81f6deab0446149a4666e8ef7c4`.
+# Backend ML contracts
 
-These resources are bundled in the JAR and validate requests/responses before typed decoding.
-Regenerate from `insight_agent.export_schemas` using the intended worktree's PYTHONPATH;
-copy the five ML exchange schemas plus catalog-token, material-event and catalog-response. Keep the source commit in
-`source-commit.txt` and `MlContracts.CONTRACT_COMMIT` in sync. Runtime/semantic schema
-changes require another export; do not hand-edit generated JSON.
+The authoritative schemas are generated from the current Python models into `contracts/ml`.
+Every `.schema.json` resource here is a byte-for-byte copy of its counterpart there.
+Regenerate with `python -m insight_agent.export_schemas contracts/ml` from the repository
+root with `PYTHONPATH=ml-service/src`, then update the resource copies together.
 
-Claims and impacts carry optional `evidence_spans` (legacy default `[]`). Each span
-identifies an exact source body by opaque source ID and SHA-256, with nonempty
-`[start,end)` offsets measured in Unicode code points. Java and the UI preserve these
-offsets without slicing or translating the already rendered ML claim text.
+`source-commit.txt` and `MlContracts.CONTRACT_COMMIT` record the historical ML integration
+baseline. The active combined adapter is identified by `MlContracts.CONTRACT_VERSION`;
+the baseline SHA does not claim that these extended schemas are unchanged since it.
+
+`catalog-response` uses `catalog_token/events/next_cursor` at `/v1/materials/events`.
+`news-page` uses `corpus_revision/items/next_offset` at `/v1/materials/news`.
+Feed refresh uses the trusted catalog service, preserving full-token CAS and frozen inputs.

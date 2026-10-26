@@ -62,7 +62,9 @@ public class InsightMapper {
                 text(r, "insight_id"), text(r, "run_id"), r.path("version").asInt(1), text(r, "outcome"),
                 text(r, "error_code"), text(r, "request_id"), text(r, "parent_run_id"), r.path("cache_hit").asBoolean(),
                 mapper.convertValue(r.get("as_of"), java.time.Instant.class), text(r, "corpus_revision"), text(r, "event_content_sha256"),
-                conflicts(r), interaction.openedAt(), interaction.feedback());
+                conflicts(r), interaction.openedAt(), interaction.feedback(),
+                op.eventVersion(), op.stale(), op.expiresAt(), op.relevanceScore(), op.relevanceReasons(),
+                sourceConflicts(op));
     }
 
     public AnswerView answer(Operation op) {
@@ -121,6 +123,22 @@ public class InsightMapper {
         var conflicts = new ArrayList<ConflictView>();
         for (JsonNode c : r.path("conflicts")) conflicts.add(new ConflictView(text(c, "reason"), strings(c.path("source_ids")), c.path("resolved").asBoolean()));
         return conflicts;
+    }
+
+    private List<SourceConflictInput> sourceConflicts(Operation op) {
+        if (op.profileSnapshot() == null) {
+            return List.of();
+        }
+        var result = new ArrayList<SourceConflictInput>();
+        for (JsonNode conflict : op.profileSnapshot().path("event").path("conflicts")) {
+            JsonNode ids = conflict.get("source_ids");
+            if (ids == null || !ids.isArray()) {
+                ids = conflict.path("sourceIds");
+            }
+            result.add(new SourceConflictInput(text(conflict, "reason"), strings(ids),
+                    conflict.path("resolved").asBoolean()));
+        }
+        return List.copyOf(result);
     }
 
     private Map<String, String> sourceKinds(JsonNode r) {

@@ -7,7 +7,7 @@ from insight_agent.agent.qa import answer_question
 from insight_agent.config import Settings, get_settings
 from insight_agent.frontend_adapter import VIEWS, to_frontend_card, to_frontend_clarification
 from insight_agent.llm import ChatClient, OpenAICompatibleClient
-from insight_agent.schemas import Answer, Insight, InsightRequest, QuestionRequest, TraceEvent
+from insight_agent.schemas import Answer, Insight, InsightRequest, NewsPage, QuestionRequest, Sha256, TraceEvent
 from insight_agent.tools.bank import BankIndex
 from insight_agent.tools.news import NewsStore
 from insight_agent.trace import load_trace
@@ -70,6 +70,32 @@ def create_app(agent: InsightAgent | None = None) -> FastAPI:
             raise HTTPException(409, "request_id уже использован с другим содержимым запроса")
         except CorpusError as exc:
             raise HTTPException(409, {"code": exc.code, "message": str(exc)}) from None
+
+    @app.get("/v1/materials/news", response_model=NewsPage)
+    def news_events(limit: int = Query(default=20, ge=1, le=100),
+                    offset: int = Query(default=0, ge=0, le=1_000_000),
+                    revision: Sha256 | None = None) -> NewsPage:
+        # Offset pagination is separate from the token/cursor catalog at /materials/events.
+        # Pin the returned revision on later pages when the current corpus can change.
+        if agent.corpus_registry:
+            try:
+                bundle = agent.corpus_registry.get(revision) if revision else agent.corpus_registry.current()
+            except (CorpusError, KeyError, OSError, ValueError, TypeError):
+                raise HTTPException(503, {"code": "corpus_unavailable"}) from None
+            events = bundle.news.events
+            corpus_revision = bundle.revision
+        else:
+            corpus_revision = agent.corpus_snapshot.revision if agent.corpus_snapshot else None
+            if revision is not None and revision != corpus_revision:
+                raise HTTPException(409, {"code": "corpus_unavailable"})
+            events = agent.news.events
+        ordered = sorted(events,
+            key=lambda event: (event.published_at.timestamp() if event.published_at else float("-inf"), event.event_id),
+            reverse=True)
+        items = ordered[offset:offset + limit]
+        next_offset = offset + len(items)
+        return NewsPage(corpus_revision=corpus_revision, items=items,
+                        next_offset=next_offset if next_offset < len(ordered) else None)
 
     @app.post("/v1/insights/{insight_id}/questions", response_model=Answer)
     def ask(insight_id: str, body: QuestionRequest) -> Answer:

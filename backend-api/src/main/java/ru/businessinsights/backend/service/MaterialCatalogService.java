@@ -13,6 +13,7 @@ import ru.businessinsights.backend.ml.MaterialCatalogClient;
 import ru.businessinsights.backend.ml.MlException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.Comparator;
 
 /** Reads the trusted ML catalog; no analysis or provider operation is triggered. */
 @Service
@@ -33,6 +34,15 @@ public class MaterialCatalogService {
     }
 
     public MaterialCatalogView events(int limit, int offset, String revision) {
+        return catalog(limit, offset, revision, false);
+    }
+
+    /** The feed uses newest-first offset pages of the same atomically accepted catalog. */
+    public MaterialCatalogView news(int limit, int offset) {
+        return catalog(limit, offset, null, true);
+    }
+
+    private MaterialCatalogView catalog(int limit, int offset, String revision, boolean newestFirst) {
         if (limit < 1 || limit > 100 || offset < 0 || revision != null && !revision.matches("[a-f0-9]{64}"))
             throw new ApiException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "Некорректные параметры каталога");
         var expected = repository.head();
@@ -64,6 +74,11 @@ public class MaterialCatalogService {
         // The only write occurs after every page passed validation. Repository's
         // transaction and complete-token CAS guard against racing newer publications.
         repository.synchronize(expected, token, all);
+        if (newestFirst) {
+            all.sort(Comparator.comparing((MaterialEvent material) -> material.event().publishedAt(),
+                            Comparator.nullsLast(Comparator.reverseOrder()))
+                    .thenComparing(material -> material.event().eventId(), Comparator.reverseOrder()));
+        }
         int start = Math.min(offset, all.size());
         int end = Math.min(start + limit, all.size());
         var items = all.subList(start, end).stream().map(material -> views.material(material, token.revision())).toList();

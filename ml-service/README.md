@@ -83,3 +83,9 @@ FastAPI, Uvicorn, Pydantic, pydantic-settings, HTTPX, pytest. Версии в `r
 ## Реальные материалы D03/D04
 
 Загрузка PDF/OCR, ручная проверка, версионирование новостей и запуск корпуса описаны в [material-ingestion.md](docs/material-ingestion.md). Подготовка: `insight-materials`; снимок подключается через `MATERIALS_DIR`. Исходные PDF, полные статьи, OCR и ключи не входят в Git. Локальные fixtures остаются синтетическими тестовыми данными.
+
+## Выдача новостей для обновления ленты
+
+`GET /v1/materials/news?limit=20&offset=0` возвращает `NewsPage`: `corpus_revision`, `items`, `next_offset`. Порядок — дата публикации и ID по убыванию; неизвестные timestamps идут последними. На следующих страницах передайте возвращённую `revision`, чтобы читать тот же snapshot. Чтение не собирает источники и не вызывает LLM.
+
+Каталог `GET /v1/materials/events` сохраняет отдельный контракт `catalog_token/events/next_cursor`. Java обновляет ленту через этот проверенный каталог; повторные refresh не создают дубликаты операций для одинакового контекста.

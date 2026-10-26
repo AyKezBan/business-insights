@@ -27,15 +27,19 @@ public final class DisposablePostgres implements AutoCloseable {
     private boolean closed;
 
     public static DisposablePostgres openOrSkip() throws SQLException {
+        return openOrSkip(null);
+    }
+
+    public static DisposablePostgres openOrSkip(String migrationTarget) throws SQLException {
         String adminUrl = System.getenv("BI_JDBC_TEST_URL");
         Assumptions.assumeTrue(adminUrl != null && !adminUrl.isBlank(),
                 "NOT_RUN: BI_JDBC_TEST_URL is required for actual PostgreSQL integration tests");
         return new DisposablePostgres(adminUrl,
                 System.getenv().getOrDefault("BI_JDBC_TEST_USER", "postgres"),
-                System.getenv().getOrDefault("BI_JDBC_TEST_PASSWORD", "postgres"));
+                System.getenv().getOrDefault("BI_JDBC_TEST_PASSWORD", "postgres"), migrationTarget);
     }
 
-    private DisposablePostgres(String adminUrl, String user, String password) throws SQLException {
+    private DisposablePostgres(String adminUrl, String user, String password, String migrationTarget) throws SQLException {
         URI uri = validateAdminUrl(adminUrl);
         this.adminUrl = adminUrl;
         this.databaseName = "bi_c3_test_" + UUID.randomUUID().toString().replace("-", "");
@@ -49,8 +53,10 @@ public final class DisposablePostgres implements AutoCloseable {
             statement.execute("CREATE DATABASE " + databaseName);
         }
         try {
-            Flyway.configure().dataSource(dataSource).schemas("backend_api").defaultSchema("backend_api")
-                    .createSchemas(true).locations("classpath:db/migration").load().migrate();
+            var configuration = Flyway.configure().dataSource(dataSource).schemas("backend_api").defaultSchema("backend_api")
+                    .createSchemas(true).locations("classpath:db/migration");
+            if (migrationTarget != null) configuration.target(migrationTarget);
+            configuration.load().migrate();
         } catch (RuntimeException migrationFailure) {
             try {
                 close();

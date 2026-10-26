@@ -115,4 +115,34 @@ class MaterialCatalogLifecycleTest {
             assertEquals("Original", store.event("manual").text());
         }
     }
+
+    @Test void catalogCorrectionVersionsEventsButBankOnlyRefreshPreservesAcceptedVersion() throws Exception {
+        try (var db = DisposablePostgres.openOrSkip()) {
+            var repository = new MaterialCatalogRepository(db.jdbc(), json);
+            var store = new OperationStore(db.jdbc(), json);
+            var tx = new TransactionTemplate(new DataSourceTransactionManager(db.jdbc().getDataSource()));
+            var r1 = new CatalogToken("fixture-store", 1, "a".repeat(64));
+            var bankOnly = new CatalogToken("fixture-store", 2, "b".repeat(64));
+            var corrected = new CatalogToken("fixture-store", 3, "c".repeat(64));
+            tx.execute(s -> repository.synchronize(null, r1, List.of(event("Original", "1".repeat(64)))));
+            var accepted = tx.execute(s -> store.createFrozen("F_1", "U_1", "cfo", "ANALYSIS", null,
+                    "logical:event", "frozen", "fingerprint", java.util.Map.of("request", "original"), java.util.Map.of("revision", r1.revision())));
+            tx.execute(s -> repository.synchronize(r1, bankOnly, List.of(event("Original", "1".repeat(64)))));
+            assertEquals(1, store.currentEvent("logical:event").version());
+            assertFalse(store.find(accepted.operation().id()).orElseThrow().stale());
+            tx.execute(s -> repository.synchronize(bankOnly, corrected, List.of(event("Corrected", "2".repeat(64)))));
+            assertEquals(2, store.currentEvent("logical:event").version());
+            assertEquals(2, store.eventHistory("logical:event", 20, 0).size());
+            assertEquals("Original", store.eventVersion("logical:event", 1).event().text());
+            var historical = store.find(accepted.operation().id()).orElseThrow();
+            assertTrue(historical.stale());
+            assertEquals(1, historical.eventVersion());
+            assertEquals(r1.revision(), historical.profileSnapshot().path("revision").asText());
+            var rejection = assertThrows(ApiException.class, () -> tx.execute(s -> store.reviseEvent(
+                    store.currentEvent("logical:event").event(), "untrusted", 2)));
+            assertEquals("MATERIAL_EVENT_IMMUTABLE", rejection.code());
+            tx.execute(s -> repository.synchronize(bankOnly, corrected, List.of(event("Corrected", "2".repeat(64)))));
+            assertEquals(2, store.eventHistory("logical:event", 20, 0).size());
+        }
+    }
 }
