@@ -224,3 +224,19 @@ def test_cached_research_retains_acquisition_time_and_expiry(tmp_path, storage):
         expired = service.search(plan, as_of=NOW.date()).docs[0]
         assert expired.retrieved_at == NOW + timedelta(seconds=905)
         assert len(site.requests) == 2
+
+
+def test_generic_words_from_okved_and_model_query_do_not_pull_unrelated_releases():
+    profile = CompanyProfile(company_id="U_1", okved_name="Деятельность вспомогательная прочая, связанная с перевозками")
+    plan = build_plan(profile, [], extra="решение Банка России по ключевой ставке")
+    assert "вспомо" not in plan.weak_keywords and "прочая"[:6] not in plan.weak_keywords and "банка" not in plan.weak_keywords
+    assert "ставк" in plan.keywords  # слово из запроса совпало с темой канала
+
+
+def test_release_needs_a_channel_topic_or_two_weak_words():
+    service, _ = research()
+    only_weak_one = build_plan(CompanyProfile(company_id="U_1", okved_name="Требования надзорные"), [])
+    assert [d for d in service.search(only_weak_one, as_of=date(2026, 10, 25)).docs] == []
+    topic = build_plan(CompanyProfile(company_id="U_1"), ["cost_of_debt"])
+    titles = [d.title for d in service.search(topic, as_of=date(2026, 10, 25)).docs if d.kind == "press"]
+    assert titles and all("Конкурс" not in t for t in titles)

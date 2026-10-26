@@ -31,7 +31,13 @@ CHANNEL_STEMS = {
     "counterparty_risk": ["рейтинг", "банкрот"],
     "sanctions": ["санкц", "ограничен"],
 }
-_STOP = {"прочее", "прочих", "включая", "деятельность", "производство", "предоставление", "услуг", "области", "связанных"}
+# Слова, которые есть в названиях почти всех ОКВЭД и пресс-релизов: по ним релевантность не определить.
+_STOP = {
+    "прочее", "прочая", "прочие", "прочих", "прочий", "включая", "деятельность", "деятельности", "вспомогательная", "вспомогательные",
+    "производство", "предоставление", "услуг", "услуги", "области", "связанных", "связанная", "связанные", "специализирующихся",
+    "организации", "компании", "россии", "банка", "банк", "решение", "решения", "изделиями", "товаров", "торговля", "работы",
+}
+STRONG_STEMS = {s for stems in CHANNEL_STEMS.values() for s in stems} | {"ключев", "ставк", "инфляц", "курс", "валют"}
 
 
 @dataclass
@@ -39,11 +45,12 @@ class ResearchPlan:
     key_rate: bool = False
     currencies: list[str] = field(default_factory=list)
     keywords: list[str] = field(default_factory=list)
+    weak_keywords: list[str] = field(default_factory=list)  # из ОКВЭД и запроса модели: нужны две, чтобы документ подошёл
     reasons: list[str] = field(default_factory=list)
 
     @property
     def empty(self) -> bool:
-        return not (self.key_rate or self.currencies or self.keywords)
+        return not (self.key_rate or self.currencies or self.keywords or self.weak_keywords)
 
 
 def currencies_for(countries: list[str]) -> list[str]:
@@ -75,12 +82,20 @@ def build_plan(profile: CompanyProfile, matched_channels: list[str], extra: str 
         stems += ["ключев", "ставк"]
     if plan.currencies:
         stems += ["курс", "валют"]
+    weak: list[str] = []
     for token in re.findall(r"[а-яё]{5,}", (profile.okved_name or "").lower()):
         if token not in _STOP:
-            stems.append(token[:6])
+            weak.append(token[:6])
     if extra:
-        stems += [t[:6] for t in re.findall(r"[а-яё]{4,}", extra.lower())]
-    plan.keywords = list(dict.fromkeys(stems))[:MAX_KEYWORDS]
-    if plan.keywords:
-        plan.reasons.append("пресс-релизы по темам: " + ", ".join(plan.keywords))
+        weak += [t[:6] for t in re.findall(r"[а-яё]{5,}", extra.lower()) if t not in _STOP]
+    strong = [s for s in dict.fromkeys(stems)]
+    # слабые основы, совпавшие с сильными (например «ставк» из запроса модели), считаются сильными
+    for w in dict.fromkeys(weak):
+        stem = next((s for s in sorted(STRONG_STEMS) if w.startswith(s)), None)
+        if stem and stem not in strong:
+            strong.append(stem)
+    plan.keywords = strong[:MAX_KEYWORDS]
+    plan.weak_keywords = [w for w in dict.fromkeys(weak) if not any(w.startswith(s) for s in STRONG_STEMS)][:MAX_KEYWORDS]
+    if plan.keywords or plan.weak_keywords:
+        plan.reasons.append("пресс-релизы по темам: " + ", ".join(plan.keywords) + (" | дополнительно (нужно два совпадения): " + ", ".join(plan.weak_keywords) if plan.weak_keywords else ""))
     return plan
