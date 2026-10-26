@@ -153,3 +153,4 @@ def test_normalizer_sets_whole_fragment_bounds_only_for_bank_sources():
     fixed = span_hash_normalizer({"bank1": "Ключевая ставка", "news1": "Новость тут"}, {"bank1"})(data)
     bank, news = fixed["s"]
     assert (bank["start"], bank["end"]) == (0, len("Ключевая ставка")) and (news["start"], news["end"]) == (5, 9)
+

@@ -400,7 +400,8 @@ class InsightAgent:
                 state.evidence_issues = list(cached[1])
                 tracer.emit("plan", "analysis_cache_hit", {"event_id": request.event.event_id})
             else:
-                state.analysis = analyze_event(llm, s.llm_model_light, request.event, source_texts=texts)
+                state.analysis = self._retry_once(tracer, "analyze_event",
+                    lambda: analyze_event(llm, s.llm_model_light, request.event, source_texts=texts))
                 state.evidence_issues = self._render_quotes(state, "facts", state.analysis.facts)
                 state.evidence_issues += check_event_analysis(request.event, state.analysis, texts)
                 bad = {int(m.group(2)) for issue in state.evidence_issues
@@ -444,7 +445,8 @@ class InsightAgent:
                                         "лимит токенов запуска: оставлен запас на смысловую проверку, дальнейшие исправления пропущены")
                     iterations -= 1
                     break
-                state.draft = personalize(llm, s.llm_model_reasoning, state, feedback=issues if iterations > 1 else None)
+                state.draft = self._retry_once(tracer, "personalize",
+                    lambda: personalize(llm, s.llm_model_reasoning, state, feedback=issues if iterations > 1 else None))
                 tracer.agent = "verifier"
                 issues = []
                 for section in ("why_it_matters", "consequences", "risks", "opportunities", "actions", "bank_view"):
@@ -524,6 +526,17 @@ class InsightAgent:
         if ledger is None:
             return None
         return {"spent_rub": str(ledger.spent), "limit_rub": str(ledger.limit), "level": ledger.level()}
+
+    @staticmethod
+    def _retry_once(tracer: Tracer, step: str, call):
+        """Шлюз иногда не отвечает до таймаута. Один повтор шага; расход неудавшейся попытки уже учтён оценкой.
+
+        Бюджетные исключения (BudgetExceeded) не повторяются."""
+        try:
+            return call()
+        except LLMError as exc:
+            tracer.emit("adapt", "retry_after_provider_failure", {"step": step, "error": str(exc)[:200]})
+            return call()
 
     @staticmethod
     def _skip_optional(state: AgentState, tracer: Tracer, step: str,
