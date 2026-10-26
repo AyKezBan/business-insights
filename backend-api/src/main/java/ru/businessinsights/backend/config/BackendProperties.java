@@ -7,6 +7,11 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties("backend")
 public record BackendProperties(Ml ml, Jobs jobs, Auth auth, Feed feed) {
+    public BackendProperties(Ml ml, Jobs jobs, Auth auth) {
+        this(ml, jobs, auth, null);
+    }
+
+    @org.springframework.boot.context.properties.bind.ConstructorBinding
     public BackendProperties {
         if (ml == null || jobs == null || auth == null) {
             throw new IllegalArgumentException("Missing backend configuration");

@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 import pytest
 from pydantic import BaseModel
 
@@ -5,7 +7,7 @@ from fakes import FIXTURES
 from insight_agent.schemas import CompanyProfile
 from insight_agent.tools.bank import BankIndex, BankSearchArgs
 from insight_agent.tools.base import Tool, ToolError, ToolRegistry
-from insight_agent.tools.profile import derive_signals, missing_profile_data
+from insight_agent.tools.profile import _format_rub, derive_signals, missing_profile_data
 from insight_agent.trace import Tracer
 
 
@@ -70,3 +72,35 @@ def test_small_revenue_is_not_rounded_to_zero():
 def test_unknown_values_are_reported_as_missing():
     missing = missing_profile_data(CompanyProfile(company_id="U_X"))
     assert {"products.loans", "okved_code", "revenue_rub", "foreign_trade"} <= set(missing)
+
+
+@pytest.mark.parametrize(
+    ("rub", "expected"),
+    [
+        ("1250000000", "1.3 млрд руб."),
+        ("1350000000", "1.4 млрд руб."),
+        ("2450000000", "2.5 млрд руб."),
+        ("999960000", "1.0 млрд руб."),
+        ("999950", "1.0 млн руб."),
+        ("1500000", "1.5 млн руб."),
+        ("136493", "136 493 руб."),
+        ("136492.5", "136 493 руб."),
+    ],
+)
+def test_format_rub_rounds_half_up_and_picks_unit_after_rounding(rub, expected):
+    assert _format_rub(Decimal(rub)) == expected
+
+
+def test_money_fields_keep_exact_decimal_from_json_number_and_string():
+    from_number = CompanyProfile.model_validate_json('{"company_id": "U_X", "revenue_rub": 0.1}')
+    from_string = CompanyProfile.model_validate_json('{"company_id": "U_X", "revenue_rub": "0.1"}')
+    assert from_number.revenue_rub == from_string.revenue_rub == Decimal("0.1")
+
+
+def test_only_exact_placeholder_is_missing_revenue():
+    def signals(revenue):
+        return {s.feature for s in derive_signals(CompanyProfile(company_id="U_X", revenue_rub=revenue))}
+
+    assert "revenue_rub" not in signals(Decimal(1000))
+    assert "revenue_rub" in signals(Decimal("1000.5"))
+    assert "revenue_rub" not in signals(Decimal(-5))

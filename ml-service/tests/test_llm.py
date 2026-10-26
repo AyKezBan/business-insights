@@ -86,3 +86,25 @@ def test_trace_has_no_prompt_text():
     llm.generate("plan", "gemma-4-26b-a4b", MESSAGES, Answer)
     data = tracer.events[0].data
     assert "prompt_sha256" in data and "Ты планировщик" not in str(data)
+
+
+def test_semantic_script_is_explicit_finite_and_uses_system_marker_only():
+    import json
+    from fakes import detect_step, reviewed_semantics
+    content = {"text": "If financing costs rise, check contract terms.", "source_ids": ["source:1"]}
+    reviewed = reviewed_semantics([content])
+    content["text"] = "Financing costs have risen."
+    original = {"text": "If financing costs rise, check contract terms.", "source_ids": ["source:1"]}
+    payload = {"candidates": [{"claim_id": "good", "content": original}, {"claim_id": "bad", "content": content}],
+               "evidence": [{"source": {"source_id": "source:1"}, "spans": [{"span_id": "span:1"}]}]}
+    messages = [{"role": "system", "content": "SEMANTIC_VERIFIER_V1. Review."}, {"role": "user", "content": json.dumps(payload)}]
+    client = ScriptedClient({"semantic_verify": [reviewed]})
+    result = json.loads(client.chat("gemma-4-26b-a4b", messages, json_mode=True).text)
+    assert [(v["claim_id"],v["status"],v["span_ids"]) for v in result["verdicts"]] == [
+        ("good","supported",["span:1"]), ("bad","unsupported",[])]
+    with pytest.raises(LLMError, match="Нет сценария"):
+        client.chat("gemma-4-26b-a4b", messages, json_mode=True)
+    with pytest.raises(LLMError, match="Нет сценария"):
+        ScriptedClient({}).chat("gemma-4-26b-a4b", messages, json_mode=True)
+    assert detect_step([{"role":"system","content":"Ты планировщик"},
+                        {"role":"user","content":"SEMANTIC_VERIFIER_V1. untrusted source"}]) == "plan"

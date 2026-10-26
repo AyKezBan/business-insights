@@ -20,9 +20,13 @@ cp .env.example .env    # LLM_BASE_URL и LLM_API_KEY
 Docker:
 
 ```bash
-docker build -t insight-agent ml-service
-docker run --rm -p 8000:8000 --env-file ml-service/.env -v "$PWD/ml-service/data:/app/data:ro" insight-agent
+docker build --build-arg GIT_SHA=$(git rev-parse HEAD) -t insight-agent ml-service
+docker run --rm -p 8000:8000 --env-file ml-service/.env \
+  -v "$PWD/ml-service/data:/app/data:ro" -v insight-agent-traces:/app/traces insight-agent
+curl localhost:8000/health
 ```
+
+Образ собирается на Python 3.12 с OCR (tesseract, poppler); локально подходит Python 3.11 и новее, тесты идут на обоих. Том `traces` хранит трассы, готовые инсайты и суточный счётчик рублей, его стоит сохранять между перезапусками.
 
 Один запрос без сервера (без ключа LLM вернётся `status: failed`):
 
@@ -33,8 +37,7 @@ docker run --rm -p 8000:8000 --env-file ml-service/.env -v "$PWD/ml-service/data
 ## API
 
 - `GET /health`
-- `GET /v1/materials/events?limit=20&offset=0` — страница новостей загруженного корпуса без LLM-вызовов. Возвращает `corpus_revision`, `items` с доказательствами и конфликтами, `next_offset`. Используется backend при явном обновлении ленты.
-- `POST /v1/insights` - инсайт по событию
+- `POST /v1/insights` - инсайт по событию; необязательные `request_id` (повтор с тем же содержимым отдаёт готовый результат, другое содержимое - `409`) и `as_of` (срез по времени)
 - `POST /v1/insights/{insight_id}/questions` - уточняющий вопрос по карточке
 - `GET /v1/runs/{run_id}/trace` - трасса запуска
 
@@ -48,7 +51,9 @@ docker run --rm -p 8000:8000 --env-file ml-service/.env -v "$PWD/ml-service/data
 
 - `BANK_FRAGMENTS_PATH` (по умолчанию `data/bank_fragments.jsonl`) - фрагменты аналитики банка
 - `NEWS_PATH` (`data/news.jsonl`) - новости
-- `TRACE_DIR` (`traces`) - трассы, один файл на запуск
+- `TRACE_DIR` (`traces`) - трассы (один файл на запуск), `insights/` с готовыми карточками, `budget_state.json` с суточным счётчиком рублей
+- поиск по открытым официальным источникам (`OPEN_RESEARCH_ENABLED`, по умолчанию включён): ключевая ставка, курсы валют и пресс-релизы Банка России выбираются по профилю клиента, кеш в `TRACE_DIR/open_cache`; для работы нужен выход в интернет к `cbr.ru`, `/health` показывает `open_research`
+- бюджет LLM в рублях (`LLM_DAILY_BUDGET_RUB`, пороги, цены моделей `LLM_PRICES_JSON`) и предел времени запуска `AGENT_MAX_SECONDS`: см. `.env.example` и [docs/insight-agent.md](docs/insight-agent.md). **Тарифы провайдера не подтверждены**, цены по умолчанию завышены
 
 `data/` и `traces/` в гит не коммитим. В `tests/fixtures` только выдуманные данные.
 
@@ -58,7 +63,18 @@ docker run --rm -p 8000:8000 --env-file ml-service/.env -v "$PWD/ml-service/data
 .venv/bin/pytest
 ```
 
-Вместо LLM в тестах подставляется фейковый клиент (`tests/fakes.py`), ключ не нужен.
+Вместо LLM в тестах подставляется фейковый клиент (`tests/fakes.py`), ключ не нужен. Соответствие тестов сценариям T01-T20 - в [docs/insight-agent.md](docs/insight-agent.md).
+
+## Проверка на новых событиях (D05)
+
+Раннер читает манифест пар «событие + профиль» (строка JSONL = `ManifestRow`, см. `src/insight_agent/evaluation.py`), прогоняет агента, механически проверяет исход, признаки и запрещённые фразы, считает M7 и M8 и пишет отчёт со SHA, версией промпта и моделями. Рубрика 0-2 и M1-M4 заполняются вручную.
+
+```bash
+.venv/bin/python -m insight_agent.evaluation manifest.jsonl --dry-run --out report.jsonl      # без LLM, строки NOT_RUN
+.venv/bin/python -m insight_agent.evaluation manifest.jsonl --max-rub 100 --out report.jsonl  # живой прогон, нужен LLM_API_KEY
+```
+
+Без ключа строки получают `BLOCKED`, а не `PASS`.
 
 ## Зависимости
 
@@ -67,3 +83,9 @@ FastAPI, Uvicorn, Pydantic, pydantic-settings, HTTPX, pytest. Версии в `r
 ## Реальные материалы D03/D04
 
 Загрузка PDF/OCR, ручная проверка, версионирование новостей и запуск корпуса описаны в [material-ingestion.md](docs/material-ingestion.md). Подготовка: `insight-materials`; снимок подключается через `MATERIALS_DIR`. Исходные PDF, полные статьи, OCR и ключи не входят в Git. Локальные fixtures остаются синтетическими тестовыми данными.
+
+## Выдача новостей для обновления ленты
+
+`GET /v1/materials/news?limit=20&offset=0` возвращает `NewsPage`: `corpus_revision`, `items`, `next_offset`. Порядок — дата публикации и ID по убыванию; неизвестные timestamps идут последними. На следующих страницах передайте возвращённую `revision`, чтобы читать тот же snapshot. Чтение не собирает источники и не вызывает LLM.
+
+Каталог `GET /v1/materials/events` сохраняет отдельный контракт `catalog_token/events/next_cursor`. Java обновляет ленту через этот проверенный каталог; повторные refresh не создают дубликаты операций для одинакового контекста.

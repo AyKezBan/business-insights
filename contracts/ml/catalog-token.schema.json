@@ -1,0 +1,27 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "store_id": {
+      "minLength": 1,
+      "title": "Store Id",
+      "type": "string"
+    },
+    "generation": {
+      "minimum": 0,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "revision": {
+      "pattern": "^[a-f0-9]{64}$",
+      "title": "Revision",
+      "type": "string"
+    }
+  },
+  "required": [
+    "store_id",
+    "generation",
+    "revision"
+  ],
+  "title": "CatalogToken",
+  "type": "object"
+}

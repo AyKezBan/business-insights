@@ -28,7 +28,18 @@ public class OperationStore {
                             String errorMessage, boolean retryable, Instant createdAt, Instant updatedAt,
                             long eventVersion, boolean stale, Instant expiresAt, int relevanceScore,
                             List<String> relevanceReasons) {
+        public Operation(UUID id, String ownerId, String companyId, String role, String kind, UUID parentId,
+                         String eventId, String status, JsonNode payload, JsonNode profileSnapshot, JsonNode result,
+                         JsonNode trace, String traceState, List<String> warnings, String errorCode,
+                         String errorMessage, boolean retryable, Instant createdAt, Instant updatedAt) {
+            this(id, ownerId, companyId, role, kind, parentId, eventId, status, payload, profileSnapshot, result,
+                    trace, traceState, warnings, errorCode, errorMessage, retryable, createdAt, updatedAt,
+                    1, false, createdAt == null ? null : createdAt.plus(java.time.Duration.ofDays(30)), 0, List.of());
+        }
     }
+
+    public record Interaction(boolean hidden, Instant openedAt,
+                              ru.businessinsights.backend.api.ApiModels.FeedbackView feedback) {}
 
     public record Submission(Operation operation, boolean created) {
     }
@@ -53,12 +64,21 @@ public class OperationStore {
         if (!stored.event().equals(event)) {
             throw new ApiException(HttpStatus.CONFLICT, "EVENT_ID_CONFLICT", "Этот eventId уже связан с другим содержимым");
         }
+        if (!stored.contentHash().equals(hash)) {
+            JsonNode raw = jdbc.queryForObject("SELECT payload::text FROM backend_api.event WHERE event_id=?",
+                    (rs, row) -> read(rs.getString(1), JsonNode.class), event.eventId());
+            // Only a legacy representation missing newly optional fields may normalize to the same event.
+            if (tree(event).equals(raw)) {
+                throw new ApiException(HttpStatus.CONFLICT, "EVENT_ID_CONFLICT", "Хеш события отличается от сохранённого");
+            }
+        }
         return stored.event();
     }
 
     @Transactional
     public EventVersionView reviseEvent(EventInput event, String hash, long expectedVersion) {
         EventVersionView current = currentEvent(event.eventId(), true);
+        requireManualEvent(event.eventId());
         if (current.event().equals(event)) {
             return current;
         }
@@ -76,6 +96,7 @@ public class OperationStore {
             saveRevision(event.eventId());
         }
         EventVersionView current = currentEvent(event.eventId(), true);
+        requireManualEvent(event.eventId());
         if (current.event().equals(event)) {
             return current;
         }
@@ -89,11 +110,20 @@ public class OperationStore {
         return seen ? current : replaceEvent(event, hash);
     }
 
+    private void requireManualEvent(String eventId) {
+        if (Boolean.TRUE.equals(jdbc.queryForObject(
+                "SELECT catalog_store_id IS NOT NULL FROM backend_api.event WHERE event_id=?", Boolean.class, eventId))) {
+            throw new ApiException(HttpStatus.CONFLICT, "MATERIAL_EVENT_IMMUTABLE",
+                    "Материал каталога исправляется через публикацию новой версии корпуса");
+        }
+    }
+
     private EventVersionView replaceEvent(EventInput event, String hash) {
         jdbc.update("UPDATE backend_api.event SET current_version=current_version+1,content_hash=?,payload=?::jsonb,published_at=?,received_at=now() WHERE event_id=?",
                 hash, json(event), timestamp(event.publishedAt()), event.eventId());
         saveRevision(event.eventId());
-        jdbc.update("UPDATE backend_api.operation SET stale=true,updated_at=now() WHERE event_id=?", event.eventId());
+        jdbc.update("UPDATE backend_api.operation SET stale=true,updated_at=now() WHERE event_id=? AND event_version < (SELECT current_version FROM backend_api.event WHERE event_id=?)",
+                event.eventId(), event.eventId());
         return currentEvent(event.eventId());
     }
 
@@ -103,6 +133,13 @@ public class OperationStore {
 
     public EventVersionView currentEvent(String id) {
         return currentEvent(id, false);
+    }
+
+    public EventVersionView currentEventForShare(String id) {
+        return jdbc.query("SELECT event_id,current_version,content_hash,received_at,payload::text FROM backend_api.event WHERE event_id=? FOR SHARE",
+                        (rs, n) -> new EventVersionView(rs.getString(1), rs.getLong(2), rs.getString(3),
+                                rs.getTimestamp(4).toInstant(), read(rs.getString(5), EventInput.class)), id)
+                .stream().findFirst().orElseThrow(() -> new ApiException(HttpStatus.NOT_FOUND, "EVENT_NOT_FOUND", "Событие не найдено"));
     }
 
     private EventVersionView currentEvent(String id, boolean lock) {
@@ -133,25 +170,57 @@ public class OperationStore {
 
     @Transactional
     public Submission create(String owner, String company, String role, String kind, UUID parent, String eventId,
+                             String key, String hash, Object payload) {
+        return createFrozen(owner, company, role, kind, parent, eventId, key, hash, payload, null);
+    }
+
+    @Transactional
+    public Submission createFrozen(String owner, String company, String role, String kind, UUID parent, String eventId,
+                                   String key, String hash, Object payload, Object profileSnapshot) {
+        var replay = replay(owner, kind, key, hash);
+        if (replay.isPresent()) return new Submission(replay.get(), false);
+        var current = currentEventForShare(eventId);
+        Instant published = current.event().publishedAt() == null ? current.receivedAt() : current.event().publishedAt();
+        return createFrozen(owner, company, role, kind, parent, eventId, current.version(), 0, List.of(),
+                published.plus(java.time.Duration.ofDays(30)), key, hash, payload, profileSnapshot);
+    }
+
+    @Transactional
+    public Submission create(String owner, String company, String role, String kind, UUID parent, String eventId,
                              long eventVersion, int relevanceScore, List<String> relevanceReasons, Instant expiresAt,
                              String key, String hash, Object payload) {
-        Long current = jdbc.queryForObject("SELECT current_version FROM backend_api.event WHERE event_id=? FOR SHARE", Long.class, eventId);
+        return createFrozen(owner, company, role, kind, parent, eventId, eventVersion, relevanceScore,
+                relevanceReasons, expiresAt, key, hash, payload, null);
+    }
+
+    @Transactional
+    public Submission createFrozen(String owner, String company, String role, String kind, UUID parent, String eventId,
+                                   long eventVersion, int relevanceScore, List<String> relevanceReasons, Instant expiresAt,
+                                   String key, String hash, Object payload, Object profileSnapshot) {
+        var replay = replay(owner, kind, key, hash);
+        if (replay.isPresent()) return new Submission(replay.get(), false);
+        var current = currentEventForShare(eventId);
         UUID id = UUID.randomUUID();
         int inserted = jdbc.update("""
-                        INSERT INTO backend_api.operation(id,owner_id,company_id,role,kind,parent_id,event_id,event_version,stale,
-                          relevance_score,relevance_reasons,expires_at,request_key,request_hash,status,payload)
-                        VALUES(?,?,?,?,?,?,?,?,?,?,?::jsonb,?,?,?,'QUEUED',?::jsonb) ON CONFLICT(owner_id,kind,request_key) DO NOTHING
-                        """, id, owner, company, role, kind, parent, eventId, eventVersion, current != eventVersion,
-                relevanceScore, json(relevanceReasons), timestamp(expiresAt), key, hash, json(payload));
-        if (inserted == 1) {
-            return new Submission(find(id).orElseThrow(), true);
-        }
-        var existing = jdbc.query("SELECT * FROM backend_api.operation WHERE owner_id=? AND kind=? AND request_key=?", this::map, owner, kind, key).getFirst();
-        String existingHash = jdbc.queryForObject("SELECT request_hash FROM backend_api.operation WHERE id=?", String.class, existing.id());
-        if (!hash.equals(existingHash)) {
-            throw new ApiException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT", "Idempotency-Key уже использован для другого запроса");
-        }
-        return new Submission(existing, false);
+                INSERT INTO backend_api.operation(id,owner_id,company_id,role,kind,parent_id,event_id,event_version,stale,
+                    relevance_score,relevance_reasons,expires_at,request_key,request_hash,status,payload,profile_snapshot)
+                VALUES(?,?,?,?,?,?,?,?,?,?,?::jsonb,?,?,?,'QUEUED',?::jsonb,?::jsonb)
+                ON CONFLICT(owner_id,kind,request_key) DO NOTHING
+                """, id, owner, company, role, kind, parent, eventId, eventVersion, current.version() != eventVersion,
+                relevanceScore, json(relevanceReasons == null ? List.of() : relevanceReasons), timestamp(expiresAt),
+                key, hash, json(payload), profileSnapshot == null ? null : json(profileSnapshot));
+        if (inserted == 1) return new Submission(find(id).orElseThrow(), true);
+        return new Submission(replay(owner, kind, key, hash).orElseThrow(), false);
+    }
+
+    public Optional<Operation> replay(String owner, String kind, String key, String hash) {
+        if (key == null) return Optional.empty();
+        var rows = jdbc.query("SELECT * FROM backend_api.operation WHERE owner_id=? AND kind=? AND request_key=?", this::map, owner, kind, key);
+        if (rows.isEmpty()) return Optional.empty();
+        var existing = rows.getFirst();
+        String previous = jdbc.queryForObject("SELECT request_hash FROM backend_api.operation WHERE id=?", String.class, existing.id());
+        if (!hash.equals(previous)) throw new ApiException(HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT", "Idempotency-Key уже использован для другого запроса");
+        return Optional.of(existing);
     }
 
     public Optional<Operation> find(UUID id) {
@@ -215,6 +284,19 @@ public class OperationStore {
                 ORDER BY o.relevance_score DESC, CASE o.result->>'impact_level' WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END,
                   o.created_at DESC,o.id DESC LIMIT ? OFFSET ?
                 """, this::map, owner, company, role, includeHidden, limit, offset);
+    }
+
+    public Interaction interaction(UUID id, String owner) {
+        return jdbc.query("""
+                SELECT COALESCE(s.hidden,false) AS hidden,s.opened_at,f.rating,f.comment
+                FROM backend_api.operation o
+                LEFT JOIN backend_api.insight_state s ON s.operation_id=o.id AND s.owner_id=o.owner_id
+                LEFT JOIN backend_api.feedback f ON f.operation_id=o.id AND f.owner_id=o.owner_id
+                WHERE o.id=? AND o.owner_id=?
+                """, (rs, row) -> new Interaction(rs.getBoolean("hidden"),
+                    rs.getTimestamp("opened_at") == null ? null : rs.getTimestamp("opened_at").toInstant(),
+                    rs.getString("rating") == null ? null : new ru.businessinsights.backend.api.ApiModels.FeedbackView(rs.getString("rating"), rs.getString("comment"))), id, owner)
+                .stream().findFirst().orElse(new Interaction(false, null, null));
     }
 
     public boolean hidden(UUID id, String owner) {

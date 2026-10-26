@@ -44,6 +44,9 @@ public class CompanyProfileService {
 
     @Transactional(readOnly = true)
     public boolean hasAccess(String personId, String companyId) {
+        // This can join the submission transaction. Lock before its first importer-table
+        // read so authorization and profile loading cannot invert the importer's order.
+        repository.lockSnapshot();
         return repository.hasAccess(personId, companyId);
     }
 
@@ -55,7 +58,9 @@ public class CompanyProfileService {
         Map<String, Object> company = repository.company(companyId);
         gate(company);
         var issues = new LinkedHashSet<>(strings(company.get("quality_issues")));
-        issues.add("payment_period_and_coverage_unknown");
+        String paymentPeriod = text(metadata, "payment_period_description");
+        if (text(metadata, "payment_period_start") == null || text(metadata, "payment_period_end") == null) paymentPeriod = null;
+        issues.add(paymentPeriod == null ? "payment_period_and_coverage_unknown" : "payment_coverage_unknown");
         String groupId = text(company, "group_id");
         var group = repository.group(groupId);
         var links = repository.links(companyId);
@@ -93,7 +98,7 @@ public class CompanyProfileService {
         var missing = new LinkedHashSet<String>();
         missing.add("group_revenue_rub");
         missing.add("group_composition");
-        missing.add("payment_period");
+        missingIfNull(missing, "payment_period", paymentPeriod);
         missing.add("payment_coverage");
         missing.add("industry");
         missingIfNull(missing, "okved_code", text(company, "mainokved_code"));
@@ -118,11 +123,12 @@ public class CompanyProfileService {
         missingIfNull(missing, "self_transfer_share", flows.selfShare());
         Map<String, String> supplied = userProvided == null ? Map.of() : Map.copyOf(userProvided);
         var profile = new CompanyProfile(companyId, groupId, text(company, "mainokved_code"), text(company, "mainokved_name"),
-                null, revenue, null, ((Number) metadata.get("revenue_year")).intValue(), revenueStatus(company, revenue),
-                "company", bool(company, "fts_flag"), null, List.copyOf(issues), employees, text(company, "company_age_years_gradation"),
+                null, revenue, null, employees, text(company, "company_age_years_gradation"),
                 text(company, "eco_mark_label"), text(company, "okfs_name"), text(company, "region"), text(company, "city"),
                 text(company, "cl_type"), products, fts, strings(company.get("fts_countries")), flows.counterparties(),
-                List.copyOf(memberOkveds), flows.selfShare(), supplied, List.copyOf(missing));
+                List.copyOf(memberOkveds), flows.selfShare(), supplied, List.copyOf(missing),
+                ((Number) metadata.get("revenue_year")).intValue(), revenueStatus(company, revenue),
+                "company", bool(company, "fts_flag"), paymentPeriod, List.copyOf(issues));
         boolean sufficient = sufficient(profile);
         ObjectNode provenance = provenance(metadata, company, group, links, fns, spark, employees, flows, supplied);
         return new ProfileSnapshot(profile, provenance, List.copyOf(issues), sufficient);

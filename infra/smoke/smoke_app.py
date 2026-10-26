@@ -6,7 +6,8 @@ ignores .env, API keys, model endpoint variables, and the live materials store.
 from pathlib import Path
 import os
 
-from fakes import FIXTURES, ScriptedClient, analysis_reply, draft_reply, plan_reply
+from fakes import (FIXTURES, ScriptedClient, analysis_reply, draft_reply, plan_reply,
+                   reviewed_semantics, semantic_contents)
 from insight_agent.api import create_app
 from insight_agent.agent.orchestrator import InsightAgent
 from insight_agent.config import Settings
@@ -30,13 +31,18 @@ def synthetic_draft():
 def create_smoke_app():
     plan = plan_reply()
     plan["steps"] = [step for step in plan["steps"] if step["tool"] in {"search_bank_analytics", "search_news"}]
+    draft = synthetic_draft()
+    quoted_fact = analysis_reply()["facts"][0]
+    answer = {"answerable": True, "text": quoted_fact["text"], "claims": [quoted_fact]}
+    # Whitelist this finite fixture before any requests; arbitrary generated text is never approved.
+    reviewed = reviewed_semantics(semantic_contents(draft) + semantic_contents(answer, answer=True))
     scripted = ScriptedClient({
         "analyze_event": [analysis_reply()],
         "plan": [plan],
-        "personalize": [synthetic_draft()],
+        "personalize": [draft],
         "revise": [synthetic_draft()],
-        "answer": [{"answerable": True, "text": "В синтетической новости ставка составляет 18%.",
-                    "claims": [{"text": "Ключевая ставка повышена до 18%.", "kind": "fact", "source_ids": ["news_demo_rate"]}]}],
+        "answer": [answer],
+        "semantic_verify": [reviewed, reviewed],
     })
     settings = Settings(
         _env_file=None,
@@ -63,6 +69,7 @@ def create_smoke_app():
     @app.get("/smoke/health")
     def synthetic_health():
         return {"mode": "synthetic-scripted", "external_llm_calls": 0, "scripted_calls": len(scripted.calls),
+                "semantic_reviews": sum(step == "semantic_verify" for step, _ in scripted.calls),
                 "warning": "SYNTHETIC TEST DATA ONLY"}
 
     return app

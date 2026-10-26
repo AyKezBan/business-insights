@@ -125,6 +125,9 @@ def main():
     insight = api("/insights/" + insight_id)[0]
     require(insight["companyId"] == "U_1" and insight["role"] == "cfo" and insight["eventId"] == "evt_demo_rate", "Insight identity mismatch")
     require(insight["mlStatus"] in ("complete", "limited") and "SYNTHETIC" in insight["headline"], "Unexpected ML result")
+    require(insight["eventVersion"] == 1 and not insight["stale"], "Event version was not retained")
+    require(insight["requestId"] and insight["outcome"] in ("full", "limited"),
+            f"Frozen request/outcome metadata invalid: requestId={insight.get('requestId')}, outcome={insight.get('outcome')}")
     require(insight["selfCheck"]["passed"], "ML evidence validation failed")
     require("products.loans" in insight["profileFeaturesUsed"], "Company profile did not reach the ML result")
     require(any(source["kind"] == "bank" for source in insight["sources"]), "Synthetic bank evidence missing")
@@ -157,6 +160,7 @@ def main():
         require(trace["steps"] and trace["profileSnapshot"]["profile"]["company_id"] == "U_1", "Trace/profile snapshot missing")
     final_health = request(args.ml_url, "/smoke/health")[0]
     require(final_health["external_llm_calls"] == 0 and final_health["scripted_calls"] >= 4, "Expected only scripted model calls")
+    require(final_health["semantic_reviews"] >= 1, "Scripted smoke did not exercise semantic verification")
     print(json.dumps({"status": "passed", "mode": "synthetic-scripted", "company_id": "U_1",
                       "analysis_operation": operation["operationId"], "question_operation": question["operationId"],
                       "external_llm_calls": 0, "checks": ["fixture-readiness", "authentication", "csv-import", "profile", "analysis", "idempotency", "feed", "hidden-state", "feedback", "local-action", "question", "traces"]}, indent=2))
