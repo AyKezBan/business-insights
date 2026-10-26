@@ -91,12 +91,12 @@ jobs:
       - name: Frontend Python suite
         working-directory: frontend
         run: python -m pytest -q tests --junitxml="$RUNNER_TEMP/frontend-tests.xml"
-      - name: Frontend three Node suites
+      - name: Frontend Node suites
         working-directory: frontend
         run: |
-          node tests/test_frontend.cjs
-          node tests/test_integration.cjs
-          node tests/test_backend_bindings.cjs
+          for suite in tests/test_*.cjs; do
+            node "$suite"
+          done
       - name: Reject missing, failed, or skipped Python tests
         run: |
           python infra/ci/check_test_reports.py "$RUNNER_TEMP/ml-tests.xml"
